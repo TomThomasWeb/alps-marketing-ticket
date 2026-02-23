@@ -10,6 +10,7 @@ create table public.tickets (
   priority text not null default 'medium',
   deadline date,
   status text not null default 'open',
+  completed_at timestamptz,
   file_names jsonb default '[]'::jsonb,
   notes jsonb default '[]'::jsonb,
   created_at timestamptz default now()
@@ -18,10 +19,11 @@ create table public.tickets (
 -- 2. Enable Row Level Security (required by Supabase)
 alter table public.tickets enable row level security;
 
--- 3. Allow public read/write access (since this is an internal tool with password protection)
+-- 3. Allow public read/write/delete access (internal tool with password protection)
 create policy "Allow public read" on public.tickets for select using (true);
 create policy "Allow public insert" on public.tickets for insert with check (true);
 create policy "Allow public update" on public.tickets for update using (true);
+create policy "Allow public delete" on public.tickets for delete using (true);
 
 -- 4. Enable real-time sync for the tickets table
 alter publication supabase_realtime add table public.tickets;

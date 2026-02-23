@@ -202,10 +202,11 @@ function TicketForm({ onSubmit }) {
   );
 }
 
-function TicketCard({ ticket, onStatusChange, onComplete, onAddNote }) {
+function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteName, setNoteName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status];
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
@@ -232,6 +233,7 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote }) {
             <span>{"\u{1F464}"} {ticket.name}</span>
             <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
             <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+            {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
           </div>
         </div>
         <span style={{ fontSize: 18, color: "#94a3b8", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none", flexShrink: 0, marginTop: 4 }}>{"\u25BE"}</span>
@@ -271,28 +273,85 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote }) {
             </div>
           </div>
 
-          {ticket.status !== "completed" && (
-            <div style={{ display: "flex", gap: 8 }}>
-              {ticket.status === "open" && (
-                <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "8px 16px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.25)", borderRadius: 8, color: "#0284c7", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(2,132,199,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(2,132,199,0.1)"}>
-                  {"\u25B6"} Start Progress
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {ticket.status !== "completed" && (
+              <>
+                {ticket.status === "open" && (
+                  <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "8px 16px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.25)", borderRadius: 8, color: "#0284c7", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(2,132,199,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(2,132,199,0.1)"}>
+                    {"\u25B6"} Start Progress
+                  </button>
+                )}
+                <button onClick={() => onComplete(ticket.id)} style={{ padding: "8px 16px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(22,163,74,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(22,163,74,0.1)"}>
+                  {"\u2713"} Mark Complete
                 </button>
-              )}
-              <button onClick={() => onComplete(ticket.id)} style={{ padding: "8px 16px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(22,163,74,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(22,163,74,0.1)"}>
-                {"\u2713"} Mark Complete
+              </>
+            )}
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} style={{ padding: "8px 16px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", marginLeft: "auto" }} onMouseOver={(e) => e.target.style.background = "rgba(220,38,38,0.12)"} onMouseOut={(e) => e.target.style.background = "rgba(220,38,38,0.06)"}>
+                {"\u{1F5D1}"} Delete
               </button>
-            </div>
-          )}
+            ) : (
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+                <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>Are you sure?</span>
+                <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "6px 12px", background: "#dc2626", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Yes, delete
+                </button>
+                <button onClick={() => setConfirmDelete(false)} style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote }) {
-  const [filter, setFilter] = useState("all");
+function GridCard({ ticket, onStatusChange, onComplete, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const p = PRIORITIES[ticket.priority];
+  const s = STATUS[ticket.status];
+  const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+
+  return (
+    <div style={{ background: ticket.status === "completed" ? "#fafafa" : "#f6f6f6", border: "1px solid " + (ticket.status === "completed" ? "#f1f5f9" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "#e2e8f0"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 12, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 12, background: s.bg, color: s.color }}>{s.label}</span>
+      </div>
+      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#231d68", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
+      <div style={{ fontSize: 11, color: "#64748b", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
+        <span>{"\u{1F464}"} {ticket.name}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
+          {dueBadge && <span style={{ fontSize: 10, fontWeight: 700, color: dueBadge.color }}>{dueBadge.text}</span>}
+        </div>
+        {ticket.completedAt && <span style={{ color: "#16a34a", fontSize: 10 }}>{"\u2713"} {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+      </div>
+      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "#94a3b8" }}>{"\u{1F4DD}"} {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
+        {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
+        {ticket.status !== "completed" && <button onClick={() => onComplete(ticket.id)} style={{ padding: "4px 8px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 5, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"}</button>}
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)} style={{ padding: "4px 8px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 5, color: "#dc2626", fontSize: 11, cursor: "pointer", marginLeft: "auto" }}>{"\u{1F5D1}"}</button>
+        ) : (
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+            <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "4px 8px", background: "#dc2626", border: "none", borderRadius: 5, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Delete</button>
+            <button onClick={() => setConfirmDelete(false)} style={{ padding: "4px 8px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 5, color: "#64748b", fontSize: 10, cursor: "pointer" }}>No</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete }) {
+  const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("list");
   const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
 
   const filtered = tickets.filter((t) => {
@@ -362,23 +421,33 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote }) {
             </button>
           ))}
         </div>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#231d68", fontSize: 13, cursor: "pointer", outline: "none" }}>
-          <option value="priority">Sort: Priority</option>
-          <option value="deadline">Sort: Deadline</option>
-          <option value="newest">Sort: Newest</option>
-        </select>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 2, background: "#f6f6f6", borderRadius: 6, padding: 2, border: "1px solid #e2e8f0" }}>
+            <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "#231d68" : "transparent", color: viewMode === "list" ? "#fff" : "#94a3b8", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
+            <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "#231d68" : "transparent", color: viewMode === "grid" ? "#fff" : "#94a3b8", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
+          </div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#231d68", fontSize: 13, cursor: "pointer", outline: "none" }}>
+            <option value="priority">Sort: Priority</option>
+            <option value="deadline">Sort: Deadline</option>
+            <option value="newest">Sort: Newest</option>
+          </select>
+        </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {sorted.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
-            <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4CB}"}</div>
-            <p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
-          </div>
-        ) : (
-          sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} />)
-        )}
-      </div>
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4CB}"}</div>
+          <p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} />)}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -418,6 +487,7 @@ export default function App() {
       deadline: row.deadline || "",
       status: row.status,
       createdAt: row.created_at,
+      completedAt: row.completed_at || null,
       fileNames: row.file_names || [],
       notes: row.notes || [],
     };
@@ -455,7 +525,14 @@ export default function App() {
   const handleComplete = async (id) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
-      await supabase.from("tickets").update({ status: "completed" }).eq("id", ticket.dbId);
+      await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      await supabase.from("tickets").delete().eq("id", ticket.dbId);
     }
   };
 
@@ -528,7 +605,7 @@ export default function App() {
         ) : view === "password" ? (
           <PasswordGate onUnlock={handleUnlock} />
         ) : (
-          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} />
+          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} />
         )}
       </main>
     </div>
