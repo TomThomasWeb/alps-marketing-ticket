@@ -51,16 +51,19 @@ function getDueBadge(dateStr, status) {
   return { text: days + "d left", color: "#16a34a", bg: "rgba(22,163,74,0.08)", border: "rgba(22,163,74,0.2)" };
 }
 
-function FileChip({ name, onRemove }) {
+function FileChip({ name, url, onRemove }) {
   const ext = name.split(".").pop().toLowerCase();
   const icons = { pdf: "\u{1F4C4}", doc: "\u{1F4DD}", docx: "\u{1F4DD}", xls: "\u{1F4CA}", xlsx: "\u{1F4CA}", png: "\u{1F5BC}", jpg: "\u{1F5BC}", jpeg: "\u{1F5BC}", gif: "\u{1F5BC}", mp4: "\u{1F3AC}", zip: "\u{1F4E6}" };
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "4px 10px", fontSize: 13, color: "#475569" }}>
+  const content = (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "4px 10px", fontSize: 13, color: url ? "#231d68" : "#475569", cursor: url ? "pointer" : "default", transition: "all 0.2s", textDecoration: "none" }}>
       <span>{icons[ext] || "\u{1F4CE}"}</span>
-      <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
-      {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>{"\u00D7"}</button>}
+      <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+      {url && <span style={{ fontSize: 11, opacity: 0.5 }}>{"\u2197"}</span>}
+      {onRemove && <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>{"\u00D7"}</button>}
     </span>
   );
+  if (url) return <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>{content}</a>;
+  return content;
 }
 
 function PasswordGate({ onUnlock }) {
@@ -132,7 +135,7 @@ function TicketForm({ onSubmit }) {
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
-    await onSubmit({ ...form, fileNames: form.files.map((f) => f.name) });
+    await onSubmit({ ...form, actualFiles: form.files });
     setForm({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
     setSubmitting(false);
   };
@@ -242,9 +245,9 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete })
       {expanded && (
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
           <p style={{ margin: "0 0 12px", fontSize: 14, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{ticket.description}</p>
-          {ticket.fileNames?.length > 0 && (
+          {ticket.files?.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-              {ticket.fileNames.map((f, i) => <FileChip key={i} name={f} />)}
+              {ticket.files.map((f, i) => <FileChip key={i} name={f.name} url={f.url} />)}
             </div>
           )}
 
@@ -477,6 +480,9 @@ export default function App() {
   }, []);
 
   function mapRow(row) {
+    // Handle both old format (["filename.pdf"]) and new format ([{name, url}])
+    const rawFiles = row.file_names || [];
+    const files = rawFiles.map((f) => typeof f === "string" ? { name: f, url: null } : f);
     return {
       id: row.ref,
       dbId: row.id,
@@ -488,13 +494,28 @@ export default function App() {
       status: row.status,
       createdAt: row.created_at,
       completedAt: row.completed_at || null,
-      fileNames: row.file_names || [],
+      files,
       notes: row.notes || [],
     };
   }
 
   const handleSubmit = async (formData) => {
     const ref = await getNextRef();
+
+    // Upload files to Supabase Storage
+    const uploadedFiles = [];
+    if (formData.actualFiles && formData.actualFiles.length > 0) {
+      for (const file of formData.actualFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = ref + "/" + Date.now() + "_" + safeName;
+        const { error: uploadError } = await supabase.storage.from("ticket-attachments").upload(path, file);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+          uploadedFiles.push({ name: file.name, url: urlData.publicUrl });
+        }
+      }
+    }
+
     const { error } = await supabase.from("tickets").insert({
       ref,
       name: formData.name,
@@ -503,7 +524,7 @@ export default function App() {
       priority: formData.priority,
       deadline: formData.deadline || null,
       status: "open",
-      file_names: formData.fileNames,
+      file_names: uploadedFiles,
       notes: [],
     });
     if (!error) {
