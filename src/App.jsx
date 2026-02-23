@@ -17,11 +17,20 @@ const STATUS = {
   completed: { label: "Completed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
 };
 
-let ticketCounter = 0;
+function getCounter() {
+  try { return parseInt(localStorage.getItem("alps_ticket_counter") || "0", 10); } catch { return 0; }
+}
 function generateId() {
-  const id = "M" + String(ticketCounter).padStart(3, "0");
-  ticketCounter++;
+  const counter = getCounter();
+  const id = "M" + String(counter).padStart(3, "0");
+  try { localStorage.setItem("alps_ticket_counter", String(counter + 1)); } catch {}
   return id;
+}
+function loadTickets() {
+  try { const d = localStorage.getItem("alps_tickets"); return d ? JSON.parse(d) : []; } catch { return []; }
+}
+function saveTickets(tickets) {
+  try { localStorage.setItem("alps_tickets", JSON.stringify(tickets)); } catch {}
 }
 
 function formatDate(dateStr) {
@@ -385,8 +394,10 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote }) {
 
 export default function App() {
   const [view, setView] = useState("form");
-  const [tickets, setTickets] = useState([]);
+  const [tickets, setTickets] = useState(loadTickets);
   const [dashUnlocked, setDashUnlocked] = useState(false);
+
+  useEffect(() => { saveTickets(tickets); }, [tickets]);
 
   const handleSubmit = (ticket) => {
     setTickets((prev) => [ticket, ...prev]);
