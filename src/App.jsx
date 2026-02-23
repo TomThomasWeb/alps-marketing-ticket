@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { supabase } from "./supabaseClient.js";
 
 const ALPS_LOGO = "/alps-logo.webp";
 
@@ -17,20 +18,11 @@ const STATUS = {
   completed: { label: "Completed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
 };
 
-function getCounter() {
-  try { return parseInt(localStorage.getItem("alps_ticket_counter") || "0", 10); } catch { return 0; }
-}
-function generateId() {
-  const counter = getCounter();
-  const id = "M" + String(counter).padStart(3, "0");
-  try { localStorage.setItem("alps_ticket_counter", String(counter + 1)); } catch {}
-  return id;
-}
-function loadTickets() {
-  try { const d = localStorage.getItem("alps_tickets"); return d ? JSON.parse(d) : []; } catch { return []; }
-}
-function saveTickets(tickets) {
-  try { localStorage.setItem("alps_tickets", JSON.stringify(tickets)); } catch {}
+async function getNextRef() {
+  const { data } = await supabase.from("tickets").select("ref").order("ref", { ascending: false }).limit(1);
+  if (!data || data.length === 0) return "M000";
+  const last = parseInt(data[0].ref.replace("M", ""), 10);
+  return "M" + String(last + 1).padStart(3, "0");
 }
 
 function formatDate(dateStr) {
@@ -140,8 +132,7 @@ function TicketForm({ onSubmit }) {
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 600));
-    onSubmit({ ...form, id: generateId(), status: "open", createdAt: new Date().toISOString(), fileNames: form.files.map((f) => f.name), notes: [] });
+    await onSubmit({ ...form, fileNames: form.files.map((f) => f.name) });
     setForm({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
     setSubmitting(false);
   };
@@ -394,30 +385,86 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote }) {
 
 export default function App() {
   const [view, setView] = useState("form");
-  const [tickets, setTickets] = useState(loadTickets);
+  const [tickets, setTickets] = useState([]);
   const [dashUnlocked, setDashUnlocked] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { saveTickets(tickets); }, [tickets]);
+  // Load tickets from Supabase and subscribe to real-time changes
+  useEffect(() => {
+    async function fetchTickets() {
+      const { data } = await supabase.from("tickets").select("*").order("created_at", { ascending: false });
+      if (data) setTickets(data.map(mapRow));
+      setLoading(false);
+    }
+    fetchTickets();
 
-  const handleSubmit = (ticket) => {
-    setTickets((prev) => [ticket, ...prev]);
-    if (dashUnlocked) {
-      setView("dashboard");
-    } else {
-      setView("submitted");
+    const channel = supabase.channel("tickets-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
+        fetchTickets();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  function mapRow(row) {
+    return {
+      id: row.ref,
+      dbId: row.id,
+      name: row.name,
+      title: row.title,
+      description: row.description,
+      priority: row.priority,
+      deadline: row.deadline || "",
+      status: row.status,
+      createdAt: row.created_at,
+      fileNames: row.file_names || [],
+      notes: row.notes || [],
+    };
+  }
+
+  const handleSubmit = async (formData) => {
+    const ref = await getNextRef();
+    const { error } = await supabase.from("tickets").insert({
+      ref,
+      name: formData.name,
+      title: formData.title,
+      description: formData.description,
+      priority: formData.priority,
+      deadline: formData.deadline || null,
+      status: "open",
+      file_names: formData.fileNames,
+      notes: [],
+    });
+    if (!error) {
+      if (dashUnlocked) {
+        setView("dashboard");
+      } else {
+        setView("submitted");
+      }
     }
   };
 
-  const handleStatusChange = (id, status) => {
-    setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+  const handleStatusChange = async (id, status) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      await supabase.from("tickets").update({ status }).eq("id", ticket.dbId);
+    }
   };
 
-  const handleComplete = (id) => {
-    setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, status: "completed" } : t)));
+  const handleComplete = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      await supabase.from("tickets").update({ status: "completed" }).eq("id", ticket.dbId);
+    }
   };
 
-  const handleAddNote = (id, author, text) => {
-    setTickets((prev) => prev.map((t) => t.id === id ? { ...t, notes: [...(t.notes || []), { author, text, timestamp: new Date().toISOString() }] } : t));
+  const handleAddNote = async (id, author, text) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const newNotes = [...(ticket.notes || []), { author, text, timestamp: new Date().toISOString() }];
+      await supabase.from("tickets").update({ notes: newNotes }).eq("id", ticket.dbId);
+    }
   };
 
   const handleDashboardClick = () => {
@@ -437,7 +484,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "#1e293b" }}>
-      <style>{"\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');\n        * { box-sizing: border-box; }\n        ::selection { background: #231d68; color: white; }\n        ::-webkit-scrollbar { width: 6px; }\n        ::-webkit-scrollbar-track { background: transparent; }\n        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }\n        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }\n      "}</style>
+      <style>{"\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');\n        * { box-sizing: border-box; }\n        ::selection { background: #231d68; color: white; }\n        ::-webkit-scrollbar { width: 6px; }\n        ::-webkit-scrollbar-track { background: transparent; }\n        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }\n        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }\n        @keyframes spin { to { transform: rotate(360deg); } }\n      "}</style>
 
       <header style={{ padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", background: "#fff", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -462,8 +509,14 @@ export default function App() {
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
-        {view === "form" && <TicketForm onSubmit={handleSubmit} />}
-        {view === "submitted" && (
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "64px 20px", color: "#94a3b8" }}>
+            <div style={{ width: 40, height: 40, border: "3px solid #e2e8f0", borderTopColor: "#231d68", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
+            <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
+          </div>
+        ) : view === "form" ? (
+          <TicketForm onSubmit={handleSubmit} />
+        ) : view === "submitted" ? (
           <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, maxWidth: 480, width: "100%", textAlign: "center" }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>{"\u2713"}</div>
             <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "#231d68" }}>Ticket Submitted</h2>
@@ -472,9 +525,11 @@ export default function App() {
               Submit Another Ticket
             </button>
           </div>
+        ) : view === "password" ? (
+          <PasswordGate onUnlock={handleUnlock} />
+        ) : (
+          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} />
         )}
-        {view === "password" && <PasswordGate onUnlock={handleUnlock} />}
-        {view === "dashboard" && <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} />}
       </main>
     </div>
   );
