@@ -205,20 +205,38 @@ function TicketForm({ onSubmit }) {
   );
 }
 
-function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete }) {
+function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteName, setNoteName] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingPriority, setEditingPriority] = useState(false);
+  const [editingDeadline, setEditingDeadline] = useState(false);
+  const [newDeadline, setNewDeadline] = useState(ticket.deadline || "");
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status];
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const today = new Date().toISOString().split("T")[0];
 
   const submitNote = () => {
     if (!noteText.trim() || !noteName.trim()) return;
     onAddNote(ticket.id, noteName.trim(), noteText.trim());
     setNoteText("");
     setNoteName("");
+  };
+
+  const handlePriorityChange = (newPriority) => {
+    if (newPriority !== ticket.priority) {
+      onUpdatePriority(ticket.id, newPriority);
+    }
+    setEditingPriority(false);
+  };
+
+  const handleDeadlineSave = () => {
+    if (newDeadline !== ticket.deadline) {
+      onUpdateDeadline(ticket.id, newDeadline);
+    }
+    setEditingDeadline(false);
   };
 
   return (
@@ -245,6 +263,43 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete })
       {expanded && (
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
           <p style={{ margin: "0 0 12px", fontSize: 14, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{ticket.description}</p>
+
+          {ticket.status !== "completed" && (
+            <div style={{ display: "flex", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Priority</div>
+                {editingPriority ? (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {Object.entries(PRIORITIES).map(([key, pr]) => (
+                      <button key={key} onClick={() => handlePriorityChange(key)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + (ticket.priority === key ? pr.color : "#e2e8f0"), background: ticket.priority === key ? pr.bg : "#fff", color: ticket.priority === key ? pr.color : "#94a3b8", transition: "all 0.15s" }}>
+                        {pr.icon} {pr.label}
+                      </button>
+                    ))}
+                    <button onClick={() => setEditingPriority(false)} style={{ padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingPriority(true)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + p.border, background: p.bg, color: p.color, transition: "all 0.15s" }} title="Click to change priority">
+                    {p.icon} {p.label} {"\u270E"}
+                  </button>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Deadline</div>
+                {editingDeadline ? (
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <input type="date" min={today} value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} style={{ padding: "5px 10px", border: "1px solid #231d68", borderRadius: 6, fontSize: 12, color: "#1e293b", outline: "none", boxShadow: "0 0 0 3px rgba(35,29,104,0.1)" }} />
+                    <button onClick={handleDeadlineSave} style={{ padding: "5px 10px", background: "#231d68", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{"\u2713"} Save</button>
+                    <button onClick={() => { setEditingDeadline(false); setNewDeadline(ticket.deadline || ""); }} style={{ padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #e2e8f0", background: "#fff", color: "#475569", transition: "all 0.15s" }} title="Click to change deadline">
+                    {"\u{1F4C5}"} {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {ticket.files?.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
               {ticket.files.map((f, i) => <FileChip key={i} name={f.name} url={f.url} />)}
@@ -255,12 +310,12 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete })
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#231d68", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notes</div>
               {ticket.notes.map((note, i) => (
-                <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
+                <div key={i} style={{ background: note.auto ? "rgba(35,29,104,0.03)" : "#fff", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "#e2e8f0"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#231d68" }}>{note.author}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "#231d68" }}>{note.author}</span>
                     <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{note.text}</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
                 </div>
               ))}
             </div>
@@ -350,7 +405,34 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete }) {
   );
 }
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete }) {
+function StatsBar({ tickets }) {
+  const stats = {
+    total: tickets.length,
+    open: tickets.filter((t) => t.status === "open").length,
+    inProgress: tickets.filter((t) => t.status === "in_progress").length,
+    completed: tickets.filter((t) => t.status === "completed").length,
+    critical: tickets.filter((t) => t.priority === "critical" && t.status !== "completed").length,
+  };
+  const statCards = [
+    { label: "Total", value: stats.total, color: "#231d68", bg: "rgba(35,29,104,0.06)" },
+    { label: "Open", value: stats.open, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
+    { label: "In Progress", value: stats.inProgress, color: "#0284c7", bg: "rgba(2,132,199,0.06)" },
+    { label: "Completed", value: stats.completed, color: "#16a34a", bg: "rgba(22,163,74,0.06)" },
+    { label: "Critical", value: stats.critical, color: "#dc2626", bg: "rgba(220,38,38,0.06)" },
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+      {statCards.map((s) => (
+        <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "14px 16px", border: "1px solid " + s.color + "15", textAlign: "center" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -373,22 +455,6 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete })
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
-  const stats = {
-    total: tickets.length,
-    open: tickets.filter((t) => t.status === "open").length,
-    inProgress: tickets.filter((t) => t.status === "in_progress").length,
-    completed: tickets.filter((t) => t.status === "completed").length,
-    critical: tickets.filter((t) => t.priority === "critical" && t.status !== "completed").length,
-  };
-
-  const statCards = [
-    { label: "Total", value: stats.total, color: "#231d68", bg: "rgba(35,29,104,0.06)" },
-    { label: "Open", value: stats.open, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
-    { label: "In Progress", value: stats.inProgress, color: "#0284c7", bg: "rgba(2,132,199,0.06)" },
-    { label: "Completed", value: stats.completed, color: "#16a34a", bg: "rgba(22,163,74,0.06)" },
-    { label: "Critical", value: stats.critical, color: "#dc2626", bg: "rgba(220,38,38,0.06)" },
-  ];
-
   const filterTabs = [
     { key: "all", label: "All" }, { key: "active", label: "Active" }, { key: "open", label: "Open" },
     { key: "in_progress", label: "In Progress" }, { key: "completed", label: "Completed" },
@@ -407,13 +473,8 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete })
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 24 }}>
-        {statCards.map((s) => (
-          <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "14px 16px", border: "1px solid " + s.color + "15", textAlign: "center" }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
-          </div>
-        ))}
+      <div style={{ marginBottom: 24 }}>
+        <StatsBar tickets={tickets} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -444,7 +505,7 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete })
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} />)}
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} />)}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
@@ -565,6 +626,28 @@ export default function App() {
     }
   };
 
+  const handleUpdatePriority = async (id, newPriority) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const oldLabel = PRIORITIES[ticket.priority]?.label || ticket.priority;
+      const newLabel = PRIORITIES[newPriority]?.label || newPriority;
+      const autoNote = { author: "System", text: "Priority changed from " + oldLabel + " to " + newLabel, timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ priority: newPriority, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleUpdateDeadline = async (id, newDeadline) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const oldDate = ticket.deadline ? formatDate(ticket.deadline) : "No deadline";
+      const newDate = newDeadline ? formatDate(newDeadline) : "No deadline";
+      const autoNote = { author: "System", text: "Deadline changed from " + oldDate + " to " + newDate, timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ deadline: newDeadline || null, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
   const handleDashboardClick = () => {
     if (dashUnlocked) {
       setView("dashboard");
@@ -613,7 +696,15 @@ export default function App() {
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "form" ? (
-          <TicketForm onSubmit={handleSubmit} />
+          <div style={{ maxWidth: 560, width: "100%" }}>
+            <TicketForm onSubmit={handleSubmit} />
+            {tickets.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#231d68", letterSpacing: "0.02em" }}>Ticket Overview</h3>
+                <StatsBar tickets={tickets} />
+              </div>
+            )}
+          </div>
         ) : view === "submitted" ? (
           <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, maxWidth: 480, width: "100%", textAlign: "center" }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>{"\u2713"}</div>
@@ -626,7 +717,7 @@ export default function App() {
         ) : view === "password" ? (
           <PasswordGate onUnlock={handleUnlock} />
         ) : (
-          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} />
+          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} />
         )}
       </main>
     </div>
