@@ -121,56 +121,88 @@ function FileChip({ name, url, onRemove }) {
 
 function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const features = [
-    { id: "form", icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support for your next project", color: "#6366f1" },
-    { id: "tracker", icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check the status of an existing request", color: "#0284c7" },
-    { id: "lead_form", icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound marketing lead", color: "#16a34a" },
-    { id: "templates", icon: "\u{1F4C4}", title: "Content Templates", desc: "Reusable copy snippets, email templates, and social captions", color: "#0d9488" },
-    { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, brand guidelines, and how-to resources", color: "#ca8a04" },
-    { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse outbound campaigns, posts, and materials", color: "#8b5cf6" },
-    { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" },
-    { id: "footer", icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Create branded email signatures", color: "#ea580c", soon: true },
-    { id: "planner", icon: "\u{1F5D3}", title: "Campaign Planner", desc: "Plan and track multi-channel marketing campaigns", color: "#7c3aed", soon: true },
-    { id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize images and convert between file formats", color: "#64748b", soon: true },
-  ];
-  const dashboards = [
-    { id: "dashboard", icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active ticket" + (activeCount !== 1 ? "s" : "") : "Manage all tickets", color: "#231d68", badge: dashUnlocked && activeCount > 0 ? activeCount : null, locked: !dashUnlocked },
-    { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " lead" + (leads.length !== 1 ? "s" : "") + " logged" : "View all inbound leads", color: "#0d9488", locked: !dashUnlocked },
-    { id: "analytics", icon: "\u{1F4CA}", title: "Analytics Dashboard", desc: "Performance metrics across tickets, archive, and leads", color: "#dc2626", locked: !dashUnlocked },
-  ];
+
+  const cardBtn = (id, opts) => {
+    const isSoon = opts.soon;
+    return (
+      <button key={id} onClick={() => !isSoon && onNavigate(id)} disabled={isSoon}
+        style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: opts.compact ? "14px 16px" : "24px 20px", textAlign: "left", cursor: isSoon ? "default" : "pointer", transition: "all 0.2s", opacity: isSoon ? 0.55 : 1, display: "flex", flexDirection: opts.compact ? "row" : "column", gap: opts.compact ? 12 : 0, alignItems: opts.compact ? "center" : "flex-start" }}
+        onMouseOver={(e) => { if (!isSoon) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = opts.color; } }}
+        onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+        <div style={{ fontSize: opts.compact ? 22 : 28, marginBottom: opts.compact ? 0 : 10, flexShrink: 0 }}>{opts.icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: opts.compact ? 13 : 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: opts.compact ? 1 : 4 }}>{opts.title}</div>
+          <div style={{ fontSize: opts.compact ? 11 : 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>{opts.desc}</div>
+        </div>
+        {isSoon && <span style={{ position: "absolute", top: opts.compact ? 8 : 12, right: opts.compact ? 8 : 12, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Soon</span>}
+        {opts.badge && <span style={{ position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{opts.badge}</span>}
+      </button>
+    );
+  };
+
+  const sectionLabel = (icon, text) => (
+    <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>{icon} {text}</h3>
+  );
 
   return (
-    <div style={{ width: "100%", maxWidth: 720 }}>
-      <div style={{ textAlign: "center", marginBottom: 36 }}>
-        <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Welcome to Marketing Hub</h2>
-        <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>Your central place for marketing requests, resources, and tools.</p>
+    <div style={{ width: "100%", maxWidth: 820 }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Marketing Hub</h2>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Your central place for marketing requests, resources, and tools.</p>
       </div>
-      <div className="hub-home-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14 }}>
-        {features.map((f) => (
-          <button key={f.id} onClick={() => !f.soon && onNavigate(f.id)} disabled={f.soon} style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px 20px", textAlign: "left", cursor: f.soon ? "default" : "pointer", transition: "all 0.2s", opacity: f.soon ? 0.55 : 1 }} onMouseOver={(e) => { if (!f.soon) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = f.color; } }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{f.title}</div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{f.desc}</div>
-            {f.soon && <span style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Coming Soon</span>}
-          </button>
-        ))}
+
+      <button onClick={() => onNavigate("guide")} style={{ width: "100%", background: "linear-gradient(135deg, #ca8a04 0%, #a16207 100%)", border: "none", borderRadius: 12, padding: "16px 24px", marginBottom: 24, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, transition: "all 0.2s", textAlign: "left" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(161,98,7,0.25)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+        <div style={{ fontSize: 28 }}>{"\u{1F4D6}"}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Self-Service Guide</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Image sizes, brand rules, request process, FAQs, and everything you need before submitting a ticket.</div>
+        </div>
+        <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>{"\u2192"}</div>
+      </button>
+
+      <div className="hub-layout-main" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, marginBottom: 24 }}>
+
+        <div>
+          {sectionLabel("\u{1F4CB}", "Tickets & Leads")}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {cardBtn("form", { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support", color: "#6366f1" })}
+            {cardBtn("tracker", { icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check request status", color: "#0284c7" })}
+            {cardBtn("lead_form", { icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound lead", color: "#16a34a" })}
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            {sectionLabel("\u{1F4DA}", "Resources")}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {cardBtn("archive", { icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse campaigns, posts, and materials", color: "#8b5cf6" })}
+              {cardBtn("brand_assets", { icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" })}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          {sectionLabel("\u{1F6E0}\uFE0F", "Marketing Tools")}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {cardBtn("templates", { icon: "\u{1F4C4}", title: "Content Templates", desc: "Reusable copy and snippets", color: "#0d9488", compact: true })}
+            {cardBtn("footer", { icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Branded email signatures", color: "#ea580c", compact: true, soon: true })}
+            {cardBtn("planner", { icon: "\u{1F5D3}", title: "Campaign Planner", desc: "Multi-channel campaign tracking", color: "#7c3aed", compact: true, soon: true })}
+            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", desc: "Resize and convert files", color: "#64748b", compact: true, soon: true })}
+          </div>
+        </div>
+
       </div>
-      <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--border)" }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{"\u{1F4CA}"} Dashboards</h3>
-        <div className="hub-home-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14 }}>
-          {dashboards.map((d) => (
-            <button key={d.id} onClick={() => onNavigate(d.id)} style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px", textAlign: "left", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = d.color; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>{d.icon}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{d.locked ? "\u{1F512} " : ""}{d.title}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{d.desc}</div>
-              {d.badge && <span style={{ position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{d.badge}</span>}
-            </button>
-          ))}
+
+      <div style={{ paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+        {sectionLabel("\u{1F4CA}", "Dashboards")}
+        <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {cardBtn("dashboard", { icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active" : "Manage tickets", color: "#231d68", badge: dashUnlocked && activeCount > 0 ? activeCount : null })}
+          {cardBtn("leads_dashboard", { icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " logged" : "View leads", color: "#0d9488" })}
+          {cardBtn("analytics", { icon: "\u{1F4CA}", title: "Analytics", desc: "Metrics & monthly report", color: "#dc2626" })}
         </div>
       </div>
     </div>
   );
 }
+
 
 function PasswordGate({ onUnlock }) {
   const [pw, setPw] = useState("");
@@ -1777,6 +1809,8 @@ export default function App() {
           .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-layout-main { grid-template-columns: 1fr !important; }
+          .hub-dash-grid { grid-template-columns: 1fr !important; }
           .hub-type-filter { display: none !important; }
           .hub-color-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-main { padding: 20px 14px !important; }
