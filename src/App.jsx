@@ -19,13 +19,25 @@ const STATUS = {
 };
 
 const TEMPLATES = [
-  { label: "Social Media Post", icon: "\u{1F4F1}", title: "Social media post", description: "Please create a social media post for the following:\n\nPlatform(s): \nTopic/message: \nTone: \nAny specific images or links to include: ", priority: "medium" },
-  { label: "Email Campaign", icon: "\u{1F4E7}", title: "Email campaign", description: "Please design an email campaign for:\n\nPurpose/goal: \nTarget audience: \nKey message: \nCall to action: \nSend date: ", priority: "medium" },
-  { label: "Print Material", icon: "\u{1F5A8}", title: "Print material design", description: "Please create print material:\n\nType (flyer/brochure/poster/banner): \nSize/dimensions: \nContent/copy: \nBrand or broker: \nDelivery date needed: ", priority: "medium" },
-  { label: "PowerPoint Design", icon: "\u{1F4CA}", title: "PowerPoint presentation", description: "Please design a PowerPoint presentation:\n\nTopic/purpose: \nNumber of slides (approx): \nKey content/sections: \nAudience: \nBrand or broker: ", priority: "medium" },
-  { label: "Website Update", icon: "\u{1F310}", title: "Website update", description: "Please make the following website change:\n\nPage/URL: \nWhat needs updating: \nNew content/copy: \nAny new images needed: ", priority: "medium" },
-  { label: "Video/Photo", icon: "\u{1F3AC}", title: "Video or photo request", description: "Please produce the following:\n\nType (video/photo/both): \nPurpose: \nLocation/setting: \nDuration or quantity: \nDeadline: ", priority: "high" },
+  { label: "Social Media Post", icon: "\u{1F4F1}", title: "Social media post", description: "Please create a social media post for the following:\n\n**Platform(s):** \n**Topic/message:** \n**Tone:** \n**Any specific images or links to include:** ", priority: "medium" },
+  { label: "Email Campaign", icon: "\u{1F4E7}", title: "Email campaign", description: "Please design an email campaign for:\n\n**Purpose/goal:** \n**Target audience:** \n**Key message:** \n**Call to action:** \n**Send date:** ", priority: "medium" },
+  { label: "Print Material", icon: "\u{1F5A8}", title: "Print material design", description: "Please create print material:\n\n**Type:** *(flyer/brochure/poster/banner)*\n**Size/dimensions:** \n**Content/copy:** \n**Brand or broker:** \n**Delivery date needed:** ", priority: "medium" },
+  { label: "PowerPoint Design", icon: "\u{1F4CA}", title: "PowerPoint presentation", description: "Please design a PowerPoint presentation:\n\n**Topic/purpose:** \n**Number of slides (approx):** \n**Key content/sections:**\n- Slide 1: \n- Slide 2: \n- Slide 3: \n\n**Audience:** \n**Brand or broker:** ", priority: "medium" },
+  { label: "Website Update", icon: "\u{1F310}", title: "Website update", description: "Please make the following website change:\n\n**Page/URL:** \n**What needs updating:** \n**New content/copy:** \n**Any new images needed:** ", priority: "medium" },
+  { label: "Video/Photo", icon: "\u{1F3AC}", title: "Video or photo request", description: "Please produce the following:\n\n**Type:** *(video/photo/both)*\n**Purpose:** \n**Location/setting:** \n**Duration or quantity:** \n**Deadline:** ", priority: "high" },
 ];
+
+function renderMarkdown(text) {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, '<code style="background:var(--bg-card);padding:1px 5px;border-radius:3px;font-size:0.9em">$1</code>')
+    .replace(/\[(.+?)\]\((https?:\/\/.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--brand)">$1</a>')
+    .replace(/^- (.+)$/gm, '<span style="display:block;padding-left:16px">• $1</span>')
+    .replace(/\n/g, "<br>");
+}
 
 async function getNextRef() {
   const { data } = await supabase.from("tickets").select("ref").order("ref", { ascending: false }).limit(1);
@@ -64,7 +76,7 @@ function FileChip({ name, url, onRemove }) {
   const ext = name.split(".").pop().toLowerCase();
   const icons = { pdf: "\u{1F4C4}", doc: "\u{1F4DD}", docx: "\u{1F4DD}", xls: "\u{1F4CA}", xlsx: "\u{1F4CA}", png: "\u{1F5BC}", jpg: "\u{1F5BC}", jpeg: "\u{1F5BC}", gif: "\u{1F5BC}", mp4: "\u{1F3AC}", zip: "\u{1F4E6}" };
   const content = (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "4px 10px", fontSize: 13, color: url ? "#231d68" : "#475569", cursor: url ? "pointer" : "default", transition: "all 0.2s", textDecoration: "none" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", fontSize: 13, color: url ? "var(--brand)" : "#475569", cursor: url ? "pointer" : "default", transition: "all 0.2s", textDecoration: "none" }}>
       <span>{icons[ext] || "\u{1F4CE}"}</span>
       <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
       {url && <span style={{ fontSize: 11, opacity: 0.5 }}>{"\u2197"}</span>}
@@ -97,13 +109,13 @@ function PasswordGate({ onUnlock }) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 80px)", padding: 24 }}>
-      <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, maxWidth: 400, width: "100%", textAlign: "center", animation: shake ? "shakeAnim 0.4s ease" : "none" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 32, maxWidth: 400, width: "100%", textAlign: "center", animation: shake ? "shakeAnim 0.4s ease" : "none" }}>
         <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(35,29,104,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>{"\u{1F512}"}</div>
-        <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700, color: "#231d68" }}>Dashboard Access</h2>
-        <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b" }}>Enter the password to view the ticket dashboard.</p>
+        <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>Dashboard Access</h2>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Enter the password to view the ticket dashboard.</p>
         <div style={{ display: "flex", gap: 8 }}>
-          <input ref={inputRef} type="password" value={pw} onChange={(e) => { setPw(e.target.value); setError(false); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={{ flex: 1, padding: "11px 14px", background: "#fff", border: "1px solid " + (error ? "#ef4444" : "#e2e8f0"), borderRadius: 8, color: "#1e293b", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = error ? "#ef4444" : "#231d68"; e.target.style.boxShadow = "0 0 0 3px " + (error ? "rgba(239,68,68,0.1)" : "rgba(35,29,104,0.1)"); }} onBlur={(e) => { e.target.style.borderColor = error ? "#ef4444" : "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
-          <button onClick={handleSubmit} style={{ padding: "11px 20px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>
+          <input ref={inputRef} type="password" value={pw} onChange={(e) => { setPw(e.target.value); setError(false); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={{ flex: 1, padding: "11px 14px", background: "var(--bg-input)", border: "1px solid " + (error ? "#ef4444" : "var(--border)"), borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = error ? "#ef4444" : "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px " + (error ? "rgba(239,68,68,0.1)" : "var(--brand-glow)"); }} onBlur={(e) => { e.target.style.borderColor = error ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+          <button onClick={handleSubmit} style={{ padding: "11px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>
             Unlock
           </button>
         </div>
@@ -150,19 +162,19 @@ function TicketForm({ onSubmit }) {
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const inputStyle = (field) => ({ width: "100%", padding: "11px 14px", background: "#fff", border: "1px solid " + (errors[field] ? "#ef4444" : "#e2e8f0"), borderRadius: 8, color: "#1e293b", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box" });
-  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "#231d68", marginBottom: 6, letterSpacing: "0.02em" };
+  const inputStyle = (field) => ({ width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box" });
+  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6, letterSpacing: "0.02em" };
 
   return (
-    <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 28, maxWidth: 560, width: "100%" }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "#231d68" }}>Submit a Request</h2>
-      <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>Please fill in the form to submit a ticket, and I'll get right on it. Once your ticket is complete, I will notify you.</p>
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, maxWidth: 560, width: "100%" }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Submit a Request</h2>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Please fill in the form to submit a ticket, and I'll get right on it. Once your ticket is complete, I will notify you.</p>
 
       <div style={{ marginBottom: 20 }}>
         <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+        <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
           {TEMPLATES.map((tmpl, i) => (
-            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); }} style={{ padding: "10px 8px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#475569", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#231d68"; e.currentTarget.style.background = "rgba(35,29,104,0.03)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#fff"; }}>
+            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "rgba(35,29,104,0.03)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "#fff"; }}>
               <div style={{ fontSize: 18, marginBottom: 4 }}>{tmpl.icon}</div>
               {tmpl.label}
             </button>
@@ -172,28 +184,29 @@ function TicketForm({ onSubmit }) {
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Your Name *</label>
-        <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+        <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.name && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.name}</span>}
       </div>
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Task Title *</label>
-        <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+        <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.title && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.title}</span>}
       </div>
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Description *</label>
-        <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+        <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.description && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.description}</span>}
+        <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>Supports **bold**, *italic*, `code`, - bullet lists, and [links](url)</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
           <label style={labelStyle}>Priority</label>
           <div style={{ display: "flex", gap: 6 }}>
             {Object.entries(PRIORITIES).map(([key, p]) => (
-              <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "8px 4px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "#fff", border: "1.5px solid " + (form.priority === key ? p.color : "#e2e8f0"), color: form.priority === key ? p.color : "#94a3b8" }}>
+              <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "8px 4px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "1.5px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
                 <span style={{ display: "block", fontSize: 14, marginBottom: 2 }}>{p.icon}</span>
                 {p.label}
               </button>
@@ -209,7 +222,7 @@ function TicketForm({ onSubmit }) {
       <div style={{ marginBottom: 24 }}>
         <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
         <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
-        <button onClick={() => fileRef.current?.click()} style={{ padding: "10px 18px", background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 8, color: "#64748b", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "#231d68"; }} onMouseOut={(e) => { e.target.style.background = "#fff"; e.target.style.borderColor = "#cbd5e1"; }}>
+        <button onClick={() => fileRef.current?.click()} style={{ padding: "10px 18px", background: "var(--bg-input)", border: "1px dashed var(--border)", borderRadius: 8, color: "var(--text-secondary)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { e.target.style.background = "#fff"; e.target.style.borderColor = "var(--border)"; }}>
           {"\u{1F4CE}"} Click to attach files
         </button>
         {form.files.length > 0 && (
@@ -219,7 +232,7 @@ function TicketForm({ onSubmit }) {
         )}
       </div>
 
-      <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "13px", background: submitting ? "#3730a3" : "#231d68", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : "pointer", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(35,29,104,0.25)" }} onMouseOver={(e) => { if (!submitting) { e.target.style.background = "#1a1550"; e.target.style.boxShadow = "0 6px 20px rgba(35,29,104,0.35)"; } }} onMouseOut={(e) => { e.target.style.background = submitting ? "#3730a3" : "#231d68"; e.target.style.boxShadow = "0 4px 14px rgba(35,29,104,0.25)"; }}>
+      <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "13px", background: submitting ? "var(--brand)" : "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : "pointer", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: "0 4px 14px var(--brand-glow)" }} onMouseOver={(e) => { if (!submitting) { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 6px 20px var(--brand-glow)"; } }} onMouseOut={(e) => { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 4px 14px var(--brand-glow)"; }}>
         {submitting ? "Submitting\u2026" : "Submit Ticket \u2192"}
       </button>
     </div>
@@ -261,17 +274,17 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
   };
 
   return (
-    <div onClick={() => setExpanded(!expanded)} style={{ background: ticket.status === "completed" ? "#fafafa" : "#f6f6f6", border: "1px solid " + (ticket.status === "completed" ? "#f1f5f9" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "#e2e8f0"), borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+    <div onClick={() => setExpanded(!expanded)} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, fontFamily: "monospace", color: "#231d68", fontWeight: 700, letterSpacing: "0.04em", background: "rgba(35,29,104,0.07)", padding: "2px 7px", borderRadius: 4 }}>{ticket.id}</span>
+            <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, letterSpacing: "0.04em", background: "var(--brand-light)", padding: "2px 7px", borderRadius: 4 }}>{ticket.id}</span>
             <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: "1px solid " + p.border, letterSpacing: "0.03em" }}>{p.icon} {p.label}</span>
             <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color, letterSpacing: "0.03em" }}>{s.label}</span>
             {dueBadge && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: dueBadge.bg, color: dueBadge.color, border: "1px solid " + dueBadge.border }}>{dueBadge.text}</span>}
           </div>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#231d68", textDecoration: ticket.status === "completed" ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: expanded ? "normal" : "nowrap" }}>{ticket.title}</h3>
-          <div style={{ fontSize: 13, color: "#64748b", marginTop: 4, display: "flex", gap: 14, flexWrap: "wrap" }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: expanded ? "normal" : "nowrap" }}>{ticket.title}</h3>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, display: "flex", gap: 14, flexWrap: "wrap" }}>
             <span>{"\u{1F464}"} {ticket.name}</span>
             <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
             <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
@@ -280,26 +293,26 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 4 }}>
           <span onClick={(e) => { e.stopPropagation(); onTogglePin(ticket.id); }} style={{ fontSize: 16, cursor: "pointer", transition: "all 0.15s", color: ticket.pinned ? "#eab308" : "#d1d5db", filter: ticket.pinned ? "drop-shadow(0 0 2px rgba(234,179,8,0.4))" : "none" }} title={ticket.pinned ? "Unpin ticket" : "Pin ticket"}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
-          <span style={{ fontSize: 18, color: "#94a3b8", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>{"\u25BE"}</span>
+          <span style={{ fontSize: 18, color: "var(--text-muted)", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>{"\u25BE"}</span>
         </div>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
-          <p style={{ margin: "0 0 12px", fontSize: 14, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{ticket.description}</p>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(ticket.description) }}></div>
 
           {ticket.status !== "completed" && (
             <div style={{ display: "flex", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Priority</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Priority</div>
                 {editingPriority ? (
                   <div style={{ display: "flex", gap: 4 }}>
                     {Object.entries(PRIORITIES).map(([key, pr]) => (
-                      <button key={key} onClick={() => handlePriorityChange(key)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + (ticket.priority === key ? pr.color : "#e2e8f0"), background: ticket.priority === key ? pr.bg : "#fff", color: ticket.priority === key ? pr.color : "#94a3b8", transition: "all 0.15s" }}>
+                      <button key={key} onClick={() => handlePriorityChange(key)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + (ticket.priority === key ? pr.color : "var(--border)"), background: ticket.priority === key ? pr.bg : "var(--bg-input)", color: ticket.priority === key ? pr.color : "var(--text-muted)", transition: "all 0.15s" }}>
                         {pr.icon} {pr.label}
                       </button>
                     ))}
-                    <button onClick={() => setEditingPriority(false)} style={{ padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                    <button onClick={() => setEditingPriority(false)} style={{ padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
                   </div>
                 ) : (
                   <button onClick={() => setEditingPriority(true)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + p.border, background: p.bg, color: p.color, transition: "all 0.15s" }} title="Click to change priority">
@@ -308,15 +321,15 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
                 )}
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Deadline</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Deadline</div>
                 {editingDeadline ? (
                   <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                    <input type="date" min={today} value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} style={{ padding: "5px 10px", border: "1px solid #231d68", borderRadius: 6, fontSize: 12, color: "#1e293b", outline: "none", boxShadow: "0 0 0 3px rgba(35,29,104,0.1)" }} />
-                    <button onClick={handleDeadlineSave} style={{ padding: "5px 10px", background: "#231d68", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{"\u2713"} Save</button>
-                    <button onClick={() => { setEditingDeadline(false); setNewDeadline(ticket.deadline || ""); }} style={{ padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: 6, background: "#fff", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                    <input type="date" min={today} value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} style={{ padding: "5px 10px", border: "1px solid var(--brand)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxShadow: "0 0 0 3px var(--brand-glow)" }} />
+                    <button onClick={handleDeadlineSave} style={{ padding: "5px 10px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{"\u2713"} Save</button>
+                    <button onClick={() => { setEditingDeadline(false); setNewDeadline(ticket.deadline || ""); }} style={{ padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
                   </div>
                 ) : (
-                  <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #e2e8f0", background: "#fff", color: "#475569", transition: "all 0.15s" }} title="Click to change deadline">
+                  <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-body)", transition: "all 0.15s" }} title="Click to change deadline">
                     {"\u{1F4C5}"} {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
                   </button>
                 )}
@@ -332,14 +345,14 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
 
           {ticket.notes && ticket.notes.length > 0 && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#231d68", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notes</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Notes</div>
               {ticket.notes.map((note, i) => (
-                <div key={i} style={{ background: note.auto ? "rgba(35,29,104,0.03)" : "#fff", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "#e2e8f0"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
+                <div key={i} style={{ background: note.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "var(--border)"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "#231d68" }}>{note.author}</span>
-                    <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "var(--brand)" }}>{note.author}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
                 </div>
               ))}
             </div>
@@ -347,9 +360,9 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
 
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
-              <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
-              <button onClick={submitNote} style={{ padding: "8px 14px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>
+              <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+              <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+              <button onClick={submitNote} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>
                 + Add
               </button>
             </div>
@@ -383,7 +396,7 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
                 <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "6px 12px", background: "#dc2626", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   Yes, delete
                 </button>
-                <button onClick={() => setConfirmDelete(false)} style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                <button onClick={() => setConfirmDelete(false)} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                   Cancel
                 </button>
               </div>
@@ -403,15 +416,15 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTo
   const isOverdue = dueBadge && dueBadge.color === "#dc2626";
 
   return (
-    <div style={{ background: ticket.status === "completed" ? "#fafafa" : "#f6f6f6", border: isOverdue ? "2px solid rgba(220,38,38,0.5)" : "1px solid " + (ticket.status === "completed" ? "#f1f5f9" : "#e2e8f0"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140, boxShadow: isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 2px 14px rgba(220,38,38,0.2)" : "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none"; e.currentTarget.style.transform = "none"; }}>
+    <div style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: isOverdue ? "2px solid rgba(220,38,38,0.5)" : "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : "var(--border)"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140, boxShadow: isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 2px 14px rgba(220,38,38,0.2)" : "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
+        <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, background: "var(--brand-light)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 12, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
         <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 12, background: s.bg, color: s.color }}>{s.label}</span>
         <span onClick={() => onTogglePin(ticket.id)} style={{ fontSize: 13, cursor: "pointer", marginLeft: "auto", color: ticket.pinned ? "#eab308" : "#d1d5db" }}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
       </div>
-      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#231d68", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
-      <div style={{ fontSize: 11, color: "#64748b", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
+      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
+      <div style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
         <span>{"\u{1F464}"} {ticket.name}</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
@@ -419,7 +432,7 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTo
         </div>
         {ticket.completedAt && <span style={{ color: "#16a34a", fontSize: 10 }}>{"\u2713"} {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
       </div>
-      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "#94a3b8" }}>{"\u{1F4DD}"} {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
+      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{"\u{1F4DD}"} {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
         {ticket.status === "completed" && <button onClick={() => onReopen(ticket.id)} style={{ padding: "4px 8px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 5, color: "#6366f1", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u21A9"}</button>}
         {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
@@ -429,7 +442,7 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTo
         ) : (
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
             <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "4px 8px", background: "#dc2626", border: "none", borderRadius: 5, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Delete</button>
-            <button onClick={() => setConfirmDelete(false)} style={{ padding: "4px 8px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 5, color: "#64748b", fontSize: 10, cursor: "pointer" }}>No</button>
+            <button onClick={() => setConfirmDelete(false)} style={{ padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-secondary)", fontSize: 10, cursor: "pointer" }}>No</button>
           </div>
         )}
       </div>
@@ -446,18 +459,18 @@ function StatsBar({ tickets }) {
     critical: tickets.filter((t) => t.priority === "critical" && t.status !== "completed").length,
   };
   const statCards = [
-    { label: "Total", value: stats.total, color: "#231d68", bg: "rgba(35,29,104,0.06)" },
+    { label: "Total", value: stats.total, color: "var(--brand)", bg: "rgba(35,29,104,0.06)" },
     { label: "Open", value: stats.open, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
     { label: "In Progress", value: stats.inProgress, color: "#0284c7", bg: "rgba(2,132,199,0.06)" },
     { label: "Completed", value: stats.completed, color: "#16a34a", bg: "rgba(22,163,74,0.06)" },
     { label: "Critical", value: stats.critical, color: "#dc2626", bg: "rgba(220,38,38,0.06)" },
   ];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+    <div className="hub-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
       {statCards.map((s) => (
         <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "14px 16px", border: "1px solid " + s.color + "15", textAlign: "center" }}>
           <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
         </div>
       ))}
     </div>
@@ -465,15 +478,22 @@ function StatsBar({ tickets }) {
 }
 
 function AnalyticsPanel({ tickets }) {
-  // Average completion time
   const completedTickets = tickets.filter((t) => t.completedAt && t.createdAt);
-  const avgCompletionHours = completedTickets.length > 0
-    ? completedTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / completedTickets.length
-    : 0;
-  const avgText = avgCompletionHours < 24 ? Math.round(avgCompletionHours) + "h" : (avgCompletionHours / 24).toFixed(1) + " days";
-
-  // This week vs last week
+  const activeTickets = tickets.filter((t) => t.status !== "completed");
   const now = new Date();
+
+  // Avg completion time
+  const avgCompletionHours = completedTickets.length > 0
+    ? completedTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / completedTickets.length : 0;
+  const avgText = avgCompletionHours === 0 ? "--" : avgCompletionHours < 24 ? Math.round(avgCompletionHours) + "h" : (avgCompletionHours / 24).toFixed(1) + "d";
+
+  // Fastest / slowest
+  const completionTimes = completedTickets.map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000);
+  const fastestH = completionTimes.length > 0 ? Math.min(...completionTimes) : 0;
+  const slowestH = completionTimes.length > 0 ? Math.max(...completionTimes) : 0;
+  const fmtH = (h) => h === 0 ? "--" : h < 24 ? Math.round(h) + "h" : (h / 24).toFixed(1) + "d";
+
+  // Week calculations
   const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0);
   const startOfLastWeek = new Date(startOfWeek); startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
   const thisWeekCreated = tickets.filter((t) => new Date(t.createdAt) >= startOfWeek).length;
@@ -481,81 +501,198 @@ function AnalyticsPanel({ tickets }) {
   const thisWeekCompleted = completedTickets.filter((t) => new Date(t.completedAt) >= startOfWeek).length;
   const lastWeekCompleted = completedTickets.filter((t) => { const d = new Date(t.completedAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
 
-  // Busiest submitters
-  const submitterCounts = {};
-  tickets.forEach((t) => { submitterCounts[t.name] = (submitterCounts[t.name] || 0) + 1; });
-  const topSubmitters = Object.entries(submitterCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  // Monthly data (last 6 months)
+  const monthlyData = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+    const label = d.toLocaleDateString("en-GB", { month: "short" });
+    const created = tickets.filter((t) => { const c = new Date(t.createdAt); return c >= d && c <= end; }).length;
+    const completed = completedTickets.filter((t) => { const c = new Date(t.completedAt); return c >= d && c <= end; }).length;
+    monthlyData.push({ label, created, completed });
+  }
+  const maxMonthly = Math.max(...monthlyData.map((m) => Math.max(m.created, m.completed)), 1);
 
-  // Priority breakdown (active only)
-  const activeTickets = tickets.filter((t) => t.status !== "completed");
+  // Priority breakdown (active)
   const priorityBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
   activeTickets.forEach((t) => { if (priorityBreakdown[t.priority] !== undefined) priorityBreakdown[t.priority]++; });
   const maxPriority = Math.max(...Object.values(priorityBreakdown), 1);
 
-  // Overdue count
-  const overdueCount = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
+  // Status breakdown
+  const statusBreakdown = { open: 0, in_progress: 0, completed: 0 };
+  tickets.forEach((t) => { if (statusBreakdown[t.status] !== undefined) statusBreakdown[t.status]++; });
 
-  const metricStyle = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 16px", textAlign: "center" };
-  const metricValue = { fontSize: 24, fontWeight: 800, color: "#231d68", lineHeight: 1 };
-  const metricLabel = { fontSize: 11, color: "#64748b", fontWeight: 500, marginTop: 4 };
+  // Overdue / due soon
+  const overdueCount = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
+  const dueSoon = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d >= 0 && d <= 3; }).length;
+
+  // Top submitters
+  const submitterCounts = {};
+  tickets.forEach((t) => { submitterCounts[t.name] = (submitterCounts[t.name] || 0) + 1; });
+  const topSubmitters = Object.entries(submitterCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxSubmitter = topSubmitters.length > 0 ? topSubmitters[0][1] : 1;
+
+  // Avg per priority
+  const priorityAvg = {};
+  Object.keys(PRIORITIES).forEach((key) => {
+    const pts = completedTickets.filter((t) => t.priority === key);
+    if (pts.length > 0) {
+      const avg = pts.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / pts.length;
+      priorityAvg[key] = avg < 24 ? Math.round(avg) + "h" : (avg / 24).toFixed(1) + "d";
+    } else { priorityAvg[key] = "--"; }
+  });
+
+  // Completion rate
+  const completionRate = tickets.length > 0 ? Math.round(completedTickets.length / tickets.length * 100) : 0;
+
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 };
+  const metricBox = { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", textAlign: "center" };
+  const metricVal = { fontSize: 26, fontWeight: 800, color: "var(--brand)", lineHeight: 1 };
+  const metricLbl = { fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, marginTop: 4 };
+  const sectionTitle = { fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
 
   return (
-    <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-      <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700, color: "#231d68" }}>{"\u{1F4CA}"} Analytics</h3>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8, marginBottom: 16 }}>
-        <div style={metricStyle}>
-          <div style={metricValue}>{completedTickets.length > 0 ? avgText : "--"}</div>
-          <div style={metricLabel}>Avg. Completion</div>
-        </div>
-        <div style={metricStyle}>
-          <div style={metricValue}>{thisWeekCreated}</div>
-          <div style={metricLabel}>Submitted this week</div>
-        </div>
-        <div style={metricStyle}>
-          <div style={metricValue}>{thisWeekCompleted}</div>
-          <div style={metricLabel}>Completed this week</div>
-        </div>
-        <div style={{ ...metricStyle, borderColor: overdueCount > 0 ? "rgba(220,38,38,0.3)" : "#e2e8f0" }}>
-          <div style={{ ...metricValue, color: overdueCount > 0 ? "#dc2626" : "#231d68" }}>{overdueCount}</div>
-          <div style={metricLabel}>Overdue</div>
-        </div>
+    <div style={{ width: "100%" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Overview</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics and insights across all tickets</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {/* Priority breakdown */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Active by Priority</div>
-          {Object.entries(PRIORITIES).map(([key, p]) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 55, flexShrink: 0 }}>{p.icon} {p.label}</span>
-              <div style={{ flex: 1, height: 8, background: "#e2e8f0", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ width: (priorityBreakdown[key] / maxPriority * 100) + "%", height: "100%", background: p.color, borderRadius: 4, transition: "width 0.5s" }}></div>
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", width: 20, textAlign: "right" }}>{priorityBreakdown[key]}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Top submitters */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Top Submitters</div>
-          {topSubmitters.length === 0 ? (
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>No tickets yet</p>
-          ) : topSubmitters.map(([name, count], i) => (
-            <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", borderBottom: i < topSubmitters.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-              <span style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{name}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#231d68", background: "rgba(35,29,104,0.06)", padding: "1px 8px", borderRadius: 10 }}>{count}</span>
-            </div>
-          ))}
-        </div>
+      {/* Key metrics */}
+      <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
+        <div style={metricBox}><div style={metricVal}>{tickets.length}</div><div style={metricLbl}>Total Tickets</div></div>
+        <div style={metricBox}><div style={metricVal}>{activeTickets.length}</div><div style={metricLbl}>Active</div></div>
+        <div style={metricBox}><div style={metricVal}>{completedTickets.length}</div><div style={metricLbl}>Completed</div></div>
+        <div style={metricBox}><div style={metricVal}>{completionRate}%</div><div style={metricLbl}>Completion Rate</div></div>
+        <div style={metricBox}><div style={metricVal}>{avgText}</div><div style={metricLbl}>Avg. Turnaround</div></div>
+        <div style={{ ...metricBox, borderColor: overdueCount > 0 ? "rgba(220,38,38,0.3)" : "var(--border)" }}><div style={{ ...metricVal, color: overdueCount > 0 ? "#dc2626" : "var(--brand)" }}>{overdueCount}</div><div style={metricLbl}>Overdue</div></div>
       </div>
 
       {/* Week comparison */}
-      <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", gap: 20, justifyContent: "center", fontSize: 12, color: "#64748b" }}>
-        <span>Last week: <strong style={{ color: "#231d68" }}>{lastWeekCreated}</strong> submitted, <strong style={{ color: "#16a34a" }}>{lastWeekCompleted}</strong> completed</span>
-        <span style={{ color: "#e2e8f0" }}>|</span>
-        <span>This week: <strong style={{ color: "#231d68" }}>{thisWeekCreated}</strong> submitted, <strong style={{ color: "#16a34a" }}>{thisWeekCompleted}</strong> completed</span>
+      <div className="hub-week-compare" style={{ ...card, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 24, justifyContent: "center", alignItems: "center", fontSize: 13, color: "var(--text-secondary)" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Last Week</div>
+          <span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{lastWeekCreated}</strong> in</span>
+          <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
+          <span><strong style={{ color: "#16a34a", fontSize: 18 }}>{lastWeekCompleted}</strong> out</span>
+        </div>
+        <div style={{ width: 1, height: 32, background: "var(--border)" }}></div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>This Week</div>
+          <span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{thisWeekCreated}</strong> in</span>
+          <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
+          <span><strong style={{ color: "#16a34a", fontSize: 18 }}>{thisWeekCompleted}</strong> out</span>
+        </div>
+      </div>
+
+      {/* Monthly chart + status */}
+      <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={card}>
+          <div style={sectionTitle}>Monthly Trend (Last 6 Months)</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+            {monthlyData.map((m, i) => (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <div style={{ display: "flex", gap: 2, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}>
+                  <div style={{ width: "40%", background: "var(--brand)", borderRadius: "3px 3px 0 0", height: (m.created / maxMonthly * 90) + "px", minHeight: m.created > 0 ? 4 : 0, transition: "height 0.5s", opacity: 0.7 }} title={m.created + " created"}></div>
+                  <div style={{ width: "40%", background: "#16a34a", borderRadius: "3px 3px 0 0", height: (m.completed / maxMonthly * 90) + "px", minHeight: m.completed > 0 ? 4 : 0, transition: "height 0.5s", opacity: 0.7 }} title={m.completed + " completed"}></div>
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--brand)", marginRight: 4, opacity: 0.7 }}></span>Submitted</span>
+            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4, opacity: 0.7 }}></span>Completed</span>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={sectionTitle}>Status Breakdown</div>
+          {Object.entries(STATUS).map(([key, s]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color }}></span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.label}</span>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{statusBreakdown[key]}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#d97706" }}></span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>Due Soon ({"\u2264"}3d)</span>
+            </div>
+            <span style={{ fontSize: 18, fontWeight: 800, color: "#d97706" }}>{dueSoon}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Priority + turnaround + submitters */}
+      <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={card}>
+          <div style={sectionTitle}>Active by Priority</div>
+          {Object.entries(PRIORITIES).map(([key, p]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span>
+              <div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}>
+                <div style={{ width: (priorityBreakdown[key] / maxPriority * 100) + "%", height: "100%", background: p.color, borderRadius: 5, transition: "width 0.5s" }}></div>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{priorityBreakdown[key]}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={card}>
+          <div style={sectionTitle}>Turnaround by Priority</div>
+          {Object.entries(PRIORITIES).map(([key, p]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.icon} {p.label}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{priorityAvg[key]}</span>
+            </div>
+          ))}
+          <div style={{ marginTop: 10, padding: "6px 0", display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
+            <span>Fastest: <strong style={{ color: "#16a34a" }}>{fmtH(fastestH)}</strong></span>
+            <span>Slowest: <strong style={{ color: "#dc2626" }}>{fmtH(slowestH)}</strong></span>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={sectionTitle}>Top Submitters</div>
+          {topSubmitters.length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p>
+          ) : topSubmitters.map(([name, count]) => (
+            <div key={name} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 12, color: "var(--text-body)", fontWeight: 500 }}>{name}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)" }}>{count}</span>
+              </div>
+              <div style={{ height: 4, background: "var(--bar-bg)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: (count / maxSubmitter * 100) + "%", height: "100%", background: "var(--brand)", borderRadius: 2, opacity: 0.5, transition: "width 0.5s" }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent completions */}
+      <div style={card}>
+        <div style={sectionTitle}>Recently Completed</div>
+        {completedTickets.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>No completed tickets yet</p>
+        ) : completedTickets.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt)).slice(0, 6).map((t) => {
+          const hours = (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000;
+          const dur = hours < 24 ? Math.round(hours) + "h" : (hours / 24).toFixed(1) + "d";
+          const p = PRIORITIES[t.priority];
+          return (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 6px", borderRadius: 4, flexShrink: 0 }}>{t.id}</span>
+              <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: p.color, flexShrink: 0 }}>{p.icon}</span>
+              <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, flexShrink: 0 }}>{dur}</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(t.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -597,12 +734,12 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#231d68" }}>Ticket Dashboard</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>Manage and track all marketing requests</p>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Ticket Dashboard</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Manage and track all marketing requests</p>
         </div>
         <div style={{ position: "relative", minWidth: 200 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, or title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, or title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
         </div>
       </div>
 
@@ -610,22 +747,20 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         <StatsBar tickets={tickets} />
       </div>
 
-      <AnalyticsPanel tickets={tickets} />
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", gap: 4, background: "#f6f6f6", borderRadius: 8, padding: 3, border: "1px solid #e2e8f0" }}>
+      <div className="hub-filter-bar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
           {filterTabs.map((tab) => (
-            <button key={tab.key} onClick={() => setFilter(tab.key)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", transition: "all 0.2s", background: filter === tab.key ? "#231d68" : "transparent", color: filter === tab.key ? "#fff" : "#64748b" }}>
+            <button key={tab.key} onClick={() => setFilter(tab.key)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", transition: "all 0.2s", background: filter === tab.key ? "var(--brand)" : "transparent", color: filter === tab.key ? "#fff" : "var(--text-secondary)" }}>
               {tab.label}
             </button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 2, background: "#f6f6f6", borderRadius: 6, padding: 2, border: "1px solid #e2e8f0" }}>
-            <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "#231d68" : "transparent", color: viewMode === "list" ? "#fff" : "#94a3b8", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
-            <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "#231d68" : "transparent", color: viewMode === "grid" ? "#fff" : "#94a3b8", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
+          <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
+            <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
+            <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
           </div>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#231d68", fontSize: 13, cursor: "pointer", outline: "none" }}>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--brand)", fontSize: 13, cursor: "pointer", outline: "none" }}>
             <option value="priority">Sort: Priority</option>
             <option value="deadline">Sort: Deadline</option>
             <option value="newest">Sort: Newest</option>
@@ -634,7 +769,7 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
       </div>
 
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
           <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4CB}"}</div>
           <p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
         </div>
@@ -670,23 +805,23 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
       {submittedRef && (
         <div style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 12, padding: 24, marginBottom: 20, textAlign: "center" }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(22,163,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>{"\u2713"}</div>
-          <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#231d68" }}>Ticket Submitted!</h2>
-          <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>Your reference number is:</p>
-          <div style={{ display: "inline-block", background: "#231d68", color: "#fff", padding: "10px 28px", borderRadius: 10, fontSize: 28, fontFamily: "monospace", fontWeight: 800, letterSpacing: "0.08em" }}>{submittedRef}</div>
-          <p style={{ margin: "14px 0 0", fontSize: 13, color: "#64748b" }}>Keep this reference to track your ticket's progress below.</p>
+          <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>Ticket Submitted!</h2>
+          <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--text-secondary)" }}>Your reference number is:</p>
+          <div style={{ display: "inline-block", background: "var(--brand)", color: "#fff", padding: "10px 28px", borderRadius: 10, fontSize: 28, fontFamily: "monospace", fontWeight: 800, letterSpacing: "0.08em" }}>{submittedRef}</div>
+          <p style={{ margin: "14px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>Keep this reference to track your ticket's progress below.</p>
         </div>
       )}
 
-      <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24, marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#231d68" }}>{submittedRef ? "Your Ticket" : "Track a Ticket"}</h3>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 16 }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{submittedRef ? "Your Ticket" : "Track a Ticket"}</h3>
         {!submittedRef && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <input value={trackRef} onChange={(e) => setTrackRef(e.target.value.toUpperCase())} placeholder="Enter ticket ref e.g. M001" style={{ flex: 1, padding: "10px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 14, fontFamily: "monospace", fontWeight: 600, outline: "none", letterSpacing: "0.04em" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+            <input value={trackRef} onChange={(e) => setTrackRef(e.target.value.toUpperCase())} placeholder="Enter ticket ref e.g. M001" style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "monospace", fontWeight: 600, outline: "none", letterSpacing: "0.04em" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
           </div>
         )}
 
         {trackRef.trim() && !ticket && (
-          <div style={{ textAlign: "center", padding: 20, color: "#94a3b8" }}>
+          <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
             <p style={{ fontSize: 14, margin: 0 }}>No ticket found with reference "{trackRef.trim()}"</p>
           </div>
         )}
@@ -698,14 +833,14 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
           return (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "3px 9px", borderRadius: 5 }}>{ticket.id}</span>
+                <span style={{ fontSize: 13, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, background: "var(--brand-light)", padding: "3px 9px", borderRadius: 5 }}>{ticket.id}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
                 <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
                 {dueBadge && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: dueBadge.bg, color: dueBadge.color, border: "1px solid " + dueBadge.border }}>{dueBadge.text}</span>}
               </div>
-              <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "#231d68" }}>{ticket.title}</h4>
-              <p style={{ margin: "0 0 12px", fontSize: 14, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{ticket.description}</p>
-              <div style={{ fontSize: 13, color: "#64748b", display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+              <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--brand)" }}>{ticket.title}</h4>
+              <div style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(ticket.description) }}></div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
                 <span>{"\u{1F464}"} {ticket.name}</span>
                 <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
                 <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
@@ -724,9 +859,9 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
                   const active = idx <= current;
                   return (
                     <div key={step.key} style={{ flex: 1, textAlign: "center", position: "relative" }}>
-                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: active ? "#231d68" : "#e2e8f0", color: active ? "#fff" : "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: 14, fontWeight: 700, transition: "all 0.3s" }}>{step.icon}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: active ? "#231d68" : "#94a3b8" }}>{step.label}</div>
-                      {idx < 2 && <div style={{ position: "absolute", top: 15, left: "60%", right: "-40%", height: 2, background: idx < current ? "#231d68" : "#e2e8f0", zIndex: -1 }}></div>}
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: active ? "var(--brand)" : "var(--bar-bg)", color: active ? "#fff" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: 14, fontWeight: 700, transition: "all 0.3s" }}>{step.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: active ? "var(--brand)" : "var(--text-muted)" }}>{step.label}</div>
+                      {idx < 2 && <div style={{ position: "absolute", top: 15, left: "60%", right: "-40%", height: 2, background: idx < current ? "var(--brand)" : "var(--bar-bg)", zIndex: -1 }}></div>}
                     </div>
                   );
                 })}
@@ -735,14 +870,14 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
               {/* Notes */}
               {ticket.notes && ticket.notes.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#231d68", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Updates & Notes</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Updates & Notes</div>
                   {ticket.notes.map((note, i) => (
-                    <div key={i} style={{ background: note.auto ? "rgba(35,29,104,0.03)" : "#fff", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "#e2e8f0"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
+                    <div key={i} style={{ background: note.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "var(--border)"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "#231d68" }}>{note.author}</span>
-                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "var(--brand)" }}>{note.author}</span>
+                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                       </div>
-                      <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
                     </div>
                   ))}
                 </div>
@@ -750,16 +885,16 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
 
               {/* Add note */}
               <div style={{ display: "flex", gap: 8 }}>
-                <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
-                <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
-                <button onClick={submitNote} style={{ padding: "8px 14px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>+ Add</button>
+                <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+                <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+                <button onClick={submitNote} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>+ Add</button>
               </div>
             </div>
           );
         })()}
       </div>
 
-      <button onClick={onBackToForm} style={{ width: "100%", padding: "11px 24px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>
+      <button onClick={onBackToForm} style={{ width: "100%", padding: "11px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>
         {"\u2190"} Submit Another Ticket
       </button>
     </div>
@@ -829,39 +964,39 @@ function ActivityLog({ tickets }) {
   return (
     <div style={{ width: "100%" }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#231d68" }}>Activity Log</h2>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>Recent actions across all tickets</p>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Activity Log</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Recent actions across all tickets</p>
       </div>
 
       {activities.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
           <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{"\u{1F4CB}"}</div>
           <p style={{ fontSize: 15, margin: 0 }}>No activity yet</p>
         </div>
       ) : (
         <div style={{ position: "relative", paddingLeft: 28 }}>
           {/* Vertical line */}
-          <div style={{ position: "absolute", left: 9, top: 6, bottom: 6, width: 2, background: "#e2e8f0", borderRadius: 1 }}></div>
+          <div style={{ position: "absolute", left: 9, top: 6, bottom: 6, width: 2, background: "var(--bar-bg)", borderRadius: 1 }}></div>
 
           {activities.slice(0, 50).map((a, i) => (
             <div key={i} style={{ position: "relative", marginBottom: 16, paddingBottom: 0 }}>
               {/* Dot */}
-              <div style={{ position: "absolute", left: -23, top: 4, width: 14, height: 14, borderRadius: "50%", background: "#fff", border: "2.5px solid " + a.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7 }}></div>
+              <div style={{ position: "absolute", left: -23, top: 4, width: 14, height: 14, borderRadius: "50%", background: "var(--bg-input)", border: "2.5px solid " + a.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7 }}></div>
 
-              <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.06)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.06)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 14 }}>{a.icon}</span>
-                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{a.ref}</span>
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>{formatTime(a.time)}</span>
+                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, background: "var(--brand-light)", padding: "1px 6px", borderRadius: 3 }}>{a.ref}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatTime(a.time)}</span>
                 </div>
-                <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.4 }}>{a.text}</p>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</p>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.4 }}>{a.text}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</p>
               </div>
             </div>
           ))}
 
           {activities.length > 50 && (
-            <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>Showing 50 of {activities.length} activities</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center", marginTop: 8 }}>Showing 50 of {activities.length} activities</p>
           )}
         </div>
       )}
@@ -875,6 +1010,7 @@ export default function App() {
   const [dashUnlocked, setDashUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
+  const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -1053,43 +1189,100 @@ export default function App() {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "#1e293b" }}>
-      <style>{"\n        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');\n        * { box-sizing: border-box; }\n        ::selection { background: #231d68; color: white; }\n        ::-webkit-scrollbar { width: 6px; }\n        ::-webkit-scrollbar-track { background: transparent; }\n        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }\n        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }\n        @keyframes spin { to { transform: rotate(360deg); } }\n      "}</style>
+    <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        ::selection { background: #231d68; color: white; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }
+        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        [data-theme="light"] {
+          --bg-page: #ffffff; --bg-card: #f6f6f6; --bg-input: #ffffff; --bg-header: #ffffff;
+          --bg-completed: #fafafa; --bg-hover: #f8fafc;
+          --border: #e2e8f0; --border-light: #f1f5f9;
+          --text-primary: #1e293b; --text-body: #475569; --text-secondary: #64748b; --text-muted: #94a3b8;
+          --brand: #231d68; --brand-light: rgba(35,29,104,0.07); --brand-glow: rgba(35,29,104,0.1);
+          --shadow: 0 1px 3px rgba(0,0,0,0.04); --shadow-hover: 0 2px 12px rgba(35,29,104,0.08);
+          --nav-bg: #f6f6f6; --nav-inactive: #64748b;
+          --bar-bg: #e2e8f0;
+        }
+        [data-theme="dark"] {
+          --bg-page: #0f172a; --bg-card: #1e293b; --bg-input: #0f172a; --bg-header: #1e293b;
+          --bg-completed: #1a2332; --bg-hover: #1e293b;
+          --border: #334155; --border-light: #1e293b;
+          --text-primary: #e2e8f0; --text-body: #cbd5e1; --text-secondary: #94a3b8; --text-muted: #64748b;
+          --brand: #818cf8; --brand-light: rgba(129,140,248,0.15); --brand-glow: rgba(129,140,248,0.15);
+          --shadow: 0 1px 3px rgba(0,0,0,0.2); --shadow-hover: 0 2px 12px rgba(0,0,0,0.3);
+          --nav-bg: #0f172a; --nav-inactive: #94a3b8;
+          --bar-bg: #334155;
+        }
+        [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.2); }
+        [data-theme="dark"] ::selection { background: #818cf8; }
+        [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
+          color-scheme: dark;
+        }
+        @media (max-width: 640px) {
+          .hub-header { padding: 10px 16px !important; flex-wrap: wrap; gap: 8px; }
+          .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
+          .hub-main { padding: 20px 14px !important; }
+          .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
+          .hub-template-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-priority-grid { grid-template-columns: 1fr 1fr !important; }
+          .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-analytics-cols { grid-template-columns: 1fr !important; }
+          .hub-week-compare { flex-direction: column; gap: 4px !important; }
+        }
+      `}</style>
 
-      <header style={{ padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", background: "#fff", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      <header className="hub-header" style={{ padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 50, boxShadow: "var(--shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <img src={ALPS_LOGO} alt="Alps" style={{ height: 38, objectFit: "contain" }} />
-          <div style={{ width: 1, height: 28, background: "#e2e8f0" }}></div>
+          <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#231d68", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>Ticket Management</span>
+            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Ticket Management</span>
           </div>
         </div>
-        <nav style={{ display: "flex", gap: 4, background: "#f6f6f6", borderRadius: 10, padding: 3, border: "1px solid #e2e8f0" }}>
-          <button onClick={() => setView("form")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "#231d68" : "transparent", color: view === "form" ? "#fff" : "#64748b" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => setDark(!dark)} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 16, lineHeight: 1, transition: "all 0.2s", color: "var(--text-secondary)" }}>
+            {dark ? "\u2600" : "\u{1F319}"}
+          </button>
+          <nav className="hub-nav" style={{ display: "flex", gap: 4, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}>
+          <button onClick={() => setView("form")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>
             + New Ticket
           </button>
-          <button onClick={handleDashboardClick} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "#231d68" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "#64748b", position: "relative" }}>
+          <button onClick={handleDashboardClick} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
             {dashUnlocked ? "" : "\u{1F512} "}Dashboard
             {dashUnlocked && activeCount > 0 && (
               <span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>
             )}
           </button>
           {dashUnlocked && (
-            <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "#231d68" : "transparent", color: view === "activity" ? "#fff" : "#64748b" }}>
+            <button onClick={() => setView("analytics")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "analytics" ? "var(--brand)" : "transparent", color: view === "analytics" ? "#fff" : "var(--nav-inactive)" }}>
+              Analytics
+            </button>
+          )}
+          {dashUnlocked && (
+            <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>
               Activity
             </button>
           )}
-          <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "#231d68" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "#64748b" }}>
-            {"\u{1F50D}"} Track Ticket
+          <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>
+            {"\u{1F50D}"} Track
           </button>
         </nav>
+        </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main className="hub-main" style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "64px 20px", color: "#94a3b8" }}>
-            <div style={{ width: 40, height: 40, border: "3px solid #e2e8f0", borderTopColor: "#231d68", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
+          <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
+            <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "form" ? (
@@ -1097,7 +1290,7 @@ export default function App() {
             <TicketForm onSubmit={handleSubmit} />
             {tickets.length > 0 && (
               <div style={{ marginTop: 24 }}>
-                <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#231d68", letterSpacing: "0.02em" }}>Ticket Overview</h3>
+                <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "var(--brand)", letterSpacing: "0.02em" }}>Ticket Overview</h3>
                 <StatsBar tickets={tickets} />
               </div>
             )}
@@ -1110,6 +1303,8 @@ export default function App() {
           <PasswordGate onUnlock={handleUnlock} />
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
+        ) : view === "analytics" ? (
+          <AnalyticsPanel tickets={tickets} />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
