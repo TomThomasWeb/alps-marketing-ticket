@@ -121,88 +121,87 @@ function FileChip({ name, url, onRemove }) {
 
 function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
+  const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
+
+  const sectionLabel = (icon, text) => (
+    <h3 style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>{icon} {text}</h3>
+  );
 
   const cardBtn = (id, opts) => {
     const isSoon = opts.soon;
     return (
       <button key={id} onClick={() => !isSoon && onNavigate(id)} disabled={isSoon}
-        style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: opts.compact ? "14px 16px" : "24px 20px", textAlign: "left", cursor: isSoon ? "default" : "pointer", transition: "all 0.2s", opacity: isSoon ? 0.55 : 1, display: "flex", flexDirection: opts.compact ? "row" : "column", gap: opts.compact ? 12 : 0, alignItems: opts.compact ? "center" : "flex-start" }}
-        onMouseOver={(e) => { if (!isSoon) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = opts.color; } }}
+        style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: opts.compact ? 10 : 14, padding: opts.compact ? "12px 14px" : "20px 18px", textAlign: "left", cursor: isSoon ? "default" : "pointer", transition: "all 0.2s", opacity: isSoon ? 0.5 : 1, display: "flex", flexDirection: opts.compact ? "row" : "column", gap: opts.compact ? 10 : 0, alignItems: opts.compact ? "center" : "flex-start" }}
+        onMouseOver={(e) => { if (!isSoon) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = opts.color || "var(--brand)"; } }}
         onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-        <div style={{ fontSize: opts.compact ? 22 : 28, marginBottom: opts.compact ? 0 : 10, flexShrink: 0 }}>{opts.icon}</div>
+        <div style={{ fontSize: opts.compact ? 20 : 26, marginBottom: opts.compact ? 0 : 8, flexShrink: 0 }}>{opts.icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: opts.compact ? 13 : 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: opts.compact ? 1 : 4 }}>{opts.title}</div>
-          <div style={{ fontSize: opts.compact ? 11 : 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>{opts.desc}</div>
+          <div style={{ fontSize: opts.compact ? 13 : 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: opts.compact ? 0 : 3 }}>{opts.locked && !dashUnlocked ? "\u{1F512} " : ""}{opts.title}</div>
+          {opts.desc && <div style={{ fontSize: opts.compact ? 11 : 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{opts.desc}</div>}
         </div>
-        {isSoon && <span style={{ position: "absolute", top: opts.compact ? 8 : 12, right: opts.compact ? 8 : 12, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Soon</span>}
-        {opts.badge && <span style={{ position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{opts.badge}</span>}
+        {isSoon && <span style={{ position: "absolute", top: 8, right: 8, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Soon</span>}
+        {opts.badge && <span style={{ position: "absolute", top: 8, right: 8, minWidth: 20, height: 20, borderRadius: 10, background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{opts.badge}</span>}
       </button>
     );
   };
 
-  const sectionLabel = (icon, text) => (
-    <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6 }}>{icon} {text}</h3>
-  );
-
   return (
-    <div style={{ width: "100%", maxWidth: 820 }}>
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Marketing Hub</h2>
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Your central place for marketing requests, resources, and tools.</p>
+    <div style={{ width: "100%", maxWidth: 840 }}>
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Marketing Hub</h2>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Your central place for marketing requests, resources, and tools.</p>
       </div>
 
-      <button onClick={() => onNavigate("guide")} style={{ width: "100%", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 24px", marginBottom: 24, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, transition: "all 0.2s", textAlign: "left" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = "#ca8a04"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-        <div style={{ fontSize: 28 }}>{"\u{1F4D6}"}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>Self-Service Guide</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Image sizes, brand rules, request process, FAQs, and everything you need before submitting a ticket.</div>
+      {(activeCount > 0 || leadsAction > 0) && (
+        <div style={{ display: "flex", gap: 10, marginBottom: 20, justifyContent: "center", flexWrap: "wrap" }}>
+          {activeCount > 0 && <div style={{ padding: "8px 16px", borderRadius: 8, background: "var(--brand-light)", fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>{"\u{1F4CB}"} {activeCount} active ticket{activeCount !== 1 ? "s" : ""}</div>}
+          {leadsAction > 0 && <div style={{ padding: "8px 16px", borderRadius: 8, background: "rgba(202,138,4,0.1)", fontSize: 13, fontWeight: 600, color: "#ca8a04" }}>{"\u{1F7E1}"} {leadsAction} lead{leadsAction !== 1 ? "s" : ""} need{leadsAction === 1 ? "s" : ""} action</div>}
         </div>
-        <div style={{ fontSize: 18, color: "var(--text-muted)" }}>{"\u2192"}</div>
-      </button>
+      )}
 
-      <div className="hub-layout-main" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, marginBottom: 24 }}>
+      <div style={{ background: "var(--brand-light)", border: "1px solid var(--brand)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+        {sectionLabel("\u{1F4CB}", "Tickets & Leads")}
+        <div className="hub-tickets-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {cardBtn("form", { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support", color: "#6366f1" })}
+          {cardBtn("tracker", { icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check request status", color: "#0284c7" })}
+          {cardBtn("lead_form", { icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound lead", color: "#16a34a" })}
+        </div>
+      </div>
 
+      <div className="hub-layout-main" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 16, marginBottom: 20 }}>
         <div>
-          {sectionLabel("\u{1F4CB}", "Tickets & Leads")}
+          {sectionLabel("\u{1F4DA}", "Resources")}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {cardBtn("form", { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support", color: "#6366f1" })}
-            {cardBtn("tracker", { icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check request status", color: "#0284c7" })}
-            {cardBtn("lead_form", { icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound lead", color: "#16a34a" })}
-          </div>
-
-          <div style={{ marginTop: 20 }}>
-            {sectionLabel("\u{1F4DA}", "Resources")}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {cardBtn("archive", { icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse campaigns, posts, and materials", color: "#8b5cf6" })}
-              {cardBtn("brand_assets", { icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" })}
-            </div>
+            {cardBtn("archive", { icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns & materials", color: "#8b5cf6" })}
+            {cardBtn("brand_assets", { icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos", color: "#E64592" })}
+            {cardBtn("guide", { icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs & how-to", color: "#ca8a04" })}
           </div>
         </div>
 
         <div>
           {sectionLabel("\u{1F6E0}\uFE0F", "Marketing Tools")}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {cardBtn("templates", { icon: "\u{1F4C4}", title: "Content Templates", desc: "Reusable copy and snippets", color: "#0d9488", compact: true })}
-            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", desc: "Resize and convert images", color: "#64748b", compact: true })}
-            {cardBtn("qr_generator", { icon: "\u{1F517}", title: "QR Code Generator", desc: "Generate QR codes for print & campaigns", color: "#231D68", compact: true })}
-            {cardBtn("footer", { icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Branded email signatures", color: "#ea580c", compact: true, soon: true })}
-            {cardBtn("planner", { icon: "\u{1F5D3}", title: "Campaign Planner", desc: "Multi-channel campaign tracking", color: "#7c3aed", compact: true, soon: true })}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {cardBtn("templates", { icon: "\u{1F4C4}", title: "Content Templates", color: "#0d9488", compact: true })}
+            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", color: "#64748b", compact: true })}
+            {cardBtn("qr_generator", { icon: "\u{1F517}", title: "QR Generator", color: "#231D68", compact: true })}
+            {cardBtn("footer", { icon: "\u2709\uFE0F", title: "Email Footer", color: "#ea580c", compact: true, soon: true })}
+            {cardBtn("planner", { icon: "\u{1F5D3}", title: "Campaign Planner", color: "#7c3aed", compact: true, soon: true })}
           </div>
         </div>
-
       </div>
 
-      <div style={{ paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+      <div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}>
         {sectionLabel("\u{1F4CA}", "Dashboards")}
         <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {cardBtn("dashboard", { icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active" : "Manage tickets", color: "#231d68", badge: dashUnlocked && activeCount > 0 ? activeCount : null })}
-          {cardBtn("leads_dashboard", { icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " logged" : "View leads", color: "#0d9488" })}
-          {cardBtn("analytics", { icon: "\u{1F4CA}", title: "Analytics", desc: "Metrics & monthly report", color: "#dc2626" })}
+          {cardBtn("dashboard", { icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active" : "Manage tickets", color: "#231d68", locked: true, badge: dashUnlocked && activeCount > 0 ? activeCount : null })}
+          {cardBtn("leads_dashboard", { icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " logged" : "View leads", color: "#0d9488", locked: true })}
+          {cardBtn("analytics", { icon: "\u{1F4CA}", title: "Analytics", desc: "Metrics & monthly report", color: "#dc2626", locked: true })}
         </div>
       </div>
     </div>
   );
 }
+
 
 
 function PasswordGate({ onUnlock }) {
@@ -1429,6 +1428,20 @@ function FileConverter() {
     { value: "webp", label: "WEBP", mime: "image/webp" },
   ];
 
+  const SOCIAL_PRESETS = [
+    { label: "LinkedIn Post", w: 1200, h: 627, icon: "\u{1F4BC}" },
+    { label: "LinkedIn Cover", w: 1584, h: 396, icon: "\u{1F4BC}" },
+    { label: "Facebook Post", w: 1200, h: 630, icon: "\u{1F4D8}" },
+    { label: "Facebook Cover", w: 820, h: 312, icon: "\u{1F4D8}" },
+    { label: "Instagram Post", w: 1080, h: 1080, icon: "\u{1F4F7}" },
+    { label: "Instagram Story", w: 1080, h: 1920, icon: "\u{1F4F7}" },
+    { label: "X / Twitter Post", w: 1600, h: 900, icon: "\u{1D54F}" },
+    { label: "X / Twitter Header", w: 1500, h: 500, icon: "\u{1D54F}" },
+    { label: "Email Banner", w: 600, h: 250, icon: "\u2709\uFE0F" },
+  ];
+  const [showPresets, setShowPresets] = useState(false);
+  const applyPreset = (p) => { setWidth(String(p.w)); setHeight(String(p.h)); setLockAspect(false); setShowPresets(false); };
+
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (!f || !f.type.startsWith("image/")) return;
@@ -1482,7 +1495,7 @@ function FileConverter() {
   return (
     <div style={{ width: "100%", maxWidth: 640 }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F504}"} File Converter</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Convert and resize images. Supports PNG, JPG, and WEBP.</p>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Convert and resize images with social media presets. Supports PNG, JPG, and WEBP.</p>
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
@@ -1504,6 +1517,20 @@ function FileConverter() {
                 <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>{origW} x {origH}px &bull; {fmtSize(file.size)}</div>
                 <button onClick={() => { setFile(null); setPreview(null); setResult(null); if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Change file</button>
               </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <button onClick={() => setShowPresets(!showPresets)} style={{ padding: "8px 14px", background: showPresets ? "var(--brand)" : "var(--brand-light)", border: "none", borderRadius: 8, color: showPresets ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{"\u{1F4F1}"} Social Media Presets {showPresets ? "\u25B2" : "\u25BC"}</button>
+              {showPresets && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6, marginTop: 10 }}>
+                  {SOCIAL_PRESETS.map((p) => (
+                    <button key={p.label} onClick={() => applyPreset(p)} style={{ padding: "8px 10px", background: (parseInt(width) === p.w && parseInt(height) === p.h) ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + ((parseInt(width) === p.w && parseInt(height) === p.h) ? "var(--brand)" : "var(--border)"), borderRadius: 6, cursor: "pointer", textAlign: "left", transition: "all 0.15s", fontSize: 11 }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => { if (!(parseInt(width) === p.w && parseInt(height) === p.h)) e.currentTarget.style.borderColor = "var(--border)"; }}>
+                      <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 1 }}>{p.icon} {p.label}</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: 10 }}>{p.w} x {p.h}px</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20, alignItems: "end" }}>
@@ -1633,6 +1660,71 @@ function QRCodeGenerator() {
   );
 }
 
+
+function NotificationsCenter({ notifications, onClear, onNavigate }) {
+  const [open, setOpen] = useState(false);
+  const unread = notifications.filter((n) => !n.read).length;
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const fmtTime = (ts) => {
+    const d = new Date(ts);
+    const now = new Date();
+    const diff = (now - d) / 60000;
+    if (diff < 1) return "Just now";
+    if (diff < 60) return Math.floor(diff) + "m ago";
+    if (diff < 1440) return Math.floor(diff / 60) + "h ago";
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(!open)} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: open ? "var(--brand-light)" : "var(--bg-card)", cursor: "pointer", position: "relative", fontSize: 16, lineHeight: 1, color: "var(--text-secondary)", transition: "all 0.2s" }} title="Notifications">
+        {"\u{1F514}"}
+        {unread > 0 && <span style={{ position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{unread > 9 ? "9+" : unread}</span>}
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 420, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.15)", zIndex: 100, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F514}"} Notifications</span>
+            {notifications.length > 0 && <button onClick={onClear} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Clear all</button>}
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {notifications.length === 0 ? (
+              <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>{"\u{1F514}"}</div>
+                <p style={{ fontSize: 13, margin: 0 }}>No notifications yet</p>
+              </div>
+            ) : (
+              notifications.slice(0, 20).map((n, i) => (
+                <div key={i} onClick={() => { if (n.action) { onNavigate(n.action); setOpen(false); } }}
+                  style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", cursor: n.action ? "pointer" : "default", background: !n.read ? "var(--brand-light)" : "transparent", transition: "background 0.15s" }}
+                  onMouseOver={(e) => { if (n.action) e.currentTarget.style.background = "var(--brand-light)"; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = !n.read ? "var(--brand-light)" : "transparent"; }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>{n.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{n.body}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{fmtTime(n.time)}</div>
+                    </div>
+                    {!n.read && <div style={{ width: 8, height: 8, borderRadius: 4, background: "var(--brand)", flexShrink: 0, marginTop: 4 }}></div>}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActivityLog({ tickets }) {
   // Build activity entries from ticket data
   const activities = [];
@@ -1747,6 +1839,9 @@ export default function App() {
   const [leads, setLeads] = useState([]);
   const [brandAssets, setBrandAssets] = useState([]);
   const [contentTemplates, setContentTemplates] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsRef = useRef(null);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
@@ -1755,6 +1850,19 @@ export default function App() {
       Notification.requestPermission();
     }
   }, []);
+
+  // Close tools dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => { if (toolsRef.current && !toolsRef.current.contains(e.target)) setToolsOpen(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const addNotification = (icon, title, body, action) => {
+    setNotifications((prev) => [{ icon, title, body, action, time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+  };
+  const clearNotifications = () => setNotifications([]);
+  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
   // Load tickets from Supabase and subscribe to real-time changes
   useEffect(() => {
@@ -1768,17 +1876,25 @@ export default function App() {
     const channel = supabase.channel("tickets-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "tickets" }, (payload) => {
         fetchTickets();
-        if ("Notification" in window && Notification.permission === "granted" && payload.new) {
+        if (payload.new) {
           const t = payload.new;
           const p = PRIORITIES[t.priority];
-          new Notification("New Ticket: " + t.ref, {
-            body: (p ? p.icon + " " + p.label + " — " : "") + t.title + "\nFrom: " + t.name,
-            icon: "/alps-logo.webp",
-          });
+          setNotifications((prev) => [{ icon: "\u{1F4DD}", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("New Ticket: " + t.ref, {
+              body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + "\nFrom: " + t.name,
+              icon: "/alps-logo.webp",
+            });
+          }
         }
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tickets" }, () => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tickets" }, (payload) => {
         fetchTickets();
+        if (payload.new && payload.old && payload.new.status !== payload.old.status) {
+          const t = payload.new;
+          const statusLabels = { new: "New", open: "In Progress", completed: "Completed" };
+          setNotifications((prev) => [{ icon: t.status === "completed" ? "\u2705" : "\u{1F504}", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+        }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "tickets" }, () => {
         fetchTickets();
@@ -1801,7 +1917,7 @@ export default function App() {
   useEffect(() => {
     async function fl() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
     fl();
-    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
+    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -2030,11 +2146,16 @@ export default function App() {
         [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
           color-scheme: dark;
         }
+        @media (max-width: 900px) {
+          .hub-layout-main { grid-template-columns: 1fr !important; }
+          .hub-dash-grid { grid-template-columns: 1fr 1fr !important; }
+        }
         @media (max-width: 640px) {
           .hub-header { padding: 10px 16px !important; flex-wrap: wrap; gap: 8px; }
           .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-tickets-grid { grid-template-columns: 1fr !important; }
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr !important; }
           .hub-type-filter { display: none !important; }
@@ -2056,34 +2177,56 @@ export default function App() {
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Code Generator" : "Your marketing toolkit"}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Leads" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Code Generator" : "Your marketing toolkit"}</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setDark(!dark)} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 16, lineHeight: 1, transition: "all 0.2s", color: "var(--text-secondary)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={() => setDark(!dark)} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>
             {dark ? "\u2600" : "\u{1F319}"}
           </button>
-          <nav className="hub-nav" style={{ display: "flex", gap: 4, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", alignItems: "center" }}>
-          {view !== "hub" && <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "transparent", color: "var(--nav-inactive)" }}>{"\u2190"} Hub</button>}
+          {dashUnlocked && <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} />}
+          <nav className="hub-nav" style={{ display: "flex", gap: 3, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", alignItems: "center" }}>
+          {view !== "hub" && <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "transparent", color: "var(--nav-inactive)", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.background = "rgba(99,102,241,0.08)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>Home</button>}
           {view !== "hub" && currentSection !== "hub" && <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>}
           {currentSection === "tickets" && (<>
-            <button onClick={() => setView("form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>+ New</button>
-            <button onClick={handleDashboardClick} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
+            <button onClick={() => setView("form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" || view === "submitted" ? "var(--brand)" : "transparent", color: view === "form" || view === "submitted" ? "#fff" : "var(--nav-inactive)" }}>Submit</button>
+            <button onClick={handleDashboardClick} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "dashboard" ? "var(--brand)" : "transparent", color: view === "dashboard" ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
               {dashUnlocked ? "" : "\u{1F512} "}Dashboard
               {dashUnlocked && activeCount > 0 && (<span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>)}
             </button>
             {dashUnlocked && <button onClick={() => setView("activity")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>Activity</button>}
-            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>{"\u{1F50D}"} Track</button>
+            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "tracker" ? "var(--brand)" : "transparent", color: view === "tracker" ? "#fff" : "var(--nav-inactive)" }}>Track</button>
           </>)}
           {currentSection === "archive" && (<>
             <button onClick={() => setView("archive")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "archive" ? "var(--brand)" : "transparent", color: view === "archive" ? "#fff" : "var(--nav-inactive)" }}>Browse</button>
             {dashUnlocked && <button onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "archive_add" || view === "archive_edit") ? "var(--brand)" : "transparent", color: (view === "archive_add" || view === "archive_edit") ? "#fff" : "var(--nav-inactive)" }}>+ Add</button>}
           </>)}
           {currentSection === "leads" && (<>
-            <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>+ Log Lead</button>
+            <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>Log Lead</button>
             <button onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "leads_dashboard" ? "var(--brand)" : "transparent", color: view === "leads_dashboard" ? "#fff" : "var(--nav-inactive)" }}>{dashUnlocked ? "" : "\u{1F512} "}Dashboard</button>
           </>)}
-          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub" || currentSection === "templates" || currentSection === "guide" || currentSection === "converter" || currentSection === "qr") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Templates" : currentSection === "guide" ? "Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Generator" : "Home"}</button>}
+          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: currentSection !== "hub" ? "var(--brand)" : "transparent", color: currentSection !== "hub" ? "#fff" : "var(--nav-inactive)", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : "Home"}</button>}
+          {(currentSection === "guide") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>Guide</button>}
+          {(currentSection === "templates" || currentSection === "converter" || currentSection === "qr") && (
+            <div ref={toolsRef} style={{ position: "relative" }}>
+              <button onClick={() => setToolsOpen(!toolsOpen)} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                {"\u{1F6E0}\uFE0F"} Tools <span style={{ fontSize: 10 }}>{toolsOpen ? "\u25B2" : "\u25BC"}</span>
+              </button>
+              {toolsOpen && (
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden", padding: 4 }}>
+                  {[
+                    { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
+                    { id: "converter", icon: "\u{1F504}", label: "File Converter" },
+                    { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
+                  ].map((t) => (
+                    <button key={t.id} onClick={() => { setView(t.id); setToolsOpen(false); }} style={{ width: "100%", padding: "10px 14px", background: view === t.id ? "var(--brand-light)" : "transparent", border: "none", borderRadius: 6, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: view === t.id ? 700 : 500, color: view === t.id ? "var(--brand)" : "var(--text-primary)", transition: "all 0.15s" }} onMouseOver={(e) => { if (view !== t.id) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (view !== t.id) e.currentTarget.style.background = "transparent"; }}>
+                      <span style={{ fontSize: 16 }}>{t.icon}</span> {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
         </div>
       </header>
