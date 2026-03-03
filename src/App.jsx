@@ -205,7 +205,7 @@ function TicketForm({ onSubmit }) {
   );
 }
 
-function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline }) {
+function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteName, setNoteName] = useState("");
@@ -332,6 +332,11 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {ticket.status === "completed" && (
+              <button onClick={() => onReopen(ticket.id)} style={{ padding: "8px 16px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, color: "#6366f1", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(99,102,241,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(99,102,241,0.1)"}>
+                {"\u21A9"} Reopen Ticket
+              </button>
+            )}
             {ticket.status !== "completed" && (
               <>
                 {ticket.status === "open" && (
@@ -366,14 +371,15 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
   );
 }
 
-function GridCard({ ticket, onStatusChange, onComplete, onDelete }) {
+function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status];
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const isOverdue = dueBadge && dueBadge.color === "#dc2626";
 
   return (
-    <div style={{ background: ticket.status === "completed" ? "#fafafa" : "#f6f6f6", border: "1px solid " + (ticket.status === "completed" ? "#f1f5f9" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "#e2e8f0"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+    <div style={{ background: ticket.status === "completed" ? "#fafafa" : "#f6f6f6", border: isOverdue ? "2px solid rgba(220,38,38,0.5)" : "1px solid " + (ticket.status === "completed" ? "#f1f5f9" : "#e2e8f0"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140, boxShadow: isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 2px 14px rgba(220,38,38,0.2)" : "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 12, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
@@ -390,6 +396,7 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete }) {
       </div>
       {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "#94a3b8" }}>{"\u{1F4DD}"} {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
+        {ticket.status === "completed" && <button onClick={() => onReopen(ticket.id)} style={{ padding: "4px 8px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 5, color: "#6366f1", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u21A9"}</button>}
         {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
         {ticket.status !== "completed" && <button onClick={() => onComplete(ticket.id)} style={{ padding: "4px 8px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 5, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"}</button>}
         {!confirmDelete ? (
@@ -432,7 +439,7 @@ function StatsBar({ tickets }) {
   );
 }
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline }) {
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -441,8 +448,8 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
 
   const filtered = tickets.filter((t) => {
     if (search.trim()) {
-      const q = search.trim().toUpperCase();
-      if (!t.id.toUpperCase().includes(q)) return false;
+      const q = search.trim().toLowerCase();
+      if (!t.id.toLowerCase().includes(q) && !t.name.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q)) return false;
     }
     if (filter === "all") return true;
     if (filter === "active") return t.status !== "completed";
@@ -450,8 +457,9 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === "priority") return priorityOrder[a.priority] - priorityOrder[b.priority];
-    if (sortBy === "deadline") return (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
+    const effectiveSort = viewMode === "grid" ? "deadline" : sortBy;
+    if (effectiveSort === "priority") return priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (effectiveSort === "deadline") return (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
@@ -469,7 +477,7 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
         <div style={{ position: "relative", minWidth: 200 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ref e.g. M001" style={{ width: "100%", padding: "9px 12px 9px 34px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, or title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
         </div>
       </div>
 
@@ -505,11 +513,114 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} />)}
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} />)}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
-          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} />)}
+          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} onReopen={onReopen} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityLog({ tickets }) {
+  // Build activity entries from ticket data
+  const activities = [];
+
+  tickets.forEach((t) => {
+    // Ticket created
+    activities.push({
+      time: t.createdAt,
+      type: "created",
+      icon: "\u{1F4E5}",
+      color: "#6366f1",
+      ref: t.id,
+      title: t.title,
+      text: t.name + " submitted a new ticket",
+    });
+
+    // Ticket completed
+    if (t.completedAt) {
+      activities.push({
+        time: t.completedAt,
+        type: "completed",
+        icon: "\u2713",
+        color: "#16a34a",
+        ref: t.id,
+        title: t.title,
+        text: "Ticket marked as completed",
+      });
+    }
+
+    // Notes (both manual and system)
+    (t.notes || []).forEach((note) => {
+      activities.push({
+        time: note.timestamp,
+        type: note.auto ? "system" : "note",
+        icon: note.auto ? "\u2699" : "\u{1F4DD}",
+        color: note.auto ? "#8b5cf6" : "#0284c7",
+        ref: t.id,
+        title: t.title,
+        text: note.auto ? note.text : note.author + ": " + note.text,
+      });
+    });
+  });
+
+  // Sort newest first
+  activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+  const formatTime = (iso) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHrs = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return diffMins + "m ago";
+    if (diffHrs < 24) return diffHrs + "h ago";
+    if (diffDays < 7) return diffDays + "d ago";
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+  };
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#231d68" }}>Activity Log</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>Recent actions across all tickets</p>
+      </div>
+
+      {activities.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "#94a3b8" }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{"\u{1F4CB}"}</div>
+          <p style={{ fontSize: 15, margin: 0 }}>No activity yet</p>
+        </div>
+      ) : (
+        <div style={{ position: "relative", paddingLeft: 28 }}>
+          {/* Vertical line */}
+          <div style={{ position: "absolute", left: 9, top: 6, bottom: 6, width: 2, background: "#e2e8f0", borderRadius: 1 }}></div>
+
+          {activities.slice(0, 50).map((a, i) => (
+            <div key={i} style={{ position: "relative", marginBottom: 16, paddingBottom: 0 }}>
+              {/* Dot */}
+              <div style={{ position: "absolute", left: -23, top: 4, width: 14, height: 14, borderRadius: "50%", background: "#fff", border: "2.5px solid " + a.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7 }}></div>
+
+              <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.06)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14 }}>{a.icon}</span>
+                  <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{a.ref}</span>
+                  <span style={{ fontSize: 12, color: "#94a3b8" }}>{formatTime(a.time)}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.4 }}>{a.text}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</p>
+              </div>
+            </div>
+          ))}
+
+          {activities.length > 50 && (
+            <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", marginTop: 8 }}>Showing 50 of {activities.length} activities</p>
+          )}
         </div>
       )}
     </div>
@@ -632,6 +743,15 @@ export default function App() {
     }
   };
 
+  const handleReopen = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const autoNote = { author: "System", text: "Ticket reopened", timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ status: "open", completed_at: null, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
   const handleDelete = async (id) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
@@ -707,6 +827,11 @@ export default function App() {
               <span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>
             )}
           </button>
+          {dashUnlocked && (
+            <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "#231d68" : "transparent", color: view === "activity" ? "#fff" : "#64748b" }}>
+              Activity
+            </button>
+          )}
         </nav>
       </header>
 
@@ -737,8 +862,10 @@ export default function App() {
           </div>
         ) : view === "password" ? (
           <PasswordGate onUnlock={handleUnlock} />
+        ) : view === "activity" ? (
+          <ActivityLog tickets={tickets} />
         ) : (
-          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} />
+          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} />
         )}
       </main>
     </div>
