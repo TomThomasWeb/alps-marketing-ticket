@@ -151,13 +151,13 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Your central place for marketing requests, resources, and tools.</p>
       </div>
 
-      <button onClick={() => onNavigate("guide")} style={{ width: "100%", background: "linear-gradient(135deg, #ca8a04 0%, #a16207 100%)", border: "none", borderRadius: 12, padding: "16px 24px", marginBottom: 24, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, transition: "all 0.2s", textAlign: "left" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(161,98,7,0.25)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+      <button onClick={() => onNavigate("guide")} style={{ width: "100%", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 24px", marginBottom: 24, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, transition: "all 0.2s", textAlign: "left" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = "#ca8a04"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
         <div style={{ fontSize: 28 }}>{"\u{1F4D6}"}</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Self-Service Guide</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>Image sizes, brand rules, request process, FAQs, and everything you need before submitting a ticket.</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>Self-Service Guide</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Image sizes, brand rules, request process, FAQs, and everything you need before submitting a ticket.</div>
         </div>
-        <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>{"\u2192"}</div>
+        <div style={{ fontSize: 18, color: "var(--text-muted)" }}>{"\u2192"}</div>
       </button>
 
       <div className="hub-layout-main" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20, marginBottom: 24 }}>
@@ -183,9 +183,10 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
           {sectionLabel("\u{1F6E0}\uFE0F", "Marketing Tools")}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {cardBtn("templates", { icon: "\u{1F4C4}", title: "Content Templates", desc: "Reusable copy and snippets", color: "#0d9488", compact: true })}
+            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", desc: "Resize and convert images", color: "#64748b", compact: true })}
+            {cardBtn("qr_generator", { icon: "\u{1F517}", title: "QR Code Generator", desc: "Generate QR codes for print & campaigns", color: "#231D68", compact: true })}
             {cardBtn("footer", { icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Branded email signatures", color: "#ea580c", compact: true, soon: true })}
             {cardBtn("planner", { icon: "\u{1F5D3}", title: "Campaign Planner", desc: "Multi-channel campaign tracking", color: "#7c3aed", compact: true, soon: true })}
-            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", desc: "Resize and convert files", color: "#64748b", compact: true, soon: true })}
           </div>
         </div>
 
@@ -1407,6 +1408,231 @@ function SelfServiceGuide() {
   );
 }
 
+
+function FileConverter() {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [outputFormat, setOutputFormat] = useState("png");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [origW, setOrigW] = useState(0);
+  const [origH, setOrigH] = useState(0);
+  const [lockAspect, setLockAspect] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState(null);
+  const canvasRef = useRef(null);
+  const fileRef = useRef(null);
+
+  const formats = [
+    { value: "png", label: "PNG", mime: "image/png" },
+    { value: "jpeg", label: "JPG", mime: "image/jpeg" },
+    { value: "webp", label: "WEBP", mime: "image/webp" },
+  ];
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setFile(f); setResult(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPreview(ev.target.result);
+      const img = new Image();
+      img.onload = () => { setOrigW(img.width); setOrigH(img.height); setWidth(String(img.width)); setHeight(String(img.height)); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const handleWidthChange = (v) => {
+    setWidth(v);
+    if (lockAspect && origW > 0 && v) { setHeight(String(Math.round((parseInt(v) / origW) * origH))); }
+  };
+  const handleHeightChange = (v) => {
+    setHeight(v);
+    if (lockAspect && origH > 0 && v) { setWidth(String(Math.round((parseInt(v) / origH) * origW))); }
+  };
+
+  const convert = () => {
+    if (!preview) return;
+    setProcessing(true);
+    const img = new Image();
+    img.onload = () => {
+      const w = parseInt(width) || img.width;
+      const h = parseInt(height) || img.height;
+      const canvas = canvasRef.current;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (outputFormat === "jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h);
+      const fmt = formats.find((f) => f.value === outputFormat);
+      const quality = outputFormat === "jpeg" ? 0.92 : undefined;
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const name = (file.name.replace(/\.[^.]+$/, "")) + "." + outputFormat;
+        setResult({ url, name, size: blob.size, width: w, height: h });
+        setProcessing(false);
+      }, fmt.mime, quality);
+    };
+    img.src = preview;
+  };
+
+  const fmtSize = (bytes) => bytes < 1024 ? bytes + " B" : bytes < 1048576 ? (bytes / 1024).toFixed(1) + " KB" : (bytes / 1048576).toFixed(2) + " MB";
+  const inputStyle = { padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 640 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F504}"} File Converter</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Convert and resize images. Supports PNG, JPG, and WEBP.</p>
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        {!file ? (
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 20px", border: "2px dashed var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+            <div style={{ fontSize: 40, opacity: 0.4 }}>{"\u{1F4CE}"}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Click to upload an image</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF, SVG</div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+          </label>
+        ) : (
+          <div>
+            <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+              <div style={{ width: 120, height: 120, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", flexShrink: 0, background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50% / 16px 16px" }}>
+                <img src={preview} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4, wordBreak: "break-all" }}>{file.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>{origW} x {origH}px &bull; {fmtSize(file.size)}</div>
+                <button onClick={() => { setFile(null); setPreview(null); setResult(null); if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Change file</button>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20, alignItems: "end" }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Output Format</label>
+                <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value)} style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
+                  {formats.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Width (px)</label>
+                <input type="number" value={width} onChange={(e) => handleWidthChange(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Height (px)</label>
+                <input type="number" value={height} onChange={(e) => handleHeightChange(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <button onClick={() => setLockAspect(!lockAspect)} style={{ padding: "6px 12px", background: lockAspect ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (lockAspect ? "var(--brand)" : "var(--border)"), borderRadius: 6, color: lockAspect ? "var(--brand)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{lockAspect ? "\u{1F512} Aspect ratio locked" : "\u{1F513} Aspect ratio unlocked"}</button>
+              <button onClick={() => { setWidth(String(origW)); setHeight(String(origH)); }} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Reset size</button>
+            </div>
+
+            <button onClick={convert} disabled={processing} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: processing ? "wait" : "pointer" }}>{processing ? "Converting..." : "\u{1F504} Convert"}</button>
+
+            {result && (
+              <div style={{ marginTop: 20, padding: 16, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div><div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{"\u2705"} Converted!</div><div style={{ fontSize: 12, color: "var(--text-muted)" }}>{result.width} x {result.height}px &bull; {fmtSize(result.size)}</div></div>
+                  <a href={result.url} download={result.name} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>{"\u2B07"} Download {result.name}</a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function QRCodeGenerator() {
+  const [url, setUrl] = useState("");
+  const [size, setSize] = useState(300);
+  const [color, setColor] = useState("231D68");
+  const [bgColor, setBgColor] = useState("ffffff");
+  const [generated, setGenerated] = useState(null);
+
+  const presetColors = [
+    { label: "Alps Main", hex: "231D68" },
+    { label: "Motor", hex: "E64592" },
+    { label: "Commercial", hex: "20A39E" },
+    { label: "Black", hex: "000000" },
+  ];
+
+  const generate = () => {
+    if (!url.trim()) return;
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encodeURIComponent(url.trim()) + "&color=" + color + "&bgcolor=" + bgColor + "&format=png&margin=8";
+    setGenerated({ url: qrUrl, inputUrl: url.trim() });
+  };
+
+  const downloadQR = async () => {
+    if (!generated) return;
+    try {
+      const resp = await fetch(generated.url);
+      const blob = await resp.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "qr-code-" + size + "px.png";
+      link.click();
+    } catch (e) { window.open(generated.url, "_blank"); }
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 560 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F517}"} QR Code Generator</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Generate QR codes for print materials, event stands, and campaigns.</p>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>URL or Text *</label>
+          <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" onKeyDown={(e) => e.key === "Enter" && generate()} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Size</label>
+            <select value={size} onChange={(e) => setSize(Number(e.target.value))} style={{ ...inputStyle, cursor: "pointer" }}>
+              <option value={200}>200 x 200px</option>
+              <option value={300}>300 x 300px</option>
+              <option value={500}>500 x 500px</option>
+              <option value={800}>800 x 800px (print)</option>
+              <option value={1000}>1000 x 1000px (large print)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>QR Colour</label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {presetColors.map((c) => (
+                <button key={c.hex} onClick={() => setColor(c.hex)} title={c.label} style={{ width: 32, height: 32, borderRadius: 6, background: "#" + c.hex, border: "2px solid " + (color === c.hex ? "var(--brand)" : "transparent"), cursor: "pointer", transition: "all 0.2s" }} />
+              ))}
+              <div style={{ position: "relative", flex: 1 }}>
+                <input type="text" value={"#" + color} onChange={(e) => { const v = e.target.value.replace("#", ""); if (/^[0-9a-fA-F]{0,6}$/.test(v)) setColor(v); }} style={{ ...inputStyle, paddingLeft: 10, fontSize: 12, fontFamily: "monospace", height: 32, padding: "0 8px" }} placeholder="#hex" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button onClick={generate} disabled={!url.trim()} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: url.trim() ? 1 : 0.5, marginBottom: generated ? 20 : 0 }}>{"\u{1F517}"} Generate QR Code</button>
+
+        {generated && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ display: "inline-block", padding: 16, background: "#fff", borderRadius: 12, border: "1px solid var(--border)", marginBottom: 12 }}>
+              <img src={generated.url} alt="QR Code" style={{ display: "block", width: Math.min(size, 280), height: Math.min(size, 280) }} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, wordBreak: "break-all" }}>{generated.inputUrl}</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button onClick={downloadQR} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2B07"} Download PNG</button>
+              <button onClick={() => { navigator.clipboard.writeText(generated.url); }} style={{ padding: "10px 20px", background: "var(--brand-light)", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy URL</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ActivityLog({ tickets }) {
   // Build activity entries from ticket data
   const activities = [];
@@ -1766,7 +1992,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "templates" ? "templates" : view === "guide" ? "guide" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "templates" ? "templates" : view === "guide" ? "guide" : view === "converter" ? "converter" : view === "qr_generator" ? "qr" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -1826,11 +2052,11 @@ export default function App() {
 
       <header className="hub-header" style={{ padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 50, boxShadow: "var(--shadow)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src={ALPS_LOGO} alt="Alps" style={{ height: 38, objectFit: "contain" }} />
+          <img src={ALPS_LOGO} alt="Alps" style={{ height: 38, objectFit: "contain", cursor: "pointer" }} onClick={() => setView("hub")} />
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : "Your marketing toolkit"}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Code Generator" : "Your marketing toolkit"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1857,7 +2083,7 @@ export default function App() {
             <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>+ Log Lead</button>
             <button onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "leads_dashboard" ? "var(--brand)" : "transparent", color: view === "leads_dashboard" ? "#fff" : "var(--nav-inactive)" }}>{dashUnlocked ? "" : "\u{1F512} "}Dashboard</button>
           </>)}
-          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub" || currentSection === "templates" || currentSection === "guide") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Templates" : currentSection === "guide" ? "Guide" : "Home"}</button>}
+          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub" || currentSection === "templates" || currentSection === "guide" || currentSection === "converter" || currentSection === "qr") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Templates" : currentSection === "guide" ? "Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Generator" : "Home"}</button>}
         </nav>
         </div>
       </header>
@@ -1904,6 +2130,10 @@ export default function App() {
           <ContentTemplates templates={contentTemplates} isAdmin={dashUnlocked} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
         ) : view === "guide" ? (
           <SelfServiceGuide />
+        ) : view === "converter" ? (
+          <FileConverter />
+        ) : view === "qr_generator" ? (
+          <QRCodeGenerator />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
