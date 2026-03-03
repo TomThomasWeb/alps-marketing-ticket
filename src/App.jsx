@@ -119,88 +119,142 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
+  const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const sectionLabel = (icon, text) => (
-    <h3 style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>{icon} {text}</h3>
-  );
+  const [loginPw, setLoginPw] = useState("");
+  const [loginError, setLoginError] = useState(false);
+  const [loginShake, setLoginShake] = useState(false);
 
-  const cardBtn = (id, opts) => {
-    const isSoon = opts.soon;
-    return (
-      <button key={id} onClick={() => !isSoon && onNavigate(id)} disabled={isSoon}
-        style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: opts.compact ? 10 : 14, padding: opts.compact ? "12px 14px" : "20px 18px", textAlign: "left", cursor: isSoon ? "default" : "pointer", transition: "all 0.2s", opacity: isSoon ? 0.5 : 1, display: "flex", flexDirection: opts.compact ? "row" : "column", gap: opts.compact ? 10 : 0, alignItems: opts.compact ? "center" : "flex-start" }}
-        onMouseOver={(e) => { if (!isSoon) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = opts.color || "var(--brand)"; } }}
-        onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-        <div style={{ fontSize: opts.compact ? 20 : 26, marginBottom: opts.compact ? 0 : 8, flexShrink: 0 }}>{opts.icon}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: opts.compact ? 13 : 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: opts.compact ? 0 : 3 }}>{opts.locked && !dashUnlocked ? "\u{1F512} " : ""}{opts.title}</div>
-          {opts.desc && <div style={{ fontSize: opts.compact ? 11 : 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{opts.desc}</div>}
-        </div>
-        {isSoon && <span style={{ position: "absolute", top: 8, right: 8, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Soon</span>}
-        {opts.badge && <span style={{ position: "absolute", top: 8, right: 8, minWidth: 20, height: 20, borderRadius: 10, background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{opts.badge}</span>}
-      </button>
-    );
+  const tryLogin = () => {
+    if (loginPw === DASHBOARD_PASSWORD) {
+      onUnlockInline();
+      setLoginPw("");
+    } else {
+      setLoginError(true);
+      setLoginShake(true);
+      setTimeout(() => setLoginShake(false), 500);
+      setLoginPw("");
+    }
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: 840 }}>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Marketing Hub</h2>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Your central place for marketing requests, resources, and tools.</p>
+    <div style={{ width: "100%", maxWidth: 800 }}>
+
+      <div style={{ marginBottom: 40, paddingBottom: 32, borderBottom: "1px solid var(--border)" }}>
+        <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
+        <h2 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Marketing Hub</h2>
+
+        <div className="hub-hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <button onClick={() => onNavigate("form")} style={{ padding: "24px", background: "var(--brand)", borderRadius: 14, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.25s", position: "relative", overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(35,29,104,0.2)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 4 }}>{"\u{1F4DD}"} Submit a Ticket</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Request marketing support for your next project</div>
+          </button>
+          <button onClick={() => onNavigate("lead_form")} style={{ padding: "24px", background: "var(--bg-card)", borderRadius: 14, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = "#16a34a"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{"\u{1F4C8}"} Log a Lead</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Record an inbound marketing lead</div>
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14, flexWrap: "wrap" }}>
+          <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0, transition: "opacity 0.2s" }} onMouseOver={(e) => e.currentTarget.style.opacity = "0.7"} onMouseOut={(e) => e.currentTarget.style.opacity = "1"}>{"\u{1F50D}"} Track a ticket {"\u2192"}</button>
+          {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span>{activeCount} active</span>}
+          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span>{leadsAction} need{leadsAction === 1 ? "s" : ""} action</span>}
+          {completedThisMonth > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u2705"} {completedThisMonth} completed this month</span>}
+        </div>
       </div>
 
-      {(activeCount > 0 || leadsAction > 0) && (
-        <div style={{ display: "flex", gap: 10, marginBottom: 20, justifyContent: "center", flexWrap: "wrap" }}>
-          {activeCount > 0 && <div style={{ padding: "8px 16px", borderRadius: 8, background: "var(--brand-light)", fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>{"\u{1F4CB}"} {activeCount} active ticket{activeCount !== 1 ? "s" : ""}</div>}
-          {leadsAction > 0 && <div style={{ padding: "8px 16px", borderRadius: 8, background: "rgba(202,138,4,0.1)", fontSize: 13, fontWeight: 600, color: "#ca8a04" }}>{"\u{1F7E1}"} {leadsAction} lead{leadsAction !== 1 ? "s" : ""} need{leadsAction === 1 ? "s" : ""} action</div>}
-        </div>
-      )}
-
-      <div style={{ background: "var(--brand-light)", border: "1px solid var(--brand)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
-        {sectionLabel("\u{1F4CB}", "Tickets & Leads")}
-        <div className="hub-tickets-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {cardBtn("form", { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support", color: "#6366f1" })}
-          {cardBtn("tracker", { icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check request status", color: "#0284c7" })}
-          {cardBtn("lead_form", { icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound lead", color: "#16a34a" })}
+      <div style={{ marginBottom: 36 }}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
+        <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {[
+            { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse campaigns, posts, and outbound materials", color: "#8b5cf6" },
+            { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" },
+            { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, image sizes, brand rules, and how-tos", color: "#ca8a04" },
+          ].map((r) => (
+            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "20px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+              <div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{r.desc}</div>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="hub-layout-main" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 16, marginBottom: 20 }}>
-        <div>
-          {sectionLabel("\u{1F4DA}", "Resources")}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {cardBtn("archive", { icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns & materials", color: "#8b5cf6" })}
-            {cardBtn("brand_assets", { icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos", color: "#E64592" })}
-            {cardBtn("guide", { icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs & how-to", color: "#ca8a04" })}
+      <div style={{ marginBottom: 36 }}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>TOOLS</h3>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {[
+            { id: "templates", icon: "\u{1F4C4}", label: "Content Templates", color: "#0d9488" },
+            { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
+            { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
+            { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
+            { id: "planner", icon: "\u{1F5D3}", label: "Campaign Planner", color: "#7c3aed", soon: true },
+          ].map((t) => (
+            <button key={t.id} onClick={() => !t.soon && onNavigate(t.id)} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1, position: "relative" }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+              <span style={{ fontSize: 16 }}>{t.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
+              {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Soon</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 300 }}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>DASHBOARDS</h3>
+          <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : null, color: "#231d68" },
+              { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : null, color: "#0d9488" },
+              { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports", color: "#dc2626" },
+            ].map((d) => (
+              <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.25s", opacity: !dashUnlocked ? 0.7 : 1 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = d.color; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 18 }}>{d.icon}</span>
+                  {!dashUnlocked && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
+                {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div>
-          {sectionLabel("\u{1F6E0}\uFE0F", "Marketing Tools")}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {cardBtn("templates", { icon: "\u{1F4C4}", title: "Content Templates", color: "#0d9488", compact: true })}
-            {cardBtn("converter", { icon: "\u{1F504}", title: "File Converter", color: "#64748b", compact: true })}
-            {cardBtn("qr_generator", { icon: "\u{1F517}", title: "QR Generator", color: "#231D68", compact: true })}
-            {cardBtn("footer", { icon: "\u2709\uFE0F", title: "Email Footer", color: "#ea580c", compact: true, soon: true })}
-            {cardBtn("planner", { icon: "\u{1F5D3}", title: "Campaign Planner", color: "#7c3aed", compact: true, soon: true })}
+        {!dashUnlocked && (
+          <div style={{ width: 220, flexShrink: 0 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>ADMIN</h3>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{"\u{1F512}"} Unlock dashboards</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "8px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", minWidth: 0 }} />
+                <button onClick={tryLogin} style={{ padding: "8px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Go</button>
+              </div>
+              {loginError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>Wrong password</div>}
+            </div>
           </div>
-        </div>
+        )}
+
+        {dashUnlocked && (
+          <div style={{ width: 220, flexShrink: 0 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>&nbsp;</h3>
+            <div style={{ padding: "12px 16px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)" }}>{"\u2705"} Admin unlocked</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Dashboards & editing enabled</div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-        {sectionLabel("\u{1F4CA}", "Dashboards")}
-        <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {cardBtn("dashboard", { icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active" : "Manage tickets", color: "#231d68", locked: true, badge: dashUnlocked && activeCount > 0 ? activeCount : null })}
-          {cardBtn("leads_dashboard", { icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " logged" : "View leads", color: "#0d9488", locked: true })}
-          {cardBtn("analytics", { icon: "\u{1F4CA}", title: "Analytics", desc: "Metrics & monthly report", color: "#dc2626", locked: true })}
-        </div>
-      </div>
     </div>
   );
 }
+
+
 
 
 
@@ -2099,7 +2153,7 @@ export default function App() {
 
   const handleUnlock = () => {
     setDashUnlocked(true);
-    setView("dashboard");
+    if (view === "password") setView("hub");
   };
 
   const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity"];
@@ -2149,12 +2203,15 @@ export default function App() {
         @media (max-width: 900px) {
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr 1fr !important; }
+          .hub-resource-grid { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 640px) {
           .hub-header { padding: 10px 16px !important; flex-wrap: wrap; gap: 8px; }
           .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-hero-grid { grid-template-columns: 1fr !important; }
+          .hub-resource-grid { grid-template-columns: 1fr !important; }
           .hub-tickets-grid { grid-template-columns: 1fr !important; }
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr !important; }
@@ -2238,7 +2295,7 @@ export default function App() {
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
