@@ -125,9 +125,13 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
     { id: "form", icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support for your next project", color: "#6366f1" },
     { id: "tracker", icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check the status of an existing request", color: "#0284c7" },
     { id: "lead_form", icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound marketing lead", color: "#16a34a" },
+    { id: "templates", icon: "\u{1F4C4}", title: "Content Templates", desc: "Reusable copy snippets, email templates, and social captions", color: "#0d9488" },
+    { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, brand guidelines, and how-to resources", color: "#ca8a04" },
     { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse outbound campaigns, posts, and materials", color: "#8b5cf6" },
     { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" },
     { id: "footer", icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Create branded email signatures", color: "#ea580c", soon: true },
+    { id: "planner", icon: "\u{1F5D3}", title: "Campaign Planner", desc: "Plan and track multi-channel marketing campaigns", color: "#7c3aed", soon: true },
+    { id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize images and convert between file formats", color: "#64748b", soon: true },
   ];
   const dashboards = [
     { id: "dashboard", icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active ticket" + (activeCount !== 1 ? "s" : "") : "Manage all tickets", color: "#231d68", badge: dashUnlocked && activeCount > 0 ? activeCount : null, locked: !dashUnlocked },
@@ -610,7 +614,7 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
         <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
-        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>{"\u{1F4CB}"} Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>{"\u{1F4DA}"} Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>{"\u{1F4C8}"} Leads</button></div>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>{"\u{1F4CB}"} Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>{"\u{1F4DA}"} Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>{"\u{1F4C8}"} Leads</button><button onClick={() => setTab("report")} style={ts("report")}>{"\u{1F4CB}"} Report</button></div>
       </div>
 
       {tab === "tickets" && (<>
@@ -666,6 +670,82 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
           <div style={card}><div style={st}>Top Loggers</div>{topL.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No leads yet</p> : topL.map(([name, count]) => (<div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, color: "var(--text-body)" }}>{name}</span><span style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 10 }}>{count}</span></div>))}</div>
         </div>
       </>)}
+
+      {tab === "report" && (() => {
+        const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        const som = new Date(now.getFullYear(), now.getMonth(), 1);
+        const mtTC = tickets.filter((t) => new Date(t.createdAt) >= som).length;
+        const mtTD = ct.filter((t) => new Date(t.completedAt) >= som).length;
+        const mtA = archiveEntries.filter((e) => new Date(e.date || e.created_at) >= som).length;
+        const mtL = leads.filter((l) => new Date(l.created_at) >= som).length;
+        const mtLA = leads.filter((l) => new Date(l.created_at) >= som && l.next_steps === "needs_action").length;
+        const mtLP = leads.filter((l) => new Date(l.created_at) >= som && l.next_steps === "passed_through").length;
+        const mtAT = {};
+        archiveEntries.filter((e) => new Date(e.date || e.created_at) >= som).forEach((e) => { const t = ARCHIVE_TYPES[e.type] || ARCHIVE_TYPES.other; mtAT[t.label] = (mtAT[t.label] || 0) + 1; });
+        const mtLS = {};
+        leads.filter((l) => new Date(l.created_at) >= som).forEach((l) => { const s = LEAD_SOURCES[l.source] || LEAD_SOURCES.other; mtLS[s.label] = (mtLS[s.label] || 0) + 1; });
+        const mtAvg = (() => { const m = ct.filter((t) => new Date(t.completedAt) >= som); return m.length > 0 ? m.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / m.length : 0; })();
+        const mtPri = {};
+        tickets.filter((t) => new Date(t.createdAt) >= som).forEach((t) => { mtPri[t.priority] = (mtPri[t.priority] || 0) + 1; });
+
+        const reportLines = [
+          "ALPS MARKETING REPORT - " + monthName.toUpperCase(),
+          "=".repeat(50), "",
+          "TICKETS",
+          "  Submitted: " + mtTC, "  Completed: " + mtTD,
+          "  Active Backlog: " + at.length, "  Avg Turnaround: " + fmtH(mtAvg),
+          ...Object.entries(mtPri).map(([k, v]) => "  " + (PRIORITIES[k] ? PRIORITIES[k].label : k) + ": " + v), "",
+          "OUTBOUND CONTENT",
+          "  Pieces Published: " + mtA,
+          ...Object.entries(mtAT).map(([k, v]) => "  " + k + ": " + v), "",
+          "INBOUND LEADS",
+          "  Total: " + mtL, "  Needs Action: " + mtLA, "  Passed Through: " + mtLP,
+          ...Object.entries(mtLS).map(([k, v]) => "  " + k + ": " + v), "",
+          "Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        ].join("\n");
+
+        const copyReport = () => { navigator.clipboard.writeText(reportLines); };
+
+        return (<>
+          <div style={{ ...card, marginBottom: 20, textAlign: "center" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CB}"} Monthly Marketing Report</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>{monthName} summary across all marketing activity</p>
+            <button onClick={copyReport} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy Report to Clipboard</button>
+          </div>
+          <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div style={card}>
+              <div style={st}>{"\u{1F4CB}"} Tickets</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={mb}><div style={mv}>{mtTC}</div><div style={ml}>Submitted</div></div>
+                <div style={mb}><div style={mv}>{mtTD}</div><div style={ml}>Completed</div></div>
+              </div>
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Avg Turnaround</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{fmtH(mtAvg)}</div>
+              </div>
+              {Object.entries(mtPri).length > 0 && <div style={{ marginTop: 10 }}>{Object.entries(mtPri).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: PRIORITIES[k] ? PRIORITIES[k].color : "var(--text-body)" }}>{PRIORITIES[k] ? PRIORITIES[k].icon + " " + PRIORITIES[k].label : k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+            <div style={card}>
+              <div style={st}>{"\u{1F4DA}"} Content Output</div>
+              <div style={mb}><div style={mv}>{mtA}</div><div style={ml}>Pieces Published</div></div>
+              {Object.entries(mtAT).length > 0 && <div style={{ marginTop: 12 }}>{Object.entries(mtAT).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>{k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+            <div style={card}>
+              <div style={st}>{"\u{1F4C8}"} Inbound Leads</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={mb}><div style={mv}>{mtL}</div><div style={ml}>Total</div></div>
+                <div style={mb}><div style={mv}>{mtLP}</div><div style={ml}>Passed</div></div>
+              </div>
+              {mtLA > 0 && <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.2)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#ca8a04" }}>{"\u{1F7E1}"} {mtLA} still need{mtLA !== 1 ? "" : "s"} action</div>}
+              {Object.entries(mtLS).length > 0 && <div style={{ marginTop: 10 }}>{Object.entries(mtLS).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>{k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+          </div>
+          <div style={card}>
+            <div style={st}>Full Report Preview</div>
+            <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 16, borderRadius: 8, border: "1px solid var(--border)" }}>{reportLines}</pre>
+          </div>
+        </>);
+      })()}
     </div>
   );
 }
@@ -1150,6 +1230,151 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
   );
 }
 
+
+function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [editing, setEditing] = useState(null);
+  const [copied, setCopied] = useState(null);
+  const [form, setForm] = useState({ title: "", category: "email", content: "", tags: "" });
+  const [saving, setSaving] = useState(false);
+
+  const CATS = {
+    email: { label: "Email", icon: "\u{1F4E7}", color: "#6366f1" },
+    social: { label: "Social", icon: "\u{1F4F1}", color: "#0284c7" },
+    product: { label: "Product Copy", icon: "\u{1F4E6}", color: "#16a34a" },
+    broker: { label: "Broker Comms", icon: "\u{1F91D}", color: "#ea580c" },
+    internal: { label: "Internal", icon: "\u{1F3E2}", color: "#8b5cf6" },
+    other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
+  };
+
+  const filtered = templates.filter((t) => {
+    if (filter !== "all" && t.category !== filter) return false;
+    if (search.trim()) { const q = search.toLowerCase(); return t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q) || (t.tags || []).some((tag) => tag.toLowerCase().includes(q)); }
+    return true;
+  });
+
+  const handleCopy = (content) => { navigator.clipboard.writeText(content); setCopied(content); setTimeout(() => setCopied(null), 1500); };
+  const startEdit = (t) => { setEditing(t ? t.id : "new"); setForm(t ? { title: t.title, category: t.category, content: t.content, tags: (t.tags || []).join(", ") } : { title: "", category: "email", content: "", tags: "" }); };
+  const handleSave = async () => { if (!form.title.trim() || !form.content.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), category: form.category, content: form.content.trim(), tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) }, editing !== "new" ? editing : null); setSaving(false); setEditing(null); };
+  const handleDelete = async (id) => { await onDelete(id); setEditing(null); };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  if (editing !== null) {
+    const entry = editing !== "new" ? templates.find((t) => t.id === editing) : null;
+    return (
+      <div style={{ maxWidth: 600, width: "100%" }}><div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+        <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{entry ? "\u270E Edit Template" : "\u{1F4C4} New Template"}</h2>
+        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Title *</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. New Broker Welcome Email" /></div>
+        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(CATS).map(([k, c]) => <option key={k} value={k}>{c.icon} {c.label}</option>)}</select></div>
+        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Content *</label><textarea rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Template content... Use [BROKER], [PRODUCT], [NAME] as placeholders" /></div>
+        <div style={{ marginBottom: 24 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label><input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. welcome, onboarding" /></div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={handleSave} disabled={saving || !form.title.trim() || !form.content.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: form.title.trim() && form.content.trim() ? 1 : 0.5 }}>{saving ? "Saving..." : entry ? "Update" : "Save Template"}</button>
+          <button onClick={() => setEditing(null)} style={{ padding: "12px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+          {entry && <button onClick={() => handleDelete(entry.id)} style={{ padding: "12px 16px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Delete</button>}
+        </div>
+      </div></div>
+    );
+  }
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C4}"} Content Templates</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Reusable copy snippets, emails, and social captions. Use [BROKER], [PRODUCT], [NAME] as placeholders.</p></div>
+        {isAdmin && <button onClick={() => startEdit(null)} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New Template</button>}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+        <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
+          <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
+          {Object.entries(CATS).map(([k, c]) => (<button key={k} onClick={() => setFilter(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === k ? c.color : "transparent", color: filter === k ? "#fff" : "var(--text-secondary)" }}>{c.icon} {c.label}</button>))}
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{"\u{1F4C4}"}</div><p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? "No matching templates" : "No templates yet"}</p></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map((t) => { const c = CATS[t.category] || CATS.other; return (
+            <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, transition: "all 0.2s" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: c.color, textTransform: "uppercase", background: c.color + "12", padding: "2px 8px", borderRadius: 4 }}>{c.icon} {c.label}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{t.title}</span>
+                <button onClick={() => handleCopy(t.content)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : "\u{1F4CB} Copy"}</button>
+                {isAdmin && <button onClick={() => startEdit(t)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
+              </div>
+              <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 14, borderRadius: 8, border: "1px solid var(--border)", maxHeight: 160, overflow: "auto" }}>{t.content}</pre>
+              {t.tags && t.tags.length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>{t.tags.map((tag) => <span key={tag} style={{ padding: "1px 8px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}</div>}
+            </div>); })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelfServiceGuide() {
+  const [open, setOpen] = useState(null);
+  const toggle = (id) => setOpen(open === id ? null : id);
+
+  const sections = [
+    { id: "sizes", title: "\u{1F4D0} Image & Asset Sizes", items: [
+      { q: "Social media image sizes", a: "LinkedIn: 1200x627px (post), 1584x396px (cover)\nFacebook: 1200x630px (post), 820x312px (cover)\nInstagram: 1080x1080px (post), 1080x1920px (story)\nX/Twitter: 1600x900px (post), 1500x500px (header)" },
+      { q: "Email banner size", a: "Standard email banner: 600px wide, 200-300px tall. Keep file size under 200KB for fast loading." },
+      { q: "Print material specs", a: "A4 flyer: 210x297mm (3mm bleed)\nA5 flyer: 148x210mm (3mm bleed)\nDL leaflet: 99x210mm\nBusiness card: 85x55mm\nAlways supply at 300dpi with CMYK colour." },
+      { q: "PowerPoint slide dimensions", a: "Standard: 16:9 (33.867cm x 19.05cm)\nWe use widescreen by default. Fonts should be minimum 18pt for body text on slides." },
+    ]},
+    { id: "brand", title: "\u{1F3A8} Brand & Logo Usage", items: [
+      { q: "Where do I find Alps logos?", a: "Go to Brand Assets in the Marketing Hub. You can download logos in PNG, SVG, JPG, and PDF formats." },
+      { q: "Can I edit the Alps logo?", a: "No. The logo should not be stretched, recoloured, rotated, or modified in any way. Always use the approved versions from the Brand Assets page." },
+      { q: "What fonts does Alps use?", a: "Headlines: Museo Sans 700\nBody copy: Montserrat Regular\nThese are listed in the Brand Assets section with the full colour palette." },
+      { q: "How do I use the brand colours?", a: "Main: #231D68\nMotor: #E64592\nCommercial: #20A39E\nLet: #FAB315\nPersonal: #464B99\nAlt Man: #27D7F4\nClick any colour in Brand Assets to copy the hex code." },
+    ]},
+    { id: "requests", title: "\u{1F4DD} Marketing Requests", items: [
+      { q: "How do I request marketing work?", a: "Use the Submit a Ticket feature on the Marketing Hub homepage. Fill in the form with as much detail as possible, and select the appropriate template and priority." },
+      { q: "What's the typical turnaround?", a: "Low priority: 5-7 working days\nMedium priority: 3-5 working days\nHigh priority: 1-2 working days\nCritical/urgent: Same day where possible\nThese are estimates and depend on current workload." },
+      { q: "How do I track my request?", a: "Use Track a Ticket on the Hub homepage. Enter the reference number (e.g. M001) you received when you submitted. You can also add notes to your ticket." },
+      { q: "What if I need changes to completed work?", a: "Add a note to your existing ticket via the tracker. If it's a new piece of work, submit a new ticket referencing the original." },
+    ]},
+    { id: "content", title: "\u{1F4DA} Content & Campaigns", items: [
+      { q: "How do I get content published?", a: "Submit a ticket with the content, target audience, channel, and any deadlines. Include all copy, images, and links needed." },
+      { q: "What's the approvals process?", a: "All external-facing content goes through marketing review before publishing. Allow at least 1 working day for review and revisions." },
+      { q: "How do I log a marketing lead?", a: "Use Log a Lead on the Hub homepage. Fill in the broker name, what the enquiry is about, the source channel, and set next steps." },
+    ]},
+    { id: "tools", title: "\u{1F6E0}\uFE0F Tools & Access", items: [
+      { q: "What can I do without the dashboard password?", a: "Anyone can: submit tickets, track tickets, log leads, browse the archive, view brand assets, and read this guide. The dashboard, analytics, and admin features (editing/deleting) require the password." },
+      { q: "How do I get the dashboard password?", a: "Contact the marketing team. The password gives you access to the ticket dashboard, leads dashboard, analytics, and content management features." },
+    ]},
+  ];
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4D6}"} Self-Service Guide</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Everything you need to know about working with the marketing team. Click a section to expand.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {sections.map((section) => (
+          <div key={section.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            <button onClick={() => toggle(section.id)} style={{ width: "100%", padding: "16px 20px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{section.title}</span>
+              <span style={{ fontSize: 18, color: "var(--text-muted)", transition: "transform 0.2s", transform: open === section.id ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
+            </button>
+            {open === section.id && (
+              <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {section.items.map((item, i) => (
+                  <div key={i} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: 14 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>{item.q}</div>
+                    <pre style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{item.a}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ActivityLog({ tickets }) {
   // Build activity entries from ticket data
   const activities = [];
@@ -1263,6 +1488,7 @@ export default function App() {
   const [editArchiveEntry, setEditArchiveEntry] = useState(null);
   const [leads, setLeads] = useState([]);
   const [brandAssets, setBrandAssets] = useState([]);
+  const [contentTemplates, setContentTemplates] = useState([]);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
@@ -1326,6 +1552,15 @@ export default function App() {
     async function fb() { const { data } = await supabase.from("brand_assets").select("*").order("asset_name", { ascending: true }); if (data) setBrandAssets(data); }
     fb();
     const ch = supabase.channel("brand-rt").on("postgres_changes", { event: "*", schema: "public", table: "brand_assets" }, () => { fb(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+
+  // Load content templates
+  useEffect(() => {
+    async function ft() { const { data } = await supabase.from("content_templates").select("*").order("title", { ascending: true }); if (data) setContentTemplates(data); }
+    ft();
+    const ch = supabase.channel("templates-rt").on("postgres_changes", { event: "*", schema: "public", table: "content_templates" }, () => { ft(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -1474,6 +1709,12 @@ export default function App() {
     await supabase.from("brand_assets").delete().eq("id", id);
   };
 
+  const handleTemplateSave = async (data, id) => {
+    if (id) { await supabase.from("content_templates").update(data).eq("id", id); }
+    else { await supabase.from("content_templates").insert(data); }
+  };
+  const handleTemplateDelete = async (id) => { await supabase.from("content_templates").delete().eq("id", id); };
+
   const handleDashboardClick = () => {
     if (dashUnlocked) {
       setView("dashboard");
@@ -1490,8 +1731,10 @@ export default function App() {
   const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity"];
   const archiveViews = ["archive", "archive_add", "archive_edit"];
   const leadViews = ["lead_form", "leads_dashboard"];
+  const templateViews = ["templates"];
+  const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "templates" ? "templates" : view === "guide" ? "guide" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -1553,7 +1796,7 @@ export default function App() {
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : currentSection === "brand" ? "Brand Assets" : "Your marketing toolkit"}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : "Your marketing toolkit"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1580,12 +1823,12 @@ export default function App() {
             <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>+ Log Lead</button>
             <button onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "leads_dashboard" ? "var(--brand)" : "transparent", color: view === "leads_dashboard" ? "#fff" : "var(--nav-inactive)" }}>{dashUnlocked ? "" : "\u{1F512} "}Dashboard</button>
           </>)}
-          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : "Home"}</button>}
+          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub" || currentSection === "templates" || currentSection === "guide") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Templates" : currentSection === "guide" ? "Guide" : "Home"}</button>}
         </nav>
         </div>
       </header>
 
-      <main className="hub-main" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main className="hub-main" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
@@ -1623,6 +1866,10 @@ export default function App() {
           <LeadsDashboard leads={leads} />
         ) : view === "brand_assets" ? (
           <BrandAssets assets={brandAssets} isAdmin={dashUnlocked} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
+        ) : view === "templates" ? (
+          <ContentTemplates templates={contentTemplates} isAdmin={dashUnlocked} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
+        ) : view === "guide" ? (
+          <SelfServiceGuide />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}

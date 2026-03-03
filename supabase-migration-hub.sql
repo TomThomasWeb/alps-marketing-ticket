@@ -51,3 +51,20 @@ create policy "Assets insert" on public.brand_assets for insert with check (true
 create policy "Assets update" on public.brand_assets for update using (true);
 create policy "Assets delete" on public.brand_assets for delete using (true);
 alter publication supabase_realtime add table public.brand_assets;
+
+
+-- 4. CONTENT TEMPLATES
+create table if not exists public.content_templates (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  category text not null default 'other',
+  content text not null,
+  tags jsonb default '[]'::jsonb,
+  created_at timestamp with time zone default now()
+);
+alter table public.content_templates enable row level security;
+create policy "Templates select" on public.content_templates for select using (true);
+create policy "Templates insert" on public.content_templates for insert with check (true);
+create policy "Templates update" on public.content_templates for update using (true);
+create policy "Templates delete" on public.content_templates for delete using (true);
+alter publication supabase_realtime add table public.content_templates;
