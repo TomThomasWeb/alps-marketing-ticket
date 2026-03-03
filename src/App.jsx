@@ -27,6 +27,16 @@ const TEMPLATES = [
   { label: "Video/Photo", icon: "\u{1F3AC}", title: "Video or photo request", description: "Please produce the following:\n\n**Type:** *(video/photo/both)*\n**Purpose:** \n**Location/setting:** \n**Duration or quantity:** \n**Deadline:** ", priority: "high" },
 ];
 
+
+const ARCHIVE_TYPES = {
+  email: { label: "Email Campaign", icon: "\u{1F4E7}", color: "#6366f1" },
+  social: { label: "Social Post", icon: "\u{1F4F1}", color: "#0284c7" },
+  print: { label: "Print Material", icon: "\u{1F5A8}", color: "#ca8a04" },
+  video: { label: "Video/Photo", icon: "\u{1F3AC}", color: "#dc2626" },
+  presentation: { label: "Presentation", icon: "\u{1F4CA}", color: "#16a34a" },
+  other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
+};
+
 function renderMarkdown(text) {
   if (!text) return "";
   return text
@@ -85,6 +95,39 @@ function FileChip({ name, url, onRemove }) {
   );
   if (url) return <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>{content}</a>;
   return content;
+}
+
+
+function HubHome({ onNavigate, tickets, dashUnlocked }) {
+  const activeCount = tickets.filter((t) => t.status !== "completed").length;
+  const features = [
+    { id: "form", icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support for your next project", color: "#6366f1", ready: true },
+    { id: "tracker", icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check the status of an existing request", color: "#0284c7", ready: true },
+    { id: "dashboard", icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active ticket" + (activeCount !== 1 ? "s" : "") : "Manage all marketing tickets", color: "#231d68", ready: true, badge: dashUnlocked && activeCount > 0 ? activeCount : null },
+    { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse outbound campaigns, posts, and materials", color: "#16a34a", ready: true },
+    { id: "footer", icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Create branded email signatures", color: "#ea580c", ready: false },
+    { id: "assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Download Alps logos, brand guidelines, and templates", color: "#ca8a04", ready: false },
+  ];
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "var(--brand)", letterSpacing: "-0.01em" }}>Welcome to Marketing Hub</h2>
+        <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>Your central place for marketing requests, resources, and tools.</p>
+      </div>
+      <div className="hub-home-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14 }}>
+        {features.map((f) => (
+          <button key={f.id} onClick={() => f.ready && onNavigate(f.id)} disabled={!f.ready} style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px 20px", textAlign: "left", cursor: f.ready ? "pointer" : "default", transition: "all 0.2s", opacity: f.ready ? 1 : 0.55 }} onMouseOver={(e) => { if (f.ready) { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = f.color; } }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{f.title}</div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{f.desc}</div>
+            {f.badge && <span style={{ position: "absolute", top: 12, right: 12, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{f.badge}</span>}
+            {!f.ready && <span style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Coming Soon</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function PasswordGate({ onUnlock }) {
@@ -901,6 +944,185 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
   );
 }
 
+
+function MarketingArchive({ entries, isAdmin, onManage }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("list");
+
+  const filtered = entries.filter((e) => {
+    if (filter !== "all" && e.type !== filter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return e.title.toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.tags || []).some((tag) => tag.toLowerCase().includes(q));
+    }
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4DA}"} Marketing Archive</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{entries.length} item{entries.length !== 1 ? "s" : ""} in the archive</p>
+        </div>
+        {isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>+ Add Entry</button>}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+        </div>
+        <div className="hub-archive-types" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
+          <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
+          {Object.entries(ARCHIVE_TYPES).map(([key, t]) => (
+            <button key={key} onClick={() => setFilter(key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === key ? t.color : "transparent", color: filter === key ? "#fff" : "var(--text-secondary)" }}>{t.icon} {t.label}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
+          <button onClick={() => setViewMode("list")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1 }}>{"\u2630"}</button>
+          <button onClick={() => setViewMode("grid")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1 }}>{"\u25A6"}</button>
+        </div>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4DA}"}</div>
+          <p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No items matching "' + search.trim() + '"' : "No archive entries yet"}</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((entry) => {
+            const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
+            return (
+              <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: t.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{t.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, color: t.color }}>{t.label}</span>
+                    <span>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}
+                  </div>
+                </div>
+                {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0, transition: "all 0.2s" }}>{"\u2197"} View</a>}
+                {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+          {sorted.map((entry) => {
+            const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
+            return (
+              <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, transition: "all 0.2s", display: "flex", flexDirection: "column", gap: 10 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 22 }}>{t.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: t.color }}>{t.label}</span>
+                  {isAdmin && <button onClick={() => onManage(entry.id)} style={{ marginLeft: "auto", padding: "3px 7px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, cursor: "pointer" }}>{"\u270E"}</button>}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.title}</div>
+                {entry.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.description}</div>}
+                <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}>{"\u2197"} View</a>}
+                </div>
+                {entry.tags && entry.tags.length > 0 && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
+  const [form, setForm] = useState(entry ? { title: entry.title, type: entry.type, description: entry.description || "", date: entry.date || "", link: entry.link || "", tags: (entry.tags || []).join(", ") } : { title: "", type: "email", description: "", date: new Date().toISOString().split("T")[0], link: "", tags: "" });
+  const [saving, setSaving] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  const handleSave = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    await onSave({
+      title: form.title.trim(),
+      type: form.type,
+      description: form.description.trim(),
+      date: form.date || null,
+      link: form.link.trim() || null,
+      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+    });
+    setSaving(false);
+  };
+
+  const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6, letterSpacing: "0.02em" };
+
+  return (
+    <div style={{ maxWidth: 560, width: "100%" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+        <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{entry ? "\u270E Edit Archive Entry" : "\u{1F4DA} Add to Archive"}</h2>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Title *</label>
+          <input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. March Newsletter - Spring Products" />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={labelStyle}>Type</label>
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>
+              {Object.entries(ARCHIVE_TYPES).map(([key, t]) => <option key={key} value={key}>{t.icon} {t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Date</label>
+            <input type="date" style={{ ...inputStyle, cursor: "pointer" }} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Description</label>
+          <textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief summary of the campaign or material..." />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Link / URL</label>
+          <input style={inputStyle} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." />
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <label style={labelStyle}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label>
+          <input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. Q1, product launch, broker name" />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button onClick={handleSave} disabled={saving || !form.title.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: !form.title.trim() ? 0.5 : 1 }}>
+            {saving ? "Saving..." : entry ? "Update Entry" : "Add to Archive"}
+          </button>
+          <button onClick={onCancel} style={{ padding: "12px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+          {entry && onDelete && (
+            confirmDel ? (
+              <button onClick={() => onDelete(entry.id)} style={{ padding: "12px 16px", background: "#dc2626", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Confirm Delete</button>
+            ) : (
+              <button onClick={() => setConfirmDel(true)} style={{ padding: "12px 16px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Delete</button>
+            )
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityLog({ tickets }) {
   // Build activity entries from ticket data
   const activities = [];
@@ -1005,11 +1227,13 @@ function ActivityLog({ tickets }) {
 }
 
 export default function App() {
-  const [view, setView] = useState("form");
+  const [view, setView] = useState("hub");
   const [tickets, setTickets] = useState([]);
   const [dashUnlocked, setDashUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
+  const [archiveEntries, setArchiveEntries] = useState([]);
+  const [editArchiveEntry, setEditArchiveEntry] = useState(null);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
@@ -1048,6 +1272,20 @@ export default function App() {
       })
       .subscribe();
 
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+
+  // Load archive entries from Supabase
+  useEffect(() => {
+    async function fetchArchive() {
+      const { data } = await supabase.from("archive_entries").select("*").order("date", { ascending: false });
+      if (data) setArchiveEntries(data);
+    }
+    fetchArchive();
+    const channel = supabase.channel("archive-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "archive_entries" }, () => { fetchArchive(); })
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -1173,6 +1411,23 @@ export default function App() {
     }
   };
 
+
+  const handleArchiveSave = async (data) => {
+    if (editArchiveEntry && editArchiveEntry !== "new") {
+      await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry);
+    } else {
+      await supabase.from("archive_entries").insert(data);
+    }
+    setEditArchiveEntry(null);
+    setView("archive");
+  };
+
+  const handleArchiveDelete = async (id) => {
+    await supabase.from("archive_entries").delete().eq("id", id);
+    setEditArchiveEntry(null);
+    setView("archive");
+  };
+
   const handleDashboardClick = () => {
     if (dashUnlocked) {
       setView("dashboard");
@@ -1186,7 +1441,10 @@ export default function App() {
     setView("dashboard");
   };
 
+  const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity", "analytics"];
+  const archiveViews = ["archive", "archive_add", "archive_edit"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -1236,6 +1494,8 @@ export default function App() {
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-week-compare { flex-direction: column; gap: 4px !important; }
+          .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-archive-types { display: none !important; }
         }
       `}</style>
 
@@ -1245,36 +1505,59 @@ export default function App() {
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Ticket Management</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : "Your marketing toolkit"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button onClick={() => setDark(!dark)} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 16, lineHeight: 1, transition: "all 0.2s", color: "var(--text-secondary)" }}>
             {dark ? "\u2600" : "\u{1F319}"}
           </button>
-          <nav className="hub-nav" style={{ display: "flex", gap: 4, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}>
-          <button onClick={() => setView("form")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>
-            + New Ticket
-          </button>
-          <button onClick={handleDashboardClick} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
-            {dashUnlocked ? "" : "\u{1F512} "}Dashboard
-            {dashUnlocked && activeCount > 0 && (
-              <span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>
+          <nav className="hub-nav" style={{ display: "flex", gap: 4, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", alignItems: "center" }}>
+          {view !== "hub" && (
+            <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: "transparent", color: "var(--nav-inactive)" }}>
+              {"\u2190"} Hub
+            </button>
+          )}
+          {view !== "hub" && currentSection !== "hub" && <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>}
+          {currentSection === "tickets" && (<>
+            <button onClick={() => setView("form")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>
+              + New
+            </button>
+            <button onClick={handleDashboardClick} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
+              {dashUnlocked ? "" : "\u{1F512} "}Dashboard
+              {dashUnlocked && activeCount > 0 && (
+                <span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>
+              )}
+            </button>
+            {dashUnlocked && (
+              <button onClick={() => setView("analytics")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "analytics" ? "var(--brand)" : "transparent", color: view === "analytics" ? "#fff" : "var(--nav-inactive)" }}>
+                Analytics
+              </button>
             )}
-          </button>
-          {dashUnlocked && (
-            <button onClick={() => setView("analytics")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "analytics" ? "var(--brand)" : "transparent", color: view === "analytics" ? "#fff" : "var(--nav-inactive)" }}>
-              Analytics
+            {dashUnlocked && (
+              <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>
+                Activity
+              </button>
+            )}
+            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>
+              {"\u{1F50D}"} Track
+            </button>
+          </>)}
+          {currentSection === "archive" && (<>
+            <button onClick={() => setView("archive")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "archive" ? "var(--brand)" : "transparent", color: view === "archive" ? "#fff" : "var(--nav-inactive)" }}>
+              Browse
+            </button>
+            {dashUnlocked && (
+              <button onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "archive_add" || view === "archive_edit") ? "var(--brand)" : "transparent", color: (view === "archive_add" || view === "archive_edit") ? "#fff" : "var(--nav-inactive)" }}>
+                + Add Entry
+              </button>
+            )}
+          </>)}
+          {currentSection === "hub" && (
+            <button style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "default", border: "none", background: "var(--brand)", color: "#fff" }}>
+              Home
             </button>
           )}
-          {dashUnlocked && (
-            <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>
-              Activity
-            </button>
-          )}
-          <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>
-            {"\u{1F50D}"} Track
-          </button>
         </nav>
         </div>
       </header>
@@ -1285,6 +1568,8 @@ export default function App() {
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
+        ) : view === "hub" ? (
+          <HubHome onNavigate={(id) => { if (id === "dashboard") { handleDashboardClick(); } else { setView(id); } }} tickets={tickets} dashUnlocked={dashUnlocked} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -1305,6 +1590,10 @@ export default function App() {
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
           <AnalyticsPanel tickets={tickets} />
+        ) : view === "archive" ? (
+          <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
+        ) : (view === "archive_add" || view === "archive_edit") ? (
+          <ArchiveForm entry={editArchiveEntry !== "new" ? archiveEntries.find((e) => e.id === editArchiveEntry) : null} onSave={handleArchiveSave} onCancel={() => setView("archive")} onDelete={handleArchiveDelete} />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
