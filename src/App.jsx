@@ -522,6 +522,13 @@ export default function App() {
   const [dashUnlocked, setDashUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   // Load tickets from Supabase and subscribe to real-time changes
   useEffect(() => {
     async function fetchTickets() {
@@ -532,7 +539,21 @@ export default function App() {
     fetchTickets();
 
     const channel = supabase.channel("tickets-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tickets" }, (payload) => {
+        fetchTickets();
+        if ("Notification" in window && Notification.permission === "granted" && payload.new) {
+          const t = payload.new;
+          const p = PRIORITIES[t.priority];
+          new Notification("New Ticket: " + t.ref, {
+            body: (p ? p.icon + " " + p.label + " — " : "") + t.title + "\nFrom: " + t.name,
+            icon: "/alps-logo.webp",
+          });
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tickets" }, () => {
+        fetchTickets();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "tickets" }, () => {
         fetchTickets();
       })
       .subscribe();

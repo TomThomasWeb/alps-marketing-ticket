@@ -37,3 +37,6 @@ insert into storage.buckets (id, name, public) values ('ticket-attachments', 'ti
 -- 7. Allow public access to the storage bucket
 create policy "Allow public upload" on storage.objects for insert with check (bucket_id = 'ticket-attachments');
 create policy "Allow public read" on storage.objects for select using (bucket_id = 'ticket-attachments');
+
+-- 8. Enable full row data in real-time payloads (needed for browser notifications)
+alter table public.tickets replica identity full;
