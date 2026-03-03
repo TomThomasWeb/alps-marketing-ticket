@@ -18,6 +18,15 @@ const STATUS = {
   completed: { label: "Completed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
 };
 
+const TEMPLATES = [
+  { label: "Social Media Post", icon: "\u{1F4F1}", title: "Social media post", description: "Please create a social media post for the following:\n\nPlatform(s): \nTopic/message: \nTone: \nAny specific images or links to include: ", priority: "medium" },
+  { label: "Email Campaign", icon: "\u{1F4E7}", title: "Email campaign", description: "Please design an email campaign for:\n\nPurpose/goal: \nTarget audience: \nKey message: \nCall to action: \nSend date: ", priority: "medium" },
+  { label: "Print Material", icon: "\u{1F5A8}", title: "Print material design", description: "Please create print material:\n\nType (flyer/brochure/poster/banner): \nSize/dimensions: \nContent/copy: \nBrand or broker: \nDelivery date needed: ", priority: "medium" },
+  { label: "PowerPoint Design", icon: "\u{1F4CA}", title: "PowerPoint presentation", description: "Please design a PowerPoint presentation:\n\nTopic/purpose: \nNumber of slides (approx): \nKey content/sections: \nAudience: \nBrand or broker: ", priority: "medium" },
+  { label: "Website Update", icon: "\u{1F310}", title: "Website update", description: "Please make the following website change:\n\nPage/URL: \nWhat needs updating: \nNew content/copy: \nAny new images needed: ", priority: "medium" },
+  { label: "Video/Photo", icon: "\u{1F3AC}", title: "Video or photo request", description: "Please produce the following:\n\nType (video/photo/both): \nPurpose: \nLocation/setting: \nDuration or quantity: \nDeadline: ", priority: "high" },
+];
+
 async function getNextRef() {
   const { data } = await supabase.from("tickets").select("ref").order("ref", { ascending: false }).limit(1);
   if (!data || data.length === 0) return "M000";
@@ -147,7 +156,19 @@ function TicketForm({ onSubmit }) {
   return (
     <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 28, maxWidth: 560, width: "100%" }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "#231d68" }}>Submit a Request</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>Please fill in the form to submit a ticket, and I'll get right on it. Once your ticket is complete, I will notify you.</p>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>Please fill in the form to submit a ticket, and I'll get right on it. Once your ticket is complete, I will notify you.</p>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+          {TEMPLATES.map((tmpl, i) => (
+            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); }} style={{ padding: "10px 8px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "#475569", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#231d68"; e.currentTarget.style.background = "rgba(35,29,104,0.03)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#fff"; }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{tmpl.icon}</div>
+              {tmpl.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Your Name *</label>
@@ -205,7 +226,7 @@ function TicketForm({ onSubmit }) {
   );
 }
 
-function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen }) {
+function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteName, setNoteName] = useState("");
@@ -257,7 +278,10 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
             {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
           </div>
         </div>
-        <span style={{ fontSize: 18, color: "#94a3b8", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none", flexShrink: 0, marginTop: 4 }}>{"\u25BE"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 4 }}>
+          <span onClick={(e) => { e.stopPropagation(); onTogglePin(ticket.id); }} style={{ fontSize: 16, cursor: "pointer", transition: "all 0.15s", color: ticket.pinned ? "#eab308" : "#d1d5db", filter: ticket.pinned ? "drop-shadow(0 0 2px rgba(234,179,8,0.4))" : "none" }} title={ticket.pinned ? "Unpin ticket" : "Pin ticket"}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
+          <span style={{ fontSize: 18, color: "#94a3b8", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>{"\u25BE"}</span>
+        </div>
       </div>
 
       {expanded && (
@@ -371,7 +395,7 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
   );
 }
 
-function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen }) {
+function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTogglePin }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status];
@@ -384,6 +408,7 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen }) {
         <span style={{ fontSize: 11, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 12, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
         <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 12, background: s.bg, color: s.color }}>{s.label}</span>
+        <span onClick={() => onTogglePin(ticket.id)} style={{ fontSize: 13, cursor: "pointer", marginLeft: "auto", color: ticket.pinned ? "#eab308" : "#d1d5db" }}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
       </div>
       <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#231d68", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
       <div style={{ fontSize: 11, color: "#64748b", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
@@ -439,7 +464,104 @@ function StatsBar({ tickets }) {
   );
 }
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen }) {
+function AnalyticsPanel({ tickets }) {
+  // Average completion time
+  const completedTickets = tickets.filter((t) => t.completedAt && t.createdAt);
+  const avgCompletionHours = completedTickets.length > 0
+    ? completedTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / completedTickets.length
+    : 0;
+  const avgText = avgCompletionHours < 24 ? Math.round(avgCompletionHours) + "h" : (avgCompletionHours / 24).toFixed(1) + " days";
+
+  // This week vs last week
+  const now = new Date();
+  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0);
+  const startOfLastWeek = new Date(startOfWeek); startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+  const thisWeekCreated = tickets.filter((t) => new Date(t.createdAt) >= startOfWeek).length;
+  const lastWeekCreated = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
+  const thisWeekCompleted = completedTickets.filter((t) => new Date(t.completedAt) >= startOfWeek).length;
+  const lastWeekCompleted = completedTickets.filter((t) => { const d = new Date(t.completedAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
+
+  // Busiest submitters
+  const submitterCounts = {};
+  tickets.forEach((t) => { submitterCounts[t.name] = (submitterCounts[t.name] || 0) + 1; });
+  const topSubmitters = Object.entries(submitterCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Priority breakdown (active only)
+  const activeTickets = tickets.filter((t) => t.status !== "completed");
+  const priorityBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
+  activeTickets.forEach((t) => { if (priorityBreakdown[t.priority] !== undefined) priorityBreakdown[t.priority]++; });
+  const maxPriority = Math.max(...Object.values(priorityBreakdown), 1);
+
+  // Overdue count
+  const overdueCount = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
+
+  const metricStyle = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 16px", textAlign: "center" };
+  const metricValue = { fontSize: 24, fontWeight: 800, color: "#231d68", lineHeight: 1 };
+  const metricLabel = { fontSize: 11, color: "#64748b", fontWeight: 500, marginTop: 4 };
+
+  return (
+    <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+      <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700, color: "#231d68" }}>{"\u{1F4CA}"} Analytics</h3>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8, marginBottom: 16 }}>
+        <div style={metricStyle}>
+          <div style={metricValue}>{completedTickets.length > 0 ? avgText : "--"}</div>
+          <div style={metricLabel}>Avg. Completion</div>
+        </div>
+        <div style={metricStyle}>
+          <div style={metricValue}>{thisWeekCreated}</div>
+          <div style={metricLabel}>Submitted this week</div>
+        </div>
+        <div style={metricStyle}>
+          <div style={metricValue}>{thisWeekCompleted}</div>
+          <div style={metricLabel}>Completed this week</div>
+        </div>
+        <div style={{ ...metricStyle, borderColor: overdueCount > 0 ? "rgba(220,38,38,0.3)" : "#e2e8f0" }}>
+          <div style={{ ...metricValue, color: overdueCount > 0 ? "#dc2626" : "#231d68" }}>{overdueCount}</div>
+          <div style={metricLabel}>Overdue</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Priority breakdown */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Active by Priority</div>
+          {Object.entries(PRIORITIES).map(([key, p]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 55, flexShrink: 0 }}>{p.icon} {p.label}</span>
+              <div style={{ flex: 1, height: 8, background: "#e2e8f0", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: (priorityBreakdown[key] / maxPriority * 100) + "%", height: "100%", background: p.color, borderRadius: 4, transition: "width 0.5s" }}></div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", width: 20, textAlign: "right" }}>{priorityBreakdown[key]}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Top submitters */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Top Submitters</div>
+          {topSubmitters.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>No tickets yet</p>
+          ) : topSubmitters.map(([name, count], i) => (
+            <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", borderBottom: i < topSubmitters.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+              <span style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{name}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#231d68", background: "rgba(35,29,104,0.06)", padding: "1px 8px", borderRadius: 10 }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Week comparison */}
+      <div style={{ marginTop: 14, padding: "10px 14px", background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", gap: 20, justifyContent: "center", fontSize: 12, color: "#64748b" }}>
+        <span>Last week: <strong style={{ color: "#231d68" }}>{lastWeekCreated}</strong> submitted, <strong style={{ color: "#16a34a" }}>{lastWeekCompleted}</strong> completed</span>
+        <span style={{ color: "#e2e8f0" }}>|</span>
+        <span>This week: <strong style={{ color: "#231d68" }}>{thisWeekCreated}</strong> submitted, <strong style={{ color: "#16a34a" }}>{thisWeekCompleted}</strong> completed</span>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -457,6 +579,9 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
   });
 
   const sorted = [...filtered].sort((a, b) => {
+    // Pinned tickets always come first
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
     const effectiveSort = viewMode === "grid" ? "deadline" : sortBy;
     if (effectiveSort === "priority") return priorityOrder[a.priority] - priorityOrder[b.priority];
     if (effectiveSort === "deadline") return (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
@@ -484,6 +609,8 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
       <div style={{ marginBottom: 24 }}>
         <StatsBar tickets={tickets} />
       </div>
+
+      <AnalyticsPanel tickets={tickets} />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", gap: 4, background: "#f6f6f6", borderRadius: 8, padding: 3, border: "1px solid #e2e8f0" }}>
@@ -513,13 +640,128 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} />)}
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} />)}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
-          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} onReopen={onReopen} />)}
+          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} onReopen={onReopen} onTogglePin={onTogglePin} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
+  const [trackRef, setTrackRef] = useState(submittedRef || "");
+  const [noteText, setNoteText] = useState("");
+  const [noteName, setNoteName] = useState("");
+
+  const ticket = tickets.find((t) => t.id.toLowerCase() === trackRef.trim().toLowerCase());
+
+  const submitNote = () => {
+    if (!noteText.trim() || !noteName.trim() || !ticket) return;
+    onAddNote(ticket.id, noteName.trim(), noteText.trim());
+    setNoteText("");
+    setNoteName("");
+  };
+
+  return (
+    <div style={{ maxWidth: 560, width: "100%" }}>
+      {submittedRef && (
+        <div style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 12, padding: 24, marginBottom: 20, textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(22,163,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>{"\u2713"}</div>
+          <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#231d68" }}>Ticket Submitted!</h2>
+          <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>Your reference number is:</p>
+          <div style={{ display: "inline-block", background: "#231d68", color: "#fff", padding: "10px 28px", borderRadius: 10, fontSize: 28, fontFamily: "monospace", fontWeight: 800, letterSpacing: "0.08em" }}>{submittedRef}</div>
+          <p style={{ margin: "14px 0 0", fontSize: 13, color: "#64748b" }}>Keep this reference to track your ticket's progress below.</p>
+        </div>
+      )}
+
+      <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24, marginBottom: 16 }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#231d68" }}>{submittedRef ? "Your Ticket" : "Track a Ticket"}</h3>
+        {!submittedRef && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input value={trackRef} onChange={(e) => setTrackRef(e.target.value.toUpperCase())} placeholder="Enter ticket ref e.g. M001" style={{ flex: 1, padding: "10px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 14, fontFamily: "monospace", fontWeight: 600, outline: "none", letterSpacing: "0.04em" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+          </div>
+        )}
+
+        {trackRef.trim() && !ticket && (
+          <div style={{ textAlign: "center", padding: 20, color: "#94a3b8" }}>
+            <p style={{ fontSize: 14, margin: 0 }}>No ticket found with reference "{trackRef.trim()}"</p>
+          </div>
+        )}
+
+        {ticket && (() => {
+          const p = PRIORITIES[ticket.priority];
+          const s = STATUS[ticket.status];
+          const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+          return (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontFamily: "monospace", color: "#231d68", fontWeight: 700, background: "rgba(35,29,104,0.07)", padding: "3px 9px", borderRadius: 5 }}>{ticket.id}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+                {dueBadge && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: dueBadge.bg, color: dueBadge.color, border: "1px solid " + dueBadge.border }}>{dueBadge.text}</span>}
+              </div>
+              <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "#231d68" }}>{ticket.title}</h4>
+              <p style={{ margin: "0 0 12px", fontSize: 14, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{ticket.description}</p>
+              <div style={{ fontSize: 13, color: "#64748b", display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+                <span>{"\u{1F464}"} {ticket.name}</span>
+                <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
+                <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
+              </div>
+
+              {/* Status timeline */}
+              <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
+                {[
+                  { key: "open", label: "Submitted", icon: "\u{1F4E5}" },
+                  { key: "in_progress", label: "In Progress", icon: "\u{1F528}" },
+                  { key: "completed", label: "Completed", icon: "\u2713" },
+                ].map((step, idx) => {
+                  const statusOrder = { open: 0, in_progress: 1, completed: 2 };
+                  const current = statusOrder[ticket.status];
+                  const active = idx <= current;
+                  return (
+                    <div key={step.key} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: active ? "#231d68" : "#e2e8f0", color: active ? "#fff" : "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: 14, fontWeight: 700, transition: "all 0.3s" }}>{step.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: active ? "#231d68" : "#94a3b8" }}>{step.label}</div>
+                      {idx < 2 && <div style={{ position: "absolute", top: 15, left: "60%", right: "-40%", height: 2, background: idx < current ? "#231d68" : "#e2e8f0", zIndex: -1 }}></div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Notes */}
+              {ticket.notes && ticket.notes.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#231d68", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Updates & Notes</div>
+                  {ticket.notes.map((note, i) => (
+                    <div key={i} style={{ background: note.auto ? "rgba(35,29,104,0.03)" : "#fff", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "#e2e8f0"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "#231d68" }}>{note.author}</span>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add note */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+                <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, color: "#1e293b", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "#231d68"; e.target.style.boxShadow = "0 0 0 3px rgba(35,29,104,0.1)"; }} onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.boxShadow = "none"; }} />
+                <button onClick={submitNote} style={{ padding: "8px 14px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>+ Add</button>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <button onClick={onBackToForm} style={{ width: "100%", padding: "11px 24px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>
+        {"\u2190"} Submit Another Ticket
+      </button>
     </div>
   );
 }
@@ -632,6 +874,7 @@ export default function App() {
   const [tickets, setTickets] = useState([]);
   const [dashUnlocked, setDashUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
 
   // Request notification permission on mount
   useEffect(() => {
@@ -687,6 +930,7 @@ export default function App() {
       status: row.status,
       createdAt: row.created_at,
       completedAt: row.completed_at || null,
+      pinned: row.pinned || false,
       files,
       notes: row.notes || [],
     };
@@ -721,11 +965,8 @@ export default function App() {
       notes: [],
     });
     if (!error) {
-      if (dashUnlocked) {
-        setView("dashboard");
-      } else {
-        setView("submitted");
-      }
+      setLastSubmittedRef(ref);
+      setView("submitted");
     }
   };
 
@@ -749,6 +990,13 @@ export default function App() {
       const autoNote = { author: "System", text: "Ticket reopened", timestamp: new Date().toISOString(), auto: true };
       const newNotes = [...(ticket.notes || []), autoNote];
       await supabase.from("tickets").update({ status: "open", completed_at: null, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleTogglePin = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      await supabase.from("tickets").update({ pinned: !ticket.pinned }).eq("id", ticket.dbId);
     }
   };
 
@@ -832,6 +1080,9 @@ export default function App() {
               Activity
             </button>
           )}
+          <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "#231d68" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "#64748b" }}>
+            {"\u{1F50D}"} Track Ticket
+          </button>
         </nav>
       </header>
 
@@ -852,20 +1103,15 @@ export default function App() {
             )}
           </div>
         ) : view === "submitted" ? (
-          <div style={{ background: "#f6f6f6", border: "1px solid #e2e8f0", borderRadius: 16, padding: 32, maxWidth: 480, width: "100%", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>{"\u2713"}</div>
-            <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "#231d68" }}>Ticket Submitted</h2>
-            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>Your request has been logged successfully. You'll be notified once it's been completed.</p>
-            <button onClick={() => setView("form")} style={{ padding: "11px 24px", background: "#231d68", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "#1a1550"} onMouseOut={(e) => e.target.style.background = "#231d68"}>
-              Submit Another Ticket
-            </button>
-          </div>
+          <SubmitterView tickets={tickets} submittedRef={lastSubmittedRef} onAddNote={handleAddNote} onBackToForm={() => setView("form")} />
+        ) : view === "tracker" ? (
+          <SubmitterView tickets={tickets} submittedRef={null} onAddNote={handleAddNote} onBackToForm={() => setView("form")} />
         ) : view === "password" ? (
           <PasswordGate onUnlock={handleUnlock} />
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : (
-          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} />
+          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
       </main>
     </div>

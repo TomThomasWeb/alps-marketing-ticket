@@ -11,6 +11,7 @@ create table public.tickets (
   deadline date,
   status text not null default 'open',
   completed_at timestamptz,
+  pinned boolean default false,
   file_names jsonb default '[]'::jsonb,
   notes jsonb default '[]'::jsonb,
   created_at timestamptz default now()

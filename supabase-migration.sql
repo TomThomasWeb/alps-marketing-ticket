@@ -16,3 +16,6 @@ create policy "Allow public read storage" on storage.objects for select using (b
 
 -- Enable full row data in real-time payloads (needed for browser notifications)
 alter table public.tickets replica identity full;
+
+-- Add pinned column for starred tickets
+alter table public.tickets add column if not exists pinned boolean default false;
