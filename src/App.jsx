@@ -37,6 +37,18 @@ const ARCHIVE_TYPES = {
   other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
 };
 
+const LEAD_SOURCES = {
+  phone: { label: "Phone", icon: "\u{1F4DE}", color: "#6366f1" },
+  website: { label: "Website", icon: "\u{1F310}", color: "#0284c7" },
+  social: { label: "Social Media", icon: "\u{1F4F1}", color: "#ea580c" },
+  email: { label: "Email", icon: "\u{1F4E7}", color: "#ca8a04" },
+  webinar: { label: "Webinar", icon: "\u{1F3A5}", color: "#16a34a" },
+  ad: { label: "Ad Campaign", icon: "\u{1F4E2}", color: "#dc2626" },
+  event: { label: "Event", icon: "\u{1F3AA}", color: "#8b5cf6" },
+  referral: { label: "Referral", icon: "\u{1F91D}", color: "#0d9488" },
+  other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
+};
+
 function renderMarkdown(text) {
   if (!text) return "";
   return text
@@ -98,15 +110,20 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const features = [
     { id: "form", icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Request marketing support for your next project", color: "#6366f1", ready: true },
     { id: "tracker", icon: "\u{1F50D}", title: "Track a Ticket", desc: "Check the status of an existing request", color: "#0284c7", ready: true },
-    { id: "dashboard", icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active ticket" + (activeCount !== 1 ? "s" : "") : "Manage all marketing tickets", color: "#231d68", ready: true, badge: dashUnlocked && activeCount > 0 ? activeCount : null },
-    { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse outbound campaigns, posts, and materials", color: "#16a34a", ready: true },
+    { id: "lead_form", icon: "\u{1F4C8}", title: "Log a Lead", desc: "Record an inbound marketing lead", color: "#16a34a", ready: true },
+    { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse outbound campaigns, posts, and materials", color: "#8b5cf6", ready: true },
     { id: "footer", icon: "\u2709\uFE0F", title: "Email Footer Generator", desc: "Create branded email signatures", color: "#ea580c", ready: false },
     { id: "assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Download Alps logos, brand guidelines, and templates", color: "#ca8a04", ready: false },
+  ];
+  const dashboards = [
+    { id: "dashboard", icon: "\u{1F4CB}", title: "Ticket Dashboard", desc: activeCount > 0 ? activeCount + " active ticket" + (activeCount !== 1 ? "s" : "") : "Manage all tickets", color: "#231d68", badge: dashUnlocked && activeCount > 0 ? activeCount : null, locked: !dashUnlocked },
+    { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads Dashboard", desc: leads.length > 0 ? leads.length + " lead" + (leads.length !== 1 ? "s" : "") + " logged" : "View all inbound leads", color: "#0d9488", locked: !dashUnlocked },
+    { id: "analytics", icon: "\u{1F4CA}", title: "Analytics Dashboard", desc: "Performance metrics across tickets, archive, and leads", color: "#dc2626", locked: !dashUnlocked },
   ];
 
   return (
@@ -121,10 +138,22 @@ function HubHome({ onNavigate, tickets, dashUnlocked }) {
             <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{f.title}</div>
             <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{f.desc}</div>
-            {f.badge && <span style={{ position: "absolute", top: 12, right: 12, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{f.badge}</span>}
             {!f.ready && <span style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "var(--bar-bg)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Coming Soon</span>}
           </button>
         ))}
+      </div>
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--border)" }}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{"\u{1F4CA}"} Dashboards</h3>
+        <div className="hub-home-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14 }}>
+          {dashboards.map((d) => (
+            <button key={d.id} onClick={() => onNavigate(d.id)} style={{ position: "relative", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px", textAlign: "left", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = d.color; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>{d.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{d.locked ? "\u{1F512} " : ""}{d.title}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{d.desc}</div>
+              {d.badge && <span style={{ position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{d.badge}</span>}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -520,226 +549,142 @@ function StatsBar({ tickets }) {
   );
 }
 
-function AnalyticsPanel({ tickets }) {
-  const completedTickets = tickets.filter((t) => t.completedAt && t.createdAt);
-  const activeTickets = tickets.filter((t) => t.status !== "completed");
-  const now = new Date();
-
-  // Avg completion time
-  const avgCompletionHours = completedTickets.length > 0
-    ? completedTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / completedTickets.length : 0;
-  const avgText = avgCompletionHours === 0 ? "--" : avgCompletionHours < 24 ? Math.round(avgCompletionHours) + "h" : (avgCompletionHours / 24).toFixed(1) + "d";
-
-  // Fastest / slowest
-  const completionTimes = completedTickets.map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000);
-  const fastestH = completionTimes.length > 0 ? Math.min(...completionTimes) : 0;
-  const slowestH = completionTimes.length > 0 ? Math.max(...completionTimes) : 0;
-  const fmtH = (h) => h === 0 ? "--" : h < 24 ? Math.round(h) + "h" : (h / 24).toFixed(1) + "d";
-
-  // Week calculations
-  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0);
-  const startOfLastWeek = new Date(startOfWeek); startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
-  const thisWeekCreated = tickets.filter((t) => new Date(t.createdAt) >= startOfWeek).length;
-  const lastWeekCreated = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
-  const thisWeekCompleted = completedTickets.filter((t) => new Date(t.completedAt) >= startOfWeek).length;
-  const lastWeekCompleted = completedTickets.filter((t) => { const d = new Date(t.completedAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
-
-  // Monthly data (last 6 months)
-  const monthlyData = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
-    const label = d.toLocaleDateString("en-GB", { month: "short" });
-    const created = tickets.filter((t) => { const c = new Date(t.createdAt); return c >= d && c <= end; }).length;
-    const completed = completedTickets.filter((t) => { const c = new Date(t.completedAt); return c >= d && c <= end; }).length;
-    monthlyData.push({ label, created, completed });
-  }
-  const maxMonthly = Math.max(...monthlyData.map((m) => Math.max(m.created, m.completed)), 1);
-
-  // Priority breakdown (active)
-  const priorityBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
-  activeTickets.forEach((t) => { if (priorityBreakdown[t.priority] !== undefined) priorityBreakdown[t.priority]++; });
-  const maxPriority = Math.max(...Object.values(priorityBreakdown), 1);
-
-  // Status breakdown
-  const statusBreakdown = { open: 0, in_progress: 0, completed: 0 };
-  tickets.forEach((t) => { if (statusBreakdown[t.status] !== undefined) statusBreakdown[t.status]++; });
-
-  // Overdue / due soon
-  const overdueCount = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
-  const dueSoon = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d >= 0 && d <= 3; }).length;
-
-  // Top submitters
-  const submitterCounts = {};
-  tickets.forEach((t) => { submitterCounts[t.name] = (submitterCounts[t.name] || 0) + 1; });
-  const topSubmitters = Object.entries(submitterCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const maxSubmitter = topSubmitters.length > 0 ? topSubmitters[0][1] : 1;
-
-  // Avg per priority
-  const priorityAvg = {};
-  Object.keys(PRIORITIES).forEach((key) => {
-    const pts = completedTickets.filter((t) => t.priority === key);
-    if (pts.length > 0) {
-      const avg = pts.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / pts.length;
-      priorityAvg[key] = avg < 24 ? Math.round(avg) + "h" : (avg / 24).toFixed(1) + "d";
-    } else { priorityAvg[key] = "--"; }
-  });
-
-  // Completion rate
-  const completionRate = tickets.length > 0 ? Math.round(completedTickets.length / tickets.length * 100) : 0;
-
+function AnalyticsPanel({ tickets, archiveEntries, leads }) {
+  const [tab, setTab] = useState("tickets");
+  const tabStyle = (key) => ({ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: tab === key ? "var(--brand)" : "transparent", color: tab === key ? "#fff" : "var(--text-secondary)" });
   const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 };
   const metricBox = { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", textAlign: "center" };
   const metricVal = { fontSize: 26, fontWeight: 800, color: "var(--brand)", lineHeight: 1 };
   const metricLbl = { fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, marginTop: 4 };
   const sectionTitle = { fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
+  const now = new Date();
+  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0);
+  const startOfLastWeek = new Date(startOfWeek); startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+  const fmtH = (h) => h === 0 ? "--" : h < 24 ? Math.round(h) + "h" : (h / 24).toFixed(1) + "d";
+
+  // === TICKET ANALYTICS ===
+  const completedTickets = tickets.filter((t) => t.completedAt && t.createdAt);
+  const activeTickets = tickets.filter((t) => t.status !== "completed");
+  const avgCompletionHours = completedTickets.length > 0 ? completedTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / completedTickets.length : 0;
+  const avgText = avgCompletionHours === 0 ? "--" : fmtH(avgCompletionHours);
+  const completionTimes = completedTickets.map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000);
+  const fastestH = completionTimes.length > 0 ? Math.min(...completionTimes) : 0;
+  const slowestH = completionTimes.length > 0 ? Math.max(...completionTimes) : 0;
+  const twCreated = tickets.filter((t) => new Date(t.createdAt) >= startOfWeek).length;
+  const lwCreated = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
+  const twCompleted = completedTickets.filter((t) => new Date(t.completedAt) >= startOfWeek).length;
+  const lwCompleted = completedTickets.filter((t) => { const d = new Date(t.completedAt); return d >= startOfLastWeek && d < startOfWeek; }).length;
+  const overdueCount = activeTickets.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
+  const completionRate = tickets.length > 0 ? Math.round(completedTickets.length / tickets.length * 100) : 0;
+  const priorityBreakdown = { critical: 0, high: 0, medium: 0, low: 0 };
+  activeTickets.forEach((t) => { if (priorityBreakdown[t.priority] !== undefined) priorityBreakdown[t.priority]++; });
+  const maxPriority = Math.max(...Object.values(priorityBreakdown), 1);
+  const priorityAvg = {};
+  Object.keys(PRIORITIES).forEach((key) => { const pts = completedTickets.filter((t) => t.priority === key); if (pts.length > 0) { const avg = pts.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / pts.length; priorityAvg[key] = fmtH(avg); } else { priorityAvg[key] = "--"; } });
+  const submitterCounts = {}; tickets.forEach((t) => { submitterCounts[t.name] = (submitterCounts[t.name] || 0) + 1; });
+  const topSubmitters = Object.entries(submitterCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxSubmitter = topSubmitters.length > 0 ? topSubmitters[0][1] : 1;
+  const monthlyTickets = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); const label = d.toLocaleDateString("en-GB", { month: "short" }); const created = tickets.filter((t) => { const c = new Date(t.createdAt); return c >= d && c <= end; }).length; const completed = completedTickets.filter((t) => { const c = new Date(t.completedAt); return c >= d && c <= end; }).length; monthlyTickets.push({ label, created, completed }); }
+  const maxMonthlyT = Math.max(...monthlyTickets.map((m) => Math.max(m.created, m.completed)), 1);
+
+  // === ARCHIVE ANALYTICS ===
+  const archiveThisWeek = archiveEntries.filter((e) => new Date(e.date || e.created_at) >= startOfWeek).length;
+  const archiveLastWeek = archiveEntries.filter((e) => { const d = new Date(e.date || e.created_at); return d >= startOfLastWeek && d < startOfWeek; }).length;
+  const archiveTypeBreakdown = {};
+  Object.keys(ARCHIVE_TYPES).forEach((k) => { archiveTypeBreakdown[k] = 0; });
+  archiveEntries.forEach((e) => { archiveTypeBreakdown[e.type] = (archiveTypeBreakdown[e.type] || 0) + 1; });
+  const maxArchiveType = Math.max(...Object.values(archiveTypeBreakdown), 1);
+  const monthlyArchive = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); const label = d.toLocaleDateString("en-GB", { month: "short" }); const count = archiveEntries.filter((e) => { const c = new Date(e.date || e.created_at); return c >= d && c <= end; }).length; monthlyArchive.push({ label, count }); }
+  const maxMonthlyA = Math.max(...monthlyArchive.map((m) => m.count), 1);
+
+  // === LEADS ANALYTICS ===
+  const leadsThisWeek = leads.filter((l) => new Date(l.created_at) >= startOfWeek).length;
+  const leadsLastWeek = leads.filter((l) => { const d = new Date(l.created_at); return d >= startOfLastWeek && d < startOfWeek; }).length;
+  const leadsNeedsAction = leads.filter((l) => l.next_steps === "needs_action").length;
+  const leadsPassed = leads.filter((l) => l.next_steps === "passed_through").length;
+  const leadSourceBreakdown = {};
+  Object.keys(LEAD_SOURCES).forEach((k) => { leadSourceBreakdown[k] = 0; });
+  leads.forEach((l) => { leadSourceBreakdown[l.source] = (leadSourceBreakdown[l.source] || 0) + 1; });
+  const maxLeadSource = Math.max(...Object.values(leadSourceBreakdown), 1);
+  const monthlyLeads = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); const label = d.toLocaleDateString("en-GB", { month: "short" }); const count = leads.filter((l) => { const c = new Date(l.created_at); return c >= d && c <= end; }).length; monthlyLeads.push({ label, count }); }
+  const maxMonthlyL = Math.max(...monthlyLeads.map((m) => m.count), 1);
+  const leadLoggers = {}; leads.forEach((l) => { leadLoggers[l.logged_by] = (leadLoggers[l.logged_by] || 0) + 1; });
+  const topLoggers = Object.entries(leadLoggers).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const renderBarChart = (data, maxVal, barColor, labelKey, valKey) => (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+      {data.map((m, i) => (<div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><div style={{ width: "60%", background: barColor, borderRadius: "3px 3px 0 0", height: ((valKey ? m[valKey] : m.count) / maxVal * 90) + "px", minHeight: (valKey ? m[valKey] : m.count) > 0 ? 4 : 0, transition: "height 0.5s", opacity: 0.7 }}></div><span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m[labelKey || "label"]}</span></div>))}
+    </div>
+  );
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Overview</h2>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics and insights across all tickets</p>
-      </div>
-
-      {/* Key metrics */}
-      <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
-        <div style={metricBox}><div style={metricVal}>{tickets.length}</div><div style={metricLbl}>Total Tickets</div></div>
-        <div style={metricBox}><div style={metricVal}>{activeTickets.length}</div><div style={metricLbl}>Active</div></div>
-        <div style={metricBox}><div style={metricVal}>{completedTickets.length}</div><div style={metricLbl}>Completed</div></div>
-        <div style={metricBox}><div style={metricVal}>{completionRate}%</div><div style={metricLbl}>Completion Rate</div></div>
-        <div style={metricBox}><div style={metricVal}>{avgText}</div><div style={metricLbl}>Avg. Turnaround</div></div>
-        <div style={{ ...metricBox, borderColor: overdueCount > 0 ? "rgba(220,38,38,0.3)" : "var(--border)" }}><div style={{ ...metricVal, color: overdueCount > 0 ? "#dc2626" : "var(--brand)" }}>{overdueCount}</div><div style={metricLbl}>Overdue</div></div>
-      </div>
-
-      {/* Week comparison */}
-      <div className="hub-week-compare" style={{ ...card, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 24, justifyContent: "center", alignItems: "center", fontSize: 13, color: "var(--text-secondary)" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>Last Week</div>
-          <span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{lastWeekCreated}</strong> in</span>
-          <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
-          <span><strong style={{ color: "#16a34a", fontSize: 18 }}>{lastWeekCompleted}</strong> out</span>
-        </div>
-        <div style={{ width: 1, height: 32, background: "var(--border)" }}></div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>This Week</div>
-          <span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{thisWeekCreated}</strong> in</span>
-          <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
-          <span><strong style={{ color: "#16a34a", fontSize: 18 }}>{thisWeekCompleted}</strong> out</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}>
+          <button onClick={() => setTab("tickets")} style={tabStyle("tickets")}>{"\u{1F4CB}"} Tickets</button>
+          <button onClick={() => setTab("archive")} style={tabStyle("archive")}>{"\u{1F4DA}"} Archive</button>
+          <button onClick={() => setTab("leads")} style={tabStyle("leads")}>{"\u{1F4C8}"} Leads</button>
         </div>
       </div>
 
-      {/* Monthly chart + status */}
-      <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 20 }}>
-        <div style={card}>
-          <div style={sectionTitle}>Monthly Trend (Last 6 Months)</div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
-            {monthlyData.map((m, i) => (
-              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <div style={{ display: "flex", gap: 2, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}>
-                  <div style={{ width: "40%", background: "var(--brand)", borderRadius: "3px 3px 0 0", height: (m.created / maxMonthly * 90) + "px", minHeight: m.created > 0 ? 4 : 0, transition: "height 0.5s", opacity: 0.7 }} title={m.created + " created"}></div>
-                  <div style={{ width: "40%", background: "#16a34a", borderRadius: "3px 3px 0 0", height: (m.completed / maxMonthly * 90) + "px", minHeight: m.completed > 0 ? 4 : 0, transition: "height 0.5s", opacity: 0.7 }} title={m.completed + " completed"}></div>
-                </div>
-                <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
-            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--brand)", marginRight: 4, opacity: 0.7 }}></span>Submitted</span>
-            <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4, opacity: 0.7 }}></span>Completed</span>
-          </div>
+      {tab === "tickets" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={metricBox}><div style={metricVal}>{tickets.length}</div><div style={metricLbl}>Total</div></div>
+          <div style={metricBox}><div style={metricVal}>{activeTickets.length}</div><div style={metricLbl}>Active</div></div>
+          <div style={metricBox}><div style={metricVal}>{completionRate}%</div><div style={metricLbl}>Completion Rate</div></div>
+          <div style={metricBox}><div style={metricVal}>{avgText}</div><div style={metricLbl}>Avg. Turnaround</div></div>
+          <div style={{ ...metricBox, borderColor: overdueCount > 0 ? "rgba(220,38,38,0.3)" : "var(--border)" }}><div style={{ ...metricVal, color: overdueCount > 0 ? "#dc2626" : "var(--brand)" }}>{overdueCount}</div><div style={metricLbl}>Overdue</div></div>
         </div>
-
-        <div style={card}>
-          <div style={sectionTitle}>Status Breakdown</div>
-          {Object.entries(STATUS).map(([key, s]) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color }}></span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.label}</span>
-              </div>
-              <span style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{statusBreakdown[key]}</span>
-            </div>
-          ))}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#d97706" }}></span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>Due Soon ({"\u2264"}3d)</span>
-            </div>
-            <span style={{ fontSize: 18, fontWeight: 800, color: "#d97706" }}>{dueSoon}</span>
-          </div>
+        <div className="hub-week-compare" style={{ ...card, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 24, justifyContent: "center", alignItems: "center", fontSize: 13, color: "var(--text-secondary)" }}>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Last Week</div><span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{lwCreated}</strong> in</span><span style={{ margin: "0 6px", opacity: 0.3 }}>|</span><span><strong style={{ color: "#16a34a", fontSize: 18 }}>{lwCompleted}</strong> out</span></div>
+          <div style={{ width: 1, height: 32, background: "var(--border)" }}></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>This Week</div><span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{twCreated}</strong> in</span><span style={{ margin: "0 6px", opacity: 0.3 }}>|</span><span><strong style={{ color: "#16a34a", fontSize: 18 }}>{twCompleted}</strong> out</span></div>
         </div>
-      </div>
-
-      {/* Priority + turnaround + submitters */}
-      <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-        <div style={card}>
-          <div style={sectionTitle}>Active by Priority</div>
-          {Object.entries(PRIORITIES).map(([key, p]) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span>
-              <div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}>
-                <div style={{ width: (priorityBreakdown[key] / maxPriority * 100) + "%", height: "100%", background: p.color, borderRadius: 5, transition: "width 0.5s" }}></div>
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{priorityBreakdown[key]}</span>
-            </div>
-          ))}
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={card}><div style={sectionTitle}>Monthly Trend</div><div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>{monthlyTickets.map((m, i) => (<div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><div style={{ display: "flex", gap: 2, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}><div style={{ width: "40%", background: "var(--brand)", borderRadius: "3px 3px 0 0", height: (m.created / maxMonthlyT * 90) + "px", minHeight: m.created > 0 ? 4 : 0, opacity: 0.7 }}></div><div style={{ width: "40%", background: "#16a34a", borderRadius: "3px 3px 0 0", height: (m.completed / maxMonthlyT * 90) + "px", minHeight: m.completed > 0 ? 4 : 0, opacity: 0.7 }}></div></div><span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span></div>))}</div><div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}><span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--brand)", marginRight: 4, opacity: 0.7 }}></span>Submitted</span><span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4, opacity: 0.7 }}></span>Completed</span></div></div>
+          <div style={card}><div style={sectionTitle}>Turnaround by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.icon} {p.label}</span><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{priorityAvg[key]}</span></div>))}<div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}><span>Fastest: <strong style={{ color: "#16a34a" }}>{fmtH(fastestH)}</strong></span><span>Slowest: <strong style={{ color: "#dc2626" }}>{fmtH(slowestH)}</strong></span></div></div>
         </div>
-
-        <div style={card}>
-          <div style={sectionTitle}>Turnaround by Priority</div>
-          {Object.entries(PRIORITIES).map(([key, p]) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.icon} {p.label}</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{priorityAvg[key]}</span>
-            </div>
-          ))}
-          <div style={{ marginTop: 10, padding: "6px 0", display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}>
-            <span>Fastest: <strong style={{ color: "#16a34a" }}>{fmtH(fastestH)}</strong></span>
-            <span>Slowest: <strong style={{ color: "#dc2626" }}>{fmtH(slowestH)}</strong></span>
-          </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}><div style={sectionTitle}>Active by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: (priorityBreakdown[key] / maxPriority * 100) + "%", height: "100%", background: p.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{priorityBreakdown[key]}</span></div>))}</div>
+          <div style={card}><div style={sectionTitle}>Top Submitters</div>{topSubmitters.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p> : topSubmitters.map(([name, count]) => (<div key={name} style={{ marginBottom: 6 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ fontSize: 12, color: "var(--text-body)", fontWeight: 500 }}>{name}</span><span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)" }}>{count}</span></div><div style={{ height: 4, background: "var(--bar-bg)", borderRadius: 2, overflow: "hidden" }}><div style={{ width: (count / maxSubmitter * 100) + "%", height: "100%", background: "var(--brand)", borderRadius: 2, opacity: 0.5 }}></div></div></div>))}</div>
         </div>
+      </>)}
 
-        <div style={card}>
-          <div style={sectionTitle}>Top Submitters</div>
-          {topSubmitters.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p>
-          ) : topSubmitters.map(([name, count]) => (
-            <div key={name} style={{ marginBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ fontSize: 12, color: "var(--text-body)", fontWeight: 500 }}>{name}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)" }}>{count}</span>
-              </div>
-              <div style={{ height: 4, background: "var(--bar-bg)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ width: (count / maxSubmitter * 100) + "%", height: "100%", background: "var(--brand)", borderRadius: 2, opacity: 0.5, transition: "width 0.5s" }}></div>
-              </div>
-            </div>
-          ))}
+      {tab === "archive" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={metricBox}><div style={metricVal}>{archiveEntries.length}</div><div style={metricLbl}>Total Entries</div></div>
+          <div style={metricBox}><div style={metricVal}>{archiveThisWeek}</div><div style={metricLbl}>This Week</div></div>
+          <div style={metricBox}><div style={metricVal}>{archiveLastWeek}</div><div style={metricLbl}>Last Week</div></div>
+          <div style={metricBox}><div style={metricVal}>{archiveThisWeek > archiveLastWeek ? "\u2191" : archiveThisWeek < archiveLastWeek ? "\u2193" : "\u2192"}</div><div style={metricLbl}>Trend</div></div>
         </div>
-      </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={card}><div style={sectionTitle}>Monthly Output</div>{renderBarChart(monthlyArchive, maxMonthlyA, "#8b5cf6", "label", "count")}</div>
+          <div style={card}><div style={sectionTitle}>By Type</div>{Object.entries(ARCHIVE_TYPES).map(([key, t]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><span style={{ fontSize: 11, fontWeight: 600, color: t.color, width: 80, flexShrink: 0 }}>{t.icon} {t.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: ((archiveTypeBreakdown[key] || 0) / maxArchiveType * 100) + "%", height: "100%", background: t.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{archiveTypeBreakdown[key] || 0}</span></div>))}</div>
+        </div>
+      </>)}
 
-      {/* Recent completions */}
-      <div style={card}>
-        <div style={sectionTitle}>Recently Completed</div>
-        {completedTickets.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>No completed tickets yet</p>
-        ) : completedTickets.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt)).slice(0, 6).map((t) => {
-          const hours = (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000;
-          const dur = hours < 24 ? Math.round(hours) + "h" : (hours / 24).toFixed(1) + "d";
-          const p = PRIORITIES[t.priority];
-          return (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-              <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 6px", borderRadius: 4, flexShrink: 0 }}>{t.id}</span>
-              <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: p.color, flexShrink: 0 }}>{p.icon}</span>
-              <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, flexShrink: 0 }}>{dur}</span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(t.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-            </div>
-          );
-        })}
-      </div>
+      {tab === "leads" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={metricBox}><div style={metricVal}>{leads.length}</div><div style={metricLbl}>Total Leads</div></div>
+          <div style={metricBox}><div style={metricVal}>{leadsThisWeek}</div><div style={metricLbl}>This Week</div></div>
+          <div style={{ ...metricBox, borderColor: leadsNeedsAction > 0 ? "rgba(202,138,4,0.3)" : "var(--border)" }}><div style={{ ...metricVal, color: leadsNeedsAction > 0 ? "#ca8a04" : "var(--brand)" }}>{leadsNeedsAction}</div><div style={metricLbl}>Needs Action</div></div>
+          <div style={metricBox}><div style={metricVal}>{leadsPassed}</div><div style={metricLbl}>Passed Through</div></div>
+          <div style={metricBox}><div style={metricVal}>{leads.length > 0 ? Math.round(leadsPassed / leads.length * 100) + "%" : "--"}</div><div style={metricLbl}>Pass-Through Rate</div></div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={card}><div style={sectionTitle}>Monthly Leads</div>{renderBarChart(monthlyLeads, maxMonthlyL, "#0d9488", "label", "count")}</div>
+          <div style={card}><div style={sectionTitle}>By Source</div>{Object.entries(LEAD_SOURCES).map(([key, s]) => { const count = leadSourceBreakdown[key] || 0; if (count === 0 && key === "other") return null; return (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 600, color: s.color, width: 70, flexShrink: 0 }}>{s.icon} {s.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: (count / maxLeadSource * 100) + "%", height: "100%", background: s.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{count}</span></div>); })}</div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}><div style={sectionTitle}>Week Comparison</div><div style={{ display: "flex", gap: 20, justifyContent: "center", fontSize: 13, color: "var(--text-secondary)" }}><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Last Week</div><div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{leadsLastWeek}</div></div><div style={{ width: 1, background: "var(--border)" }}></div><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>This Week</div><div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{leadsThisWeek}</div></div></div></div>
+          <div style={card}><div style={sectionTitle}>Top Loggers</div>{topLoggers.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No leads yet</p> : topLoggers.map(([name, count]) => (<div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, color: "var(--text-body)" }}>{name}</span><span style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 10 }}>{count}</span></div>))}</div>
+        </div>
+      </>)}
     </div>
   );
 }
+
 
 function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin }) {
   const [filter, setFilter] = useState("active");
@@ -949,96 +894,61 @@ function MarketingArchive({ entries, isAdmin, onManage }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
-
   const filtered = entries.filter((e) => {
     if (filter !== "all" && e.type !== filter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return e.title.toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.tags || []).some((tag) => tag.toLowerCase().includes(q));
-    }
+    if (search.trim()) { const q = search.toLowerCase(); return e.title.toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.tags || []).some((tag) => tag.toLowerCase().includes(q)); }
     return true;
   });
-
   const sorted = [...filtered].sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
-
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4DA}"} Marketing Archive</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{entries.length} item{entries.length !== 1 ? "s" : ""} in the archive</p>
-        </div>
-        {isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>+ Add Entry</button>}
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4DA}"} Marketing Archive</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{entries.length} item{entries.length !== 1 ? "s" : ""} in the archive</p></div>
+        {isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Entry</button>}
       </div>
-
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
-        </div>
-        <div className="hub-archive-types" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+        <div className="hub-type-filter" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
           <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
-          {Object.entries(ARCHIVE_TYPES).map(([key, t]) => (
-            <button key={key} onClick={() => setFilter(key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === key ? t.color : "transparent", color: filter === key ? "#fff" : "var(--text-secondary)" }}>{t.icon} {t.label}</button>
-          ))}
+          {Object.entries(ARCHIVE_TYPES).map(([key, t]) => (<button key={key} onClick={() => setFilter(key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === key ? t.color : "transparent", color: filter === key ? "#fff" : "var(--text-secondary)" }}>{t.icon} {t.label}</button>))}
         </div>
         <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
           <button onClick={() => setViewMode("list")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1 }}>{"\u2630"}</button>
           <button onClick={() => setViewMode("grid")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1 }}>{"\u25A6"}</button>
         </div>
       </div>
-
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4DA}"}</div>
-          <p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No items matching "' + search.trim() + '"' : "No archive entries yet"}</p>
-        </div>
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4DA}"}</div><p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? 'No items matching "' + search.trim() + '"' : "No archive entries yet"}</p></div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((entry) => {
-            const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
-            return (
-              <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
-                <div style={{ width: 42, height: 42, borderRadius: 10, background: t.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{t.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 600, color: t.color }}>{t.label}</span>
-                    <span>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                    {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}
-                  </div>
+          {sorted.map((entry) => { const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other; return (
+            <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: t.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{t.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 600, color: t.color }}>{t.label}</span>
+                  <span>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}
                 </div>
-                {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0, transition: "all 0.2s" }}>{"\u2197"} View</a>}
-                {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
               </div>
-            );
-          })}
+              {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>{"\u2197"} View</a>}
+              {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
+            </div>); })}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-          {sorted.map((entry) => {
-            const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
-            return (
-              <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, transition: "all 0.2s", display: "flex", flexDirection: "column", gap: 10 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 22 }}>{t.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: t.color }}>{t.label}</span>
-                  {isAdmin && <button onClick={() => onManage(entry.id)} style={{ marginLeft: "auto", padding: "3px 7px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, cursor: "pointer" }}>{"\u270E"}</button>}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.title}</div>
-                {entry.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.description}</div>}
-                <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                  {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}>{"\u2197"} View</a>}
-                </div>
-                {entry.tags && entry.tags.length > 0 && (
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}
-                  </div>
-                )}
+          {sorted.map((entry) => { const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other; return (
+            <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, transition: "all 0.2s", display: "flex", flexDirection: "column", gap: 10 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 22 }}>{t.icon}</span><span style={{ fontSize: 11, fontWeight: 600, color: t.color }}>{t.label}</span>{isAdmin && <button onClick={() => onManage(entry.id)} style={{ marginLeft: "auto", padding: "3px 7px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, cursor: "pointer" }}>{"\u270E"}</button>}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{entry.title}</div>
+              {entry.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.description}</div>}
+              <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}>{"\u2197"} View</a>}
               </div>
-            );
-          })}
+              {entry.tags && entry.tags.length > 0 && (<div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}</div>)}
+            </div>); })}
         </div>
       )}
     </div>
@@ -1049,76 +959,126 @@ function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
   const [form, setForm] = useState(entry ? { title: entry.title, type: entry.type, description: entry.description || "", date: entry.date || "", link: entry.link || "", tags: (entry.tags || []).join(", ") } : { title: "", type: "email", description: "", date: new Date().toISOString().split("T")[0], link: "", tags: "" });
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
-
-  const handleSave = async () => {
-    if (!form.title.trim()) return;
-    setSaving(true);
-    await onSave({
-      title: form.title.trim(),
-      type: form.type,
-      description: form.description.trim(),
-      date: form.date || null,
-      link: form.link.trim() || null,
-      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
-    });
-    setSaving(false);
-  };
-
+  const handleSave = async () => { if (!form.title.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), type: form.type, description: form.description.trim(), date: form.date || null, link: form.link.trim() || null, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) }); setSaving(false); };
   const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" };
-  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6, letterSpacing: "0.02em" };
-
+  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 };
   return (
     <div style={{ maxWidth: 560, width: "100%" }}>
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-        <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{entry ? "\u270E Edit Archive Entry" : "\u{1F4DA} Add to Archive"}</h2>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Title *</label>
-          <input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. March Newsletter - Spring Products" />
-        </div>
-
+        <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{entry ? "\u270E Edit Entry" : "\u{1F4DA} Add to Archive"}</h2>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Title *</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. March Newsletter - Spring Products" /></div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <div>
-            <label style={labelStyle}>Type</label>
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>
-              {Object.entries(ARCHIVE_TYPES).map(([key, t]) => <option key={key} value={key}>{t.icon} {t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Date</label>
-            <input type="date" style={{ ...inputStyle, cursor: "pointer" }} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          </div>
+          <div><label style={labelStyle}>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(ARCHIVE_TYPES).map(([key, t]) => <option key={key} value={key}>{t.icon} {t.label}</option>)}</select></div>
+          <div><label style={labelStyle}>Date</label><input type="date" style={{ ...inputStyle, cursor: "pointer" }} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
         </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Description</label>
-          <textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief summary of the campaign or material..." />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Link / URL</label>
-          <input style={inputStyle} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." />
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label>
-          <input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. Q1, product launch, broker name" />
-        </div>
-
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Description</label><textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief summary..." /></div>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Link / URL</label><input style={inputStyle} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></div>
+        <div style={{ marginBottom: 24 }}><label style={labelStyle}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label><input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. Q1, product launch" /></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button onClick={handleSave} disabled={saving || !form.title.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: !form.title.trim() ? 0.5 : 1 }}>
-            {saving ? "Saving..." : entry ? "Update Entry" : "Add to Archive"}
-          </button>
+          <button onClick={handleSave} disabled={saving || !form.title.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: !form.title.trim() ? 0.5 : 1 }}>{saving ? "Saving..." : entry ? "Update Entry" : "Add to Archive"}</button>
           <button onClick={onCancel} style={{ padding: "12px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-          {entry && onDelete && (
-            confirmDel ? (
-              <button onClick={() => onDelete(entry.id)} style={{ padding: "12px 16px", background: "#dc2626", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Confirm Delete</button>
-            ) : (
-              <button onClick={() => setConfirmDel(true)} style={{ padding: "12px 16px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Delete</button>
-            )
-          )}
+          {entry && onDelete && (confirmDel ? <button onClick={() => onDelete(entry.id)} style={{ padding: "12px 16px", background: "#dc2626", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Confirm</button> : <button onClick={() => setConfirmDel(true)} style={{ padding: "12px 16px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Delete</button>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LeadForm({ onSave, onBackToHub }) {
+  const [form, setForm] = useState({ broker: "", enquiry: "", source: "phone", logged_by: "", next_steps: "needs_action" });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const handleSave = async () => { if (!form.broker.trim() || !form.enquiry.trim() || !form.logged_by.trim()) return; setSaving(true); await onSave({ broker: form.broker.trim(), enquiry: form.enquiry.trim(), source: form.source, logged_by: form.logged_by.trim(), next_steps: form.next_steps }); setSaving(false); setSaved(true); };
+  const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 };
+  if (saved) return (
+    <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 40 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{"\u2705"}</div>
+        <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Lead Logged!</h2>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>The lead from <strong>{form.broker}</strong> has been recorded successfully.</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <button onClick={() => { setForm({ broker: "", enquiry: "", source: "phone", logged_by: "", next_steps: "needs_action" }); setSaved(false); }} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log Another</button>
+          <button onClick={onBackToHub} style={{ padding: "10px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Back to Hub</button>
+        </div>
+      </div>
+    </div>
+  );
+  const valid = form.broker.trim() && form.enquiry.trim() && form.logged_by.trim();
+  return (
+    <div style={{ maxWidth: 560, width: "100%" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C8}"} Log an Inbound Lead</h2>
+        <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Record an inbound marketing lead for tracking and follow-up.</p>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Broker *</label><input style={inputStyle} value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })} placeholder="e.g. Acme Insurance" /></div>
+        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Enquiry *</label><textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.enquiry} onChange={(e) => setForm({ ...form, enquiry: e.target.value })} placeholder="What is the lead about?" /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={labelStyle}>Source</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+              {Object.entries(LEAD_SOURCES).map(([key, s]) => (<button key={key} onClick={() => setForm({ ...form, source: key })} style={{ padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer", border: "1.5px solid " + (form.source === key ? s.color : "var(--border)"), background: form.source === key ? s.color + "15" : "var(--bg-input)", color: form.source === key ? s.color : "var(--text-muted)", transition: "all 0.2s", lineHeight: 1.2, textAlign: "center" }}><div style={{ fontSize: 14, marginBottom: 2 }}>{s.icon}</div>{s.label}</button>))}
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Next Steps</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[["needs_action", "\u{1F7E1} Needs Action", "#ca8a04"], ["passed_through", "\u2705 Passed Through", "#16a34a"]].map(([val, label, col]) => (<button key={val} onClick={() => setForm({ ...form, next_steps: val })} style={{ padding: "10px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1.5px solid " + (form.next_steps === val ? col : "var(--border)"), background: form.next_steps === val ? col + "15" : "var(--bg-input)", color: form.next_steps === val ? col : "var(--text-muted)", transition: "all 0.2s", textAlign: "left" }}>{label}</button>))}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 24 }}><label style={labelStyle}>Logged By *</label><input style={inputStyle} value={form.logged_by} onChange={(e) => setForm({ ...form, logged_by: e.target.value })} placeholder="Your name" /></div>
+        <button onClick={handleSave} disabled={saving || !valid} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: valid ? 1 : 0.5 }}>{saving ? "Saving..." : "Log Lead"}</button>
+      </div>
+    </div>
+  );
+}
+
+function LeadsDashboard({ leads, isAdmin }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const filtered = leads.filter((l) => {
+    if (filter !== "all" && l.source !== filter && filter !== "needs_action" && filter !== "passed_through") return false;
+    if (filter === "needs_action" && l.next_steps !== "needs_action") return false;
+    if (filter === "passed_through" && l.next_steps !== "passed_through") return false;
+    if (search.trim()) { const q = search.toLowerCase(); return l.broker.toLowerCase().includes(q) || l.enquiry.toLowerCase().includes(q) || l.logged_by.toLowerCase().includes(q); }
+    return true;
+  });
+  const sorted = [...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const needsAction = leads.filter((l) => l.next_steps === "needs_action").length;
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C8}"} Leads Dashboard</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{leads.length} lead{leads.length !== 1 ? "s" : ""} logged{needsAction > 0 ? " \u2022 " : ""}{needsAction > 0 && <span style={{ color: "#ca8a04", fontWeight: 600 }}>{needsAction} need{needsAction !== 1 ? "" : "s"} action</span>}</p>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+        <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
+          {[["all", "All"], ["needs_action", "\u{1F7E1} Needs Action"], ["passed_through", "\u2705 Passed"]].map(([key, label]) => (<button key={key} onClick={() => setFilter(key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === key ? "var(--brand)" : "transparent", color: filter === key ? "#fff" : "var(--text-secondary)" }}>{label}</button>))}
+        </div>
+      </div>
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{"\u{1F4C8}"}</div><p style={{ fontSize: 15, margin: 0 }}>{search.trim() ? "No matching leads" : "No leads logged yet"}</p></div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((lead) => { const s = LEAD_SOURCES[lead.source] || LEAD_SOURCES.other; return (
+            <div key={lead.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", transition: "all 0.2s" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: s.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{lead.broker}</div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, color: s.color }}>{s.label}</span>
+                    <span>{new Date(lead.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    <span>by {lead.logged_by}</span>
+                  </div>
+                </div>
+                <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: lead.next_steps === "needs_action" ? "rgba(202,138,4,0.1)" : "rgba(22,163,74,0.1)", color: lead.next_steps === "needs_action" ? "#ca8a04" : "#16a34a", flexShrink: 0 }}>{lead.next_steps === "needs_action" ? "\u{1F7E1} Needs Action" : "\u2705 Passed Through"}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5 }}>{lead.enquiry}</p>
+            </div>); })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1234,6 +1194,7 @@ export default function App() {
   const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
   const [archiveEntries, setArchiveEntries] = useState([]);
   const [editArchiveEntry, setEditArchiveEntry] = useState(null);
+  const [leads, setLeads] = useState([]);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
@@ -1276,17 +1237,20 @@ export default function App() {
   }, []);
 
 
-  // Load archive entries from Supabase
+  // Load archive entries
   useEffect(() => {
-    async function fetchArchive() {
-      const { data } = await supabase.from("archive_entries").select("*").order("date", { ascending: false });
-      if (data) setArchiveEntries(data);
-    }
+    async function fetchArchive() { const { data } = await supabase.from("archive_entries").select("*").order("date", { ascending: false }); if (data) setArchiveEntries(data); }
     fetchArchive();
-    const channel = supabase.channel("archive-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "archive_entries" }, () => { fetchArchive(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const ch = supabase.channel("archive-rt").on("postgres_changes", { event: "*", schema: "public", table: "archive_entries" }, () => { fetchArchive(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load leads
+  useEffect(() => {
+    async function fetchLeads() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
+    fetchLeads();
+    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => { fetchLeads(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   function mapRow(row) {
@@ -1413,20 +1377,12 @@ export default function App() {
 
 
   const handleArchiveSave = async (data) => {
-    if (editArchiveEntry && editArchiveEntry !== "new") {
-      await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry);
-    } else {
-      await supabase.from("archive_entries").insert(data);
-    }
-    setEditArchiveEntry(null);
-    setView("archive");
+    if (editArchiveEntry && editArchiveEntry !== "new") { await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry); }
+    else { await supabase.from("archive_entries").insert(data); }
+    setEditArchiveEntry(null); setView("archive");
   };
-
-  const handleArchiveDelete = async (id) => {
-    await supabase.from("archive_entries").delete().eq("id", id);
-    setEditArchiveEntry(null);
-    setView("archive");
-  };
+  const handleArchiveDelete = async (id) => { await supabase.from("archive_entries").delete().eq("id", id); setEditArchiveEntry(null); setView("archive"); };
+  const handleLeadSave = async (data) => { await supabase.from("leads").insert(data); };
 
   const handleDashboardClick = () => {
     if (dashUnlocked) {
@@ -1441,10 +1397,11 @@ export default function App() {
     setView("dashboard");
   };
 
-  const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity", "analytics"];
+  const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity"];
   const archiveViews = ["archive", "archive_add", "archive_edit"];
+  const leadViews = ["lead_form", "leads_dashboard"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -1495,7 +1452,7 @@ export default function App() {
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-week-compare { flex-direction: column; gap: 4px !important; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hub-archive-types { display: none !important; }
+          .hub-type-filter { display: none !important; }
         }
       `}</style>
 
@@ -1505,7 +1462,7 @@ export default function App() {
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : "Your marketing toolkit"}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Lead Management" : "Your marketing toolkit"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1513,51 +1470,27 @@ export default function App() {
             {dark ? "\u2600" : "\u{1F319}"}
           </button>
           <nav className="hub-nav" style={{ display: "flex", gap: 4, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", alignItems: "center" }}>
-          {view !== "hub" && (
-            <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: "transparent", color: "var(--nav-inactive)" }}>
-              {"\u2190"} Hub
-            </button>
-          )}
+          {view !== "hub" && <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "transparent", color: "var(--nav-inactive)" }}>{"\u2190"} Hub</button>}
           {view !== "hub" && currentSection !== "hub" && <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>}
           {currentSection === "tickets" && (<>
-            <button onClick={() => setView("form")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>
-              + New
-            </button>
-            <button onClick={handleDashboardClick} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
+            <button onClick={() => setView("form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" ? "var(--brand)" : "transparent", color: view === "form" ? "#fff" : "var(--nav-inactive)" }}>+ New</button>
+            <button onClick={handleDashboardClick} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "dashboard" || view === "password") ? "var(--brand)" : "transparent", color: (view === "dashboard" || view === "password") ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
               {dashUnlocked ? "" : "\u{1F512} "}Dashboard
-              {dashUnlocked && activeCount > 0 && (
-                <span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>
-              )}
+              {dashUnlocked && activeCount > 0 && (<span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>)}
             </button>
-            {dashUnlocked && (
-              <button onClick={() => setView("analytics")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "analytics" ? "var(--brand)" : "transparent", color: view === "analytics" ? "#fff" : "var(--nav-inactive)" }}>
-                Analytics
-              </button>
-            )}
-            {dashUnlocked && (
-              <button onClick={() => setView("activity")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>
-                Activity
-              </button>
-            )}
-            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>
-              {"\u{1F50D}"} Track
-            </button>
+            {dashUnlocked && <button onClick={() => setView("activity")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>Activity</button>}
+            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "tracker" || view === "submitted") ? "var(--brand)" : "transparent", color: (view === "tracker" || view === "submitted") ? "#fff" : "var(--nav-inactive)" }}>{"\u{1F50D}"} Track</button>
           </>)}
           {currentSection === "archive" && (<>
-            <button onClick={() => setView("archive")} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "archive" ? "var(--brand)" : "transparent", color: view === "archive" ? "#fff" : "var(--nav-inactive)" }}>
-              Browse
-            </button>
-            {dashUnlocked && (
-              <button onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "archive_add" || view === "archive_edit") ? "var(--brand)" : "transparent", color: (view === "archive_add" || view === "archive_edit") ? "#fff" : "var(--nav-inactive)" }}>
-                + Add Entry
-              </button>
-            )}
+            <button onClick={() => setView("archive")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "archive" ? "var(--brand)" : "transparent", color: view === "archive" ? "#fff" : "var(--nav-inactive)" }}>Browse</button>
+            {dashUnlocked && <button onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "archive_add" || view === "archive_edit") ? "var(--brand)" : "transparent", color: (view === "archive_add" || view === "archive_edit") ? "#fff" : "var(--nav-inactive)" }}>+ Add Entry</button>}
           </>)}
-          {currentSection === "hub" && (
-            <button style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "default", border: "none", background: "var(--brand)", color: "#fff" }}>
-              Home
-            </button>
-          )}
+          {currentSection === "leads" && (<>
+            <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>+ Log Lead</button>
+            <button onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "leads_dashboard" ? "var(--brand)" : "transparent", color: view === "leads_dashboard" ? "#fff" : "var(--nav-inactive)" }}>{dashUnlocked ? "" : "\u{1F512} "}Dashboard</button>
+          </>)}
+          {currentSection === "analytics" && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>Analytics</button>}
+          {currentSection === "hub" && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>Home</button>}
         </nav>
         </div>
       </header>
@@ -1569,7 +1502,7 @@ export default function App() {
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard") { handleDashboardClick(); } else { setView(id); } }} tickets={tickets} dashUnlocked={dashUnlocked} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -1589,11 +1522,15 @@ export default function App() {
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
-          <AnalyticsPanel tickets={tickets} />
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
         ) : view === "archive" ? (
           <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (
           <ArchiveForm entry={editArchiveEntry !== "new" ? archiveEntries.find((e) => e.id === editArchiveEntry) : null} onSave={handleArchiveSave} onCancel={() => setView("archive")} onDelete={handleArchiveDelete} />
+        ) : view === "lead_form" ? (
+          <LeadForm onSave={handleLeadSave} onBackToHub={() => setView("hub")} />
+        ) : view === "leads_dashboard" ? (
+          <LeadsDashboard leads={leads} isAdmin={dashUnlocked} />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
