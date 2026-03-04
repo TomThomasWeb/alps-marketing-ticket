@@ -2998,9 +2998,9 @@ export default function App() {
       Notification.requestPermission();
     }
     // Load persisted notifications
-    supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data }) => {
-      if (data) setNotifications(data);
-    });
+    supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data, error }) => {
+      if (data && !error) setNotifications(data);
+    }).catch(() => {});
   }, []);
 
   // Close tools dropdown on outside click
@@ -3020,7 +3020,7 @@ export default function App() {
   const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
   const markAllRead = async () => { setNotifications((prev) => prev.map((n) => ({ ...n, read: true }))); await supabase.from("notifications").update({ read: true }).eq("read", false); };
 
-  const persistNotif = (n) => { supabase.from("notifications").insert(n); };
+  const persistNotif = (n) => { supabase.from("notifications").insert(n).then(() => {}).catch(() => {}); };
 
   // Load tickets from Supabase and subscribe to real-time changes
   useEffect(() => {
@@ -3077,8 +3077,7 @@ export default function App() {
   useEffect(() => {
     async function fl() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
     fl();
-    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
-    persistNotif({ icon: "\u{1F4C8}", title: "New Lead Logged", body: (payload.new.broker || "") + " \u2022 " + (payload.new.enquiry || ""), action: "leads_dashboard", time: new Date().toISOString(), read: false });
+    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); persistNotif({ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
