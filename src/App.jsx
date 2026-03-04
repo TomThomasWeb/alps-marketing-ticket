@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "./supabaseClient.js";
+import jsPDF from "jspdf";
 
 const ALPS_LOGO = "/alps-logo.webp";
 
@@ -119,7 +120,7 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
@@ -142,70 +143,115 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline }) {
     }
   };
 
-  return (
-    <div style={{ width: "100%", maxWidth: 800 }}>
+  // Build activity feed from recent data
+  const feedItems = (() => {
+    const items = [];
+    tickets.slice(0, 10).forEach((t) => {
+      items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker" });
+      if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard" });
+    });
+    leads.slice(0, 5).forEach((l) => {
+      items.push({ icon: "\u{1F4C8}", text: "Lead from " + l.broker, time: l.created_at, action: "leads_dashboard" });
+    });
+    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 6);
+  })();
 
-      <div style={{ marginBottom: 40, paddingBottom: 32, borderBottom: "1px solid var(--border)" }}>
+  const fmtAgo = (ts) => {
+    const diff = (Date.now() - new Date(ts)) / 60000;
+    if (diff < 1) return "Just now";
+    if (diff < 60) return Math.floor(diff) + "m ago";
+    if (diff < 1440) return Math.floor(diff / 60) + "h ago";
+    return Math.floor(diff / 1440) + "d ago";
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 860 }}>
+
+      <div style={{ marginBottom: 32, paddingBottom: 28, borderBottom: "1px solid var(--border)" }}>
         <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
         <h2 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Marketing Hub</h2>
 
-        <div className="hub-hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <button onClick={() => onNavigate("form")} style={{ padding: "24px", background: "var(--brand)", borderRadius: 14, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.25s", position: "relative", overflow: "hidden" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(35,29,104,0.2)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 4 }}>{"\u{1F4DD}"} Submit a Ticket</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Request marketing support for your next project</div>
-          </button>
-          <button onClick={() => onNavigate("lead_form")} style={{ padding: "24px", background: "var(--bg-card)", borderRadius: 14, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = "#16a34a"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{"\u{1F4C8}"} Log a Lead</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Record an inbound marketing lead</div>
-          </button>
-        </div>
+        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20 }}>
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <button onClick={() => onNavigate("form")} style={{ padding: "22px 20px", background: "var(--brand)", borderRadius: 14, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(35,29,104,0.2)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 3 }}>{"\u{1F4DD}"} Submit a Ticket</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Request marketing support</div>
+              </button>
+              <button onClick={() => onNavigate("lead_form")} style={{ padding: "22px 20px", background: "var(--bg-card)", borderRadius: 14, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = "#16a34a"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{"\u{1F4C8}"} Log a Lead</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Record an inbound lead</div>
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0, transition: "opacity 0.2s" }} onMouseOver={(e) => e.currentTarget.style.opacity = "0.7"} onMouseOut={(e) => e.currentTarget.style.opacity = "1"}>{"\u{1F50D}"} Track a ticket {"\u2192"}</button>
+              {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span>{activeCount} active</span>}
+              {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span>{leadsAction} need action</span>}
+              {completedThisMonth > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u2705"} {completedThisMonth} this month</span>}
+            </div>
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 14, flexWrap: "wrap" }}>
-          <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0, transition: "opacity 0.2s" }} onMouseOver={(e) => e.currentTarget.style.opacity = "0.7"} onMouseOut={(e) => e.currentTarget.style.opacity = "1"}>{"\u{1F50D}"} Track a ticket {"\u2192"}</button>
-          {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span>{activeCount} active</span>}
-          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span>{leadsAction} need{leadsAction === 1 ? "s" : ""} action</span>}
-          {completedThisMonth > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u2705"} {completedThisMonth} completed this month</span>}
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recent Activity</span>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span>
+            </div>
+            <div style={{ maxHeight: 140, overflowY: "auto" }}>
+              {feedItems.length === 0 ? (
+                <div style={{ padding: "20px 14px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No recent activity</div>
+              ) : feedItems.map((f, i) => (
+                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "8px 14px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s", display: "flex", gap: 8, alignItems: "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{f.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{fmtAgo(f.time)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={{ marginBottom: 36 }}>
+      <div style={{ marginBottom: 32 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
         <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
           {[
-            { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse campaigns, posts, and outbound materials", color: "#8b5cf6" },
-            { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos, and icons", color: "#E64592" },
-            { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, image sizes, brand rules, and how-tos", color: "#ca8a04" },
+            { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", color: "#8b5cf6" },
+            { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
+            { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, sizes & how-tos", color: "#ca8a04" },
           ].map((r) => (
-            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "20px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-              <div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{r.desc}</div>
+            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{r.title}</div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div>
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ marginBottom: 36 }}>
+      <div style={{ marginBottom: 32 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>TOOLS</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[
             { id: "templates", icon: "\u{1F4C4}", label: "Content Templates", color: "#0d9488" },
             { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
             { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
+            { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
+            { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar", color: "#2563eb" },
             { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
-            { id: "planner", icon: "\u{1F5D3}", label: "Campaign Planner", color: "#7c3aed", soon: true },
           ].map((t) => (
-            <button key={t.id} onClick={() => !t.soon && onNavigate(t.id)} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1, position: "relative" }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
-              <span style={{ fontSize: 16 }}>{t.icon}</span>
+            <button key={t.id} onClick={() => !t.soon && onNavigate(t.id)} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+              <span style={{ fontSize: 15 }}>{t.icon}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
-              {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Soon</span>}
+              {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</span>}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 300 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 280 }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>DASHBOARDS</h3>
           <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             {[
@@ -213,46 +259,43 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline }) {
               { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : null, color: "#0d9488" },
               { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports", color: "#dc2626" },
             ].map((d) => (
-              <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.25s", opacity: !dashUnlocked ? 0.7 : 1 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = d.color; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+              <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.25s", opacity: !dashUnlocked ? 0.7 : 1 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = d.color; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 18 }}>{d.icon}</span>
-                  {!dashUnlocked && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
+                  <span style={{ fontSize: 16 }}>{d.icon}</span>
+                  {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
-                {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>}
+                {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d.stat}</div>}
               </button>
             ))}
           </div>
         </div>
-
-        {!dashUnlocked && (
-          <div style={{ width: 220, flexShrink: 0 }}>
+        {!dashUnlocked ? (
+          <div style={{ width: 200, flexShrink: 0 }}>
             <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>ADMIN</h3>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>{"\u{1F512}"} Unlock dashboards</div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{"\u{1F512}"} Unlock dashboards</div>
               <div style={{ display: "flex", gap: 6 }}>
                 <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "8px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", minWidth: 0 }} />
-                <button onClick={tryLogin} style={{ padding: "8px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Go</button>
+                <button onClick={tryLogin} style={{ padding: "8px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
               </div>
               {loginError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>Wrong password</div>}
             </div>
           </div>
-        )}
-
-        {dashUnlocked && (
-          <div style={{ width: 220, flexShrink: 0 }}>
+        ) : (
+          <div style={{ width: 200, flexShrink: 0 }}>
             <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>&nbsp;</h3>
-            <div style={{ padding: "12px 16px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)" }}>
+            <div style={{ padding: "12px 14px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)" }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)" }}>{"\u2705"} Admin unlocked</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Dashboards & editing enabled</div>
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }
+
 
 
 
@@ -792,11 +835,79 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
 
         const copyReport = () => { navigator.clipboard.writeText(reportLines); };
 
+        const exportPDF = () => {
+          const doc = new jsPDF("p", "mm", "a4");
+          const w = doc.internal.pageSize.getWidth();
+          const brandColor = [35, 29, 104];
+          const motorColor = [230, 69, 146];
+          const tealColor = [32, 163, 158];
+
+          // Header bar
+          doc.setFillColor(...brandColor);
+          doc.rect(0, 0, w, 32, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(18);
+          doc.setFont("helvetica", "bold");
+          doc.text("ALPS MARKETING REPORT", 16, 18);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.text(monthName, 16, 26);
+          doc.text("Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), w - 16, 26, { align: "right" });
+
+          let y = 46;
+          const section = (title, color, items) => {
+            doc.setFillColor(...color);
+            doc.rect(16, y, 4, 8, "F");
+            doc.setTextColor(...color);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(title, 24, y + 6);
+            y += 14;
+            doc.setTextColor(60, 60, 60);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            items.forEach(([label, value]) => {
+              doc.text(label, 24, y);
+              doc.setFont("helvetica", "bold");
+              doc.text(String(value), 90, y);
+              doc.setFont("helvetica", "normal");
+              y += 7;
+            });
+            y += 6;
+          };
+
+          section("Tickets", brandColor, [
+            ["Submitted", mtTC], ["Completed", mtTD], ["Active Backlog", at.length], ["Avg Turnaround", fmtH(mtAvg)],
+            ...Object.entries(mtPri).map(([k, v]) => [(PRIORITIES[k] ? PRIORITIES[k].label : k), v]),
+          ]);
+          section("Outbound Content", motorColor, [
+            ["Pieces Published", mtA],
+            ...Object.entries(mtAT).map(([k, v]) => [k, v]),
+          ]);
+          section("Inbound Leads", tealColor, [
+            ["Total", mtL], ["Needs Action", mtLA], ["Passed Through", mtLP],
+            ...Object.entries(mtLS).map(([k, v]) => [k, v]),
+          ]);
+
+          // Footer
+          doc.setDrawColor(200, 200, 200);
+          doc.line(16, 280, w - 16, 280);
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text("Alps Marketing Hub - Confidential", 16, 286);
+          doc.text("Page 1 of 1", w - 16, 286, { align: "right" });
+
+          doc.save("Alps-Marketing-Report-" + monthName.replace(/\s/g, "-") + ".pdf");
+        };
+
         return (<>
           <div style={{ ...card, marginBottom: 20, textAlign: "center" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CB}"} Monthly Marketing Report</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>{monthName} summary across all marketing activity</p>
-            <button onClick={copyReport} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy Report to Clipboard</button>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button onClick={copyReport} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy to Clipboard</button>
+              <button onClick={exportPDF} style={{ padding: "10px 24px", background: "#dc2626", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4C4}"} Export PDF</button>
+            </div>
           </div>
           <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
             <div style={card}>
@@ -1715,6 +1826,405 @@ function QRCodeGenerator() {
 }
 
 
+function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ title: "", type: "social", description: "" });
+
+  const EVENT_TYPES = {
+    social: { label: "Social Post", color: "#2563eb", icon: "\u{1F4F1}" },
+    email: { label: "Email Send", color: "#16a34a", icon: "\u2709\uFE0F" },
+    print: { label: "Print", color: "#E64592", icon: "\u{1F5A8}\uFE0F" },
+    campaign: { label: "Campaign", color: "#8b5cf6", icon: "\u{1F680}" },
+    deadline: { label: "Deadline", color: "#dc2626", icon: "\u23F0" },
+    meeting: { label: "Meeting", color: "#ca8a04", icon: "\u{1F91D}" },
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const monthLabel = currentDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+  const getEventsForDay = (day) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return events.filter((e) => e.date === dateStr);
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim() || !selectedDate) return;
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
+    onSave({ ...form, date: dateStr, id: editing || undefined });
+    setForm({ title: "", type: "social", description: "" });
+    setEditing(null);
+  };
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const isToday = (day) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+
+  const inputStyle = { padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", width: "100%" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 900 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C5}"} Content Calendar</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Plan and track marketing output across all channels.</p>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button onClick={prevMonth} style={{ padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>{"\u2190"}</button>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", minWidth: 160, textAlign: "center" }}>{monthLabel}</span>
+          <button onClick={nextMonth} style={{ padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>{"\u2192"}</button>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {Object.entries(EVENT_TYPES).map(([k, v]) => (
+          <span key={k} style={{ padding: "4px 10px", borderRadius: 20, background: v.color + "18", color: v.color, fontSize: 11, fontWeight: 600 }}>{v.icon} {v.label}</span>
+        ))}
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d} style={{ padding: "10px 8px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{d}</div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+          {Array.from({ length: startOffset }, (_, i) => (
+            <div key={"e" + i} style={{ minHeight: 80, borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "var(--bg-input)" }}></div>
+          ))}
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const dayEvents = getEventsForDay(day);
+            const sel = selectedDate === day;
+            return (
+              <div key={day} onClick={() => setSelectedDate(sel ? null : day)} style={{ minHeight: 80, padding: "4px 6px", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", cursor: "pointer", background: sel ? "var(--brand-light)" : isToday(day) ? "rgba(34,197,94,0.04)" : "transparent", transition: "background 0.15s", position: "relative" }} onMouseOver={(e) => { if (!sel) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (!sel) e.currentTarget.style.background = isToday(day) ? "rgba(34,197,94,0.04)" : "transparent"; }}>
+                <div style={{ fontSize: 12, fontWeight: isToday(day) ? 800 : 500, color: isToday(day) ? "#22c55e" : "var(--text-primary)", marginBottom: 2 }}>{day}</div>
+                {dayEvents.slice(0, 3).map((ev, j) => {
+                  const t = EVENT_TYPES[ev.type] || EVENT_TYPES.social;
+                  return <div key={j} style={{ fontSize: 10, padding: "2px 4px", marginBottom: 2, borderRadius: 3, background: t.color + "18", color: t.color, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.icon} {ev.title}</div>;
+                })}
+                {dayEvents.length > 3 && <div style={{ fontSize: 9, color: "var(--text-muted)" }}>+{dayEvents.length - 3} more</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {selectedDate && (
+        <div style={{ marginTop: 16, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{selectedDate} {monthLabel}</h3>
+          {getEventsForDay(selectedDate).length > 0 ? (
+            <div style={{ marginBottom: isAdmin ? 16 : 0 }}>
+              {getEventsForDay(selectedDate).map((ev) => {
+                const t = EVENT_TYPES[ev.type] || EVENT_TYPES.social;
+                return (
+                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "var(--bg-input)", borderRadius: 8, borderLeft: "3px solid " + t.color }}>
+                    <span style={{ fontSize: 16 }}>{t.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{ev.title}</div>
+                      {ev.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{ev.description}</div>}
+                    </div>
+                    <span style={{ fontSize: 10, color: t.color, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: t.color + "18" }}>{t.label}</span>
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); setForm({ title: ev.title, type: ev.type, description: ev.description || "" }); setEditing(ev.id); }} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Edit</button>}
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); onDelete(ev.id); }} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11, color: "#ef4444", cursor: "pointer" }}>Del</button>}
+                  </div>
+                );
+              })}
+            </div>
+          ) : <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>No events scheduled</p>}
+          {isAdmin && (
+            <div style={{ borderTop: getEventsForDay(selectedDate).length > 0 ? "1px solid var(--border)" : "none", paddingTop: getEventsForDay(selectedDate).length > 0 ? 12 : 0 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginBottom: 8 }}>
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" style={inputStyle} />
+                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, width: "auto", cursor: "pointer" }}>
+                  {Object.entries(EVENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                </select>
+              </div>
+              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" style={{ ...inputStyle, marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={handleSave} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update" : "Add Event"}</button>
+                {editing && <button onClick={() => { setEditing(null); setForm({ title: "", type: "social", description: "" }); }} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "var(--text-secondary)" }}>Cancel</button>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function ImageEditor() {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [origW, setOrigW] = useState(0);
+  const [origH, setOrigH] = useState(0);
+  const canvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
+  const fileRef = useRef(null);
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [overlayColor, setOverlayColor] = useState("");
+  const [overlayOpacity, setOverlayOpacity] = useState(30);
+  const [textOverlay, setTextOverlay] = useState("");
+  const [textSize, setTextSize] = useState(48);
+  const [textColor, setTextColor] = useState("#ffffff");
+  const [textPos, setTextPos] = useState("center");
+  const [cropMode, setCropMode] = useState(false);
+  const [cropStart, setCropStart] = useState(null);
+  const [cropEnd, setCropEnd] = useState(null);
+  const [cropping, setCropping] = useState(false);
+  const imgRef = useRef(null);
+
+  const BRAND_COLORS = [
+    { label: "Alps Main", color: "#231D68" },
+    { label: "Motor", color: "#E64592" },
+    { label: "Commercial", color: "#20A39E" },
+    { label: "White", color: "#ffffff" },
+    { label: "Black", color: "#000000" },
+  ];
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => { setOrigW(img.width); setOrigH(img.height); imgRef.current = img; setPreview(ev.target.result); resetEdits(); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const resetEdits = () => {
+    setBrightness(100); setContrast(100); setSaturation(100);
+    setOverlayColor(""); setOverlayOpacity(30); setTextOverlay("");
+    setTextSize(48); setTextColor("#ffffff"); setTextPos("center");
+    setCropMode(false); setCropStart(null); setCropEnd(null);
+  };
+
+  const renderPreview = useCallback(() => {
+    if (!imgRef.current || !previewCanvasRef.current) return;
+    const img = imgRef.current;
+    const canvas = previewCanvasRef.current;
+    const maxW = 600, maxH = 420;
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.filter = "none";
+    if (overlayColor) {
+      ctx.globalAlpha = overlayOpacity / 100;
+      ctx.fillStyle = overlayColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
+    if (textOverlay) {
+      ctx.font = `bold ${Math.round(textSize * scale)}px Inter, sans-serif`;
+      ctx.fillStyle = textColor;
+      ctx.textAlign = "center";
+      const x = canvas.width / 2;
+      let y = canvas.height / 2;
+      if (textPos === "top") y = Math.round(textSize * scale) + 20;
+      else if (textPos === "bottom") y = canvas.height - 20;
+      ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+      ctx.fillText(textOverlay, x, y);
+      ctx.shadowColor = "transparent";
+    }
+    if (cropMode && cropStart && cropEnd) {
+      ctx.strokeStyle = "#6366f1"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      const cx = Math.min(cropStart.x, cropEnd.x), cy = Math.min(cropStart.y, cropEnd.y);
+      const cw = Math.abs(cropEnd.x - cropStart.x), ch = Math.abs(cropEnd.y - cropStart.y);
+      ctx.strokeRect(cx, cy, cw, ch);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, 0, canvas.width, cy);
+      ctx.fillRect(0, cy + ch, canvas.width, canvas.height - cy - ch);
+      ctx.fillRect(0, cy, cx, ch);
+      ctx.fillRect(cx + cw, cy, canvas.width - cx - cw, ch);
+    }
+  }, [brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, cropMode, cropStart, cropEnd]);
+
+  useEffect(() => { renderPreview(); }, [renderPreview]);
+
+  const handleCropMouseDown = (e) => {
+    if (!cropMode) return;
+    const rect = previewCanvasRef.current.getBoundingClientRect();
+    setCropStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setCropEnd(null); setCropping(true);
+  };
+  const handleCropMouseMove = (e) => {
+    if (!cropping || !cropMode) return;
+    const rect = previewCanvasRef.current.getBoundingClientRect();
+    setCropEnd({ x: Math.max(0, Math.min(e.clientX - rect.left, rect.width)), y: Math.max(0, Math.min(e.clientY - rect.top, rect.height)) });
+  };
+  const handleCropMouseUp = () => { setCropping(false); };
+
+  const applyCrop = () => {
+    if (!cropStart || !cropEnd || !imgRef.current) return;
+    const canvas = previewCanvasRef.current;
+    const scaleX = imgRef.current.width / canvas.width, scaleY = imgRef.current.height / canvas.height;
+    const sx = Math.min(cropStart.x, cropEnd.x) * scaleX, sy = Math.min(cropStart.y, cropEnd.y) * scaleY;
+    const sw = Math.abs(cropEnd.x - cropStart.x) * scaleX, sh = Math.abs(cropEnd.y - cropStart.y) * scaleY;
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = sw; tmpCanvas.height = sh;
+    tmpCanvas.getContext("2d").drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, sw, sh);
+    const newImg = new Image();
+    newImg.onload = () => { imgRef.current = newImg; setOrigW(sw); setOrigH(sh); setCropMode(false); setCropStart(null); setCropEnd(null); renderPreview(); };
+    newImg.src = tmpCanvas.toDataURL("image/png");
+  };
+
+  const exportImage = () => {
+    if (!imgRef.current) return;
+    const img = imgRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    ctx.drawImage(img, 0, 0);
+    ctx.filter = "none";
+    if (overlayColor) { ctx.globalAlpha = overlayOpacity / 100; ctx.fillStyle = overlayColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1; }
+    if (textOverlay) {
+      ctx.font = `bold ${textSize}px Inter, sans-serif`;
+      ctx.fillStyle = textColor; ctx.textAlign = "center";
+      let y = canvas.height / 2;
+      if (textPos === "top") y = textSize + 40;
+      else if (textPos === "bottom") y = canvas.height - 40;
+      ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8;
+      ctx.fillText(textOverlay, canvas.width / 2, y);
+    }
+    canvas.toBlob((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "edited-" + (file ? file.name : "image.png");
+      a.click();
+    }, "image/png");
+  };
+
+  const sliderStyle = { width: "100%", accentColor: "var(--brand)", cursor: "pointer" };
+  const labelStyle = { display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 };
+  const inputStyle = { padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", width: "100%" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F58C}\uFE0F"} Image Editor</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text and brand overlays. Works entirely in your browser.</p>
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      {!file ? (
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 20px", border: "2px dashed var(--border)", borderRadius: 14, cursor: "pointer", background: "var(--bg-card)", transition: "border-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+          <div style={{ fontSize: 40, opacity: 0.4 }}>{"\u{1F5BC}\uFE0F"}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Click to upload an image</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+        </label>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 16 }} className="hub-editor-grid">
+          <div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{origW} x {origH}px</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button onClick={() => setCropMode(!cropMode)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid " + (cropMode ? "var(--brand)" : "var(--border)"), background: cropMode ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: cropMode ? "var(--brand)" : "var(--text-muted)" }}>Crop</button>
+                  {cropMode && cropStart && cropEnd && <button onClick={applyCrop} style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#fff" }}>Apply Crop</button>}
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 8, cursor: cropMode ? "crosshair" : "default" }} onMouseDown={handleCropMouseDown} onMouseMove={handleCropMouseMove} onMouseUp={handleCropMouseUp} onMouseLeave={handleCropMouseUp}>
+                <canvas ref={previewCanvasRef} style={{ maxWidth: "100%", display: "block", borderRadius: 4 }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Download</button>
+              <button onClick={resetEdits} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)" }}>Reset</button>
+              <button onClick={() => { setFile(null); setPreview(null); imgRef.current = null; if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)" }}>New Image</button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Adjust</div>
+              <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Brightness</span><span>{brightness}%</span></div><input type="range" min="20" max="200" value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} style={sliderStyle} /></div>
+              <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Contrast</span><span>{contrast}%</span></div><input type="range" min="20" max="200" value={contrast} onChange={(e) => setContrast(Number(e.target.value))} style={sliderStyle} /></div>
+              <div><div style={labelStyle}><span>Saturation</span><span>{saturation}%</span></div><input type="range" min="0" max="200" value={saturation} onChange={(e) => setSaturation(Number(e.target.value))} style={sliderStyle} /></div>
+            </div>
+
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Brand Overlay</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                <button onClick={() => setOverlayColor("")} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (!overlayColor ? "var(--brand)" : "var(--border)"), background: "repeating-conic-gradient(#80808030 0% 25%, transparent 0% 50%) 50%/8px 8px", cursor: "pointer" }} title="None" />
+                {BRAND_COLORS.map((c) => (
+                  <button key={c.color} onClick={() => setOverlayColor(c.color)} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (overlayColor === c.color ? "var(--brand)" : "var(--border)"), background: c.color, cursor: "pointer" }} title={c.label} />
+                ))}
+              </div>
+              {overlayColor && <div><div style={labelStyle}><span>Opacity</span><span>{overlayOpacity}%</span></div><input type="range" min="5" max="80" value={overlayOpacity} onChange={(e) => setOverlayOpacity(Number(e.target.value))} style={sliderStyle} /></div>}
+            </div>
+
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Text</div>
+              <input value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} placeholder="Add text..." style={{ ...inputStyle, marginBottom: 8 }} />
+              {textOverlay && <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Size</div><input type="number" value={textSize} onChange={(e) => setTextSize(Number(e.target.value))} style={inputStyle} /></div>
+                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Colour</div><input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} style={{ width: "100%", height: 34, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", background: "var(--bg-input)" }} /></div>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {["top", "center", "bottom"].map((p) => (
+                    <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (textPos === p ? "var(--brand)" : "var(--border)"), background: textPos === p ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: textPos === p ? "var(--brand)" : "var(--text-muted)", textTransform: "capitalize" }}>{p}</button>
+                  ))}
+                </div>
+              </>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function OnboardingOverlay({ onDismiss }) {
+  const [step, setStep] = useState(0);
+  const steps = [
+    { icon: "\u{1F44B}", title: "Welcome to the Marketing Hub", desc: "Your central place for marketing requests, brand assets, and tools. Here's a quick overview of what you can do." },
+    { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Need marketing support? Submit a ticket with your request, set the priority, and track its progress all the way through to completion." },
+    { icon: "\u{1F4DA}", title: "Browse Resources", desc: "Access the Marketing Archive for past campaigns, Brand Assets for logos and colours, and the Self-Service Guide for image sizes and FAQs." },
+    { icon: "\u{1F6E0}\uFE0F", title: "Use the Tools", desc: "Convert and resize images, generate QR codes, edit images with brand overlays, plan content on the calendar, and access reusable copy templates." },
+    { icon: "\u{1F4C8}", title: "Log Leads", desc: "Record inbound marketing leads with source tracking. Leads are visible in the Leads Dashboard for reporting." },
+  ];
+  const s = steps[step];
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20, backdropFilter: "blur(4px)" }} onClick={onDismiss}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "40px 36px 32px", maxWidth: 440, width: "100%", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.15)", animation: "fadeIn 0.3s ease" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{s.icon}</div>
+        <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "var(--text-primary)" }}>{s.title}</h2>
+        <p style={{ margin: "0 0 28px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{s.desc}</p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
+          {steps.map((_, i) => <div key={i} style={{ width: i === step ? 24 : 8, height: 8, borderRadius: 4, background: i === step ? "var(--brand)" : "var(--bar-bg)", transition: "all 0.3s" }}></div>)}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          {step > 0 && <button onClick={() => setStep(step - 1)} style={{ padding: "10px 20px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Back</button>}
+          {step < steps.length - 1 ? (
+            <button onClick={() => setStep(step + 1)} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Next</button>
+          ) : (
+            <button onClick={onDismiss} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Get Started</button>
+          )}
+          {step < steps.length - 1 && <button onClick={onDismiss} style={{ padding: "10px 16px", background: "transparent", border: "none", fontSize: 13, color: "var(--text-muted)", cursor: "pointer" }}>Skip</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function NotificationsCenter({ notifications, onClear, onNavigate }) {
   const [open, setOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
@@ -1893,7 +2403,9 @@ export default function App() {
   const [leads, setLeads] = useState([]);
   const [brandAssets, setBrandAssets] = useState([]);
   const [contentTemplates, setContentTemplates] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [showOnboarding, setShowOnboarding] = useState(() => { try { return !localStorage.getItem("alps_hub_onboarded"); } catch { return false; } });
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef(null);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
@@ -1989,6 +2501,14 @@ export default function App() {
     async function ft() { const { data } = await supabase.from("content_templates").select("*").order("title", { ascending: true }); if (data) setContentTemplates(data); }
     ft();
     const ch = supabase.channel("templates-rt").on("postgres_changes", { event: "*", schema: "public", table: "content_templates" }, () => { ft(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load calendar events
+  useEffect(() => {
+    async function fc() { const { data } = await supabase.from("calendar_events").select("*").order("date", { ascending: true }); if (data) setCalendarEvents(data); }
+    fc();
+    const ch = supabase.channel("calendar-rt").on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => { fc(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -2143,6 +2663,17 @@ export default function App() {
   };
   const handleTemplateDelete = async (id) => { await supabase.from("content_templates").delete().eq("id", id); };
 
+  const handleCalendarSave = async (event) => {
+    if (event.id) {
+      await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description }).eq("id", event.id);
+    } else {
+      await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date }]);
+    }
+  };
+  const handleCalendarDelete = async (id) => { await supabase.from("calendar_events").delete().eq("id", id); };
+
+  const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
+
   const handleDashboardClick = () => {
     if (dashUnlocked) {
       setView("dashboard");
@@ -2162,7 +2693,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "templates" ? "templates" : view === "guide" ? "guide" : view === "converter" ? "converter" : view === "qr_generator" ? "qr" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "calendar") ? "tools" : view === "guide" ? "guide" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -2174,6 +2705,7 @@ export default function App() {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }
         @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         [data-theme="light"] {
           --bg-page: #ffffff; --bg-card: #f6f6f6; --bg-input: #ffffff; --bg-header: #ffffff;
@@ -2204,6 +2736,8 @@ export default function App() {
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr 1fr !important; }
           .hub-resource-grid { grid-template-columns: 1fr 1fr !important; }
+          .hub-hero-split { grid-template-columns: 1fr !important; }
+          .hub-editor-grid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
           .hub-header { padding: 10px 16px !important; flex-wrap: wrap; gap: 8px; }
@@ -2211,6 +2745,8 @@ export default function App() {
           .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-hero-grid { grid-template-columns: 1fr !important; }
+          .hub-hero-split { grid-template-columns: 1fr !important; }
+          .hub-editor-grid { grid-template-columns: 1fr !important; }
           .hub-resource-grid { grid-template-columns: 1fr !important; }
           .hub-tickets-grid { grid-template-columns: 1fr !important; }
           .hub-layout-main { grid-template-columns: 1fr !important; }
@@ -2234,7 +2770,7 @@ export default function App() {
           <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
           <div>
             <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Leads" : currentSection === "brand" ? "Brand Assets" : currentSection === "templates" ? "Content Templates" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "converter" ? "File Converter" : currentSection === "qr" ? "QR Code Generator" : "Your marketing toolkit"}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Leads" : currentSection === "brand" ? "Brand Assets" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "tools" ? ({templates: "Content Templates", converter: "File Converter", qr_generator: "QR Code Generator", image_editor: "Image Editor", calendar: "Content Calendar"}[view] || "Tools") : "Your marketing toolkit"}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -2264,7 +2800,7 @@ export default function App() {
           </>)}
           {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: currentSection !== "hub" ? "var(--brand)" : "transparent", color: currentSection !== "hub" ? "#fff" : "var(--nav-inactive)", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : "Home"}</button>}
           {(currentSection === "guide") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>Guide</button>}
-          {(currentSection === "templates" || currentSection === "converter" || currentSection === "qr") && (
+          {currentSection === "tools" && (
             <div ref={toolsRef} style={{ position: "relative" }}>
               <button onClick={() => setToolsOpen(!toolsOpen)} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
                 {"\u{1F6E0}\uFE0F"} Tools <span style={{ fontSize: 10 }}>{toolsOpen ? "\u25B2" : "\u25BC"}</span>
@@ -2272,9 +2808,12 @@ export default function App() {
               {toolsOpen && (
                 <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden", padding: 4 }}>
                   {[
+                  {[
                     { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
                     { id: "converter", icon: "\u{1F504}", label: "File Converter" },
                     { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
+                    { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
+                    { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar" },
                   ].map((t) => (
                     <button key={t.id} onClick={() => { setView(t.id); setToolsOpen(false); }} style={{ width: "100%", padding: "10px 14px", background: view === t.id ? "var(--brand-light)" : "transparent", border: "none", borderRadius: 6, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: view === t.id ? 700 : 500, color: view === t.id ? "var(--brand)" : "var(--text-primary)", transition: "all 0.15s" }} onMouseOver={(e) => { if (view !== t.id) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (view !== t.id) e.currentTarget.style.background = "transparent"; }}>
                       <span style={{ fontSize: 16 }}>{t.icon}</span> {t.label}
@@ -2288,14 +2827,14 @@ export default function App() {
         </div>
       </header>
 
-      <main className="hub-main" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main className="hub-main" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -2334,10 +2873,15 @@ export default function App() {
           <FileConverter />
         ) : view === "qr_generator" ? (
           <QRCodeGenerator />
+        ) : view === "image_editor" ? (
+          <ImageEditor />
+        ) : view === "calendar" ? (
+          <ContentCalendar events={calendarEvents} isAdmin={dashUnlocked} onSave={handleCalendarSave} onDelete={handleCalendarDelete} />
         ) : (
           <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
         )}
       </main>
+      {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
     </div>
   );
 }

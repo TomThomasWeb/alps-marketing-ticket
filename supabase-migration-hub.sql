@@ -68,3 +68,17 @@ create policy "Templates insert" on public.content_templates for insert with che
 create policy "Templates update" on public.content_templates for update using (true);
 create policy "Templates delete" on public.content_templates for delete using (true);
 alter publication supabase_realtime add table public.content_templates;
+
+-- Calendar Events table
+create table if not exists public.calendar_events (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  date date not null,
+  type text not null default 'social',
+  description text default '',
+  created_at timestamp with time zone default now()
+);
+
+alter table public.calendar_events enable row level security;
+create policy "Allow all access to calendar_events" on public.calendar_events for all using (true) with check (true);
+alter publication supabase_realtime add table public.calendar_events;
