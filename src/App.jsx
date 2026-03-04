@@ -1546,7 +1546,6 @@ function LeadsDashboard({ leads, onUpdate, onDelete }) {
                         <button onClick={() => { if (window.confirm("Delete this lead from " + lead.broker + "? This cannot be undone.")) onDelete(lead.id); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => { e.target.style.background = "#fef2f2"; }} onMouseOut={(e) => { e.target.style.background = "transparent"; }}>{"\u{1F5D1}"} Delete Lead</button>
                       </div>
                     )}
-                    </div>
                   </div>
                 )}
               </div>
