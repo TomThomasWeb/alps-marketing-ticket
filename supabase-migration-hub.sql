@@ -82,3 +82,31 @@ create table if not exists public.calendar_events (
 alter table public.calendar_events enable row level security;
 create policy "Allow all access to calendar_events" on public.calendar_events for all using (true) with check (true);
 alter publication supabase_realtime add table public.calendar_events;
+
+-- Session 12: Enhanced features migration
+
+-- Add notes and follow-up to leads
+alter table public.leads add column if not exists notes text default '';
+alter table public.leads add column if not exists follow_up text default '';
+
+-- Add campaign and performance to archive_entries
+alter table public.archive_entries add column if not exists campaign text default '';
+alter table public.archive_entries add column if not exists performance text default '';
+
+-- Add calendar_event_id to tickets for calendar linking
+alter table public.tickets add column if not exists calendar_event_id uuid;
+
+-- Session 12: Enhanced features migration
+-- Leads: add notes, follow_up, and closed status support
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS notes text DEFAULT '';
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS follow_up text DEFAULT '';
+
+-- Archive: add campaign grouping and performance tracking
+ALTER TABLE public.archive_entries ADD COLUMN IF NOT EXISTS campaign text DEFAULT '';
+ALTER TABLE public.archive_entries ADD COLUMN IF NOT EXISTS performance text DEFAULT '';
+
+-- Tickets: link to calendar events
+ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS calendar_event_id uuid DEFAULT null;
+
+-- Calendar events: update date on reschedule
+-- (no schema change needed, just ensuring realtime is on)
