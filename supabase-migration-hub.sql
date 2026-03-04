@@ -110,3 +110,17 @@ ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS calendar_event_id uuid DEFAU
 
 -- Calendar events: update date on reschedule
 -- (no schema change needed, just ensuring realtime is on)
+
+-- Notifications persistence table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  icon TEXT,
+  title TEXT NOT NULL,
+  body TEXT,
+  action TEXT,
+  time TIMESTAMPTZ DEFAULT NOW(),
+  read BOOLEAN DEFAULT FALSE
+);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);

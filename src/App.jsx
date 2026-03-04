@@ -2997,6 +2997,10 @@ export default function App() {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
+    // Load persisted notifications
+    supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data }) => {
+      if (data) setNotifications(data);
+    });
   }, []);
 
   // Close tools dropdown on outside click
@@ -3006,13 +3010,17 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const addNotification = (icon, title, body, action) => {
-    setNotifications((prev) => [{ icon, title, body, action, time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+  const addNotification = async (icon, title, body, action) => {
+    const n = { icon, title, body, action, time: new Date().toISOString(), read: false };
+    setNotifications((prev) => [n, ...prev].slice(0, 50));
+    await supabase.from("notifications").insert({ icon, title, body, action, time: n.time, read: false });
   };
-  const clearNotifications = () => setNotifications([]);
+  const clearNotifications = async () => { setNotifications([]); await supabase.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000"); };
   const toast = (message, type = "info") => { const id = Date.now(); setToasts((prev) => [...prev, { id, message, type }]); setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000); };
   const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllRead = async () => { setNotifications((prev) => prev.map((n) => ({ ...n, read: true }))); await supabase.from("notifications").update({ read: true }).eq("read", false); };
+
+  const persistNotif = (n) => { supabase.from("notifications").insert(n); };
 
   // Load tickets from Supabase and subscribe to real-time changes
   useEffect(() => {
@@ -3030,6 +3038,7 @@ export default function App() {
           const t = payload.new;
           const p = PRIORITIES[t.priority];
           setNotifications((prev) => [{ icon: "\u{1F4DD}", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: "\u{1F4DD}", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
           if ("Notification" in window && Notification.permission === "granted") {
             new Notification("New Ticket: " + t.ref, {
               body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + "\nFrom: " + t.name,
@@ -3044,6 +3053,7 @@ export default function App() {
           const t = payload.new;
           const statusLabels = { new: "New", open: "In Progress", completed: "Completed" };
           setNotifications((prev) => [{ icon: t.status === "completed" ? "\u2705" : "\u{1F504}", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: t.status === "completed" ? "\u2705" : "\u{1F504}", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
         }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "tickets" }, () => {
@@ -3068,6 +3078,7 @@ export default function App() {
     async function fl() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
     fl();
     const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
+    persistNotif({ icon: "\u{1F4C8}", title: "New Lead Logged", body: (payload.new.broker || "") + " \u2022 " + (payload.new.enquiry || ""), action: "leads_dashboard", time: new Date().toISOString(), read: false });
     return () => { supabase.removeChannel(ch); };
   }, []);
 
