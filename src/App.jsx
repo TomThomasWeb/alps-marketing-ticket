@@ -2808,7 +2808,6 @@ export default function App() {
               {toolsOpen && (
                 <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden", padding: 4 }}>
                   {[
-                  {[
                     { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
                     { id: "converter", icon: "\u{1F504}", label: "File Converter" },
                     { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
