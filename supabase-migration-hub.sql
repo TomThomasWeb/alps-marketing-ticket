@@ -167,3 +167,20 @@ $$ language 'plpgsql';
 
 DROP TRIGGER IF EXISTS ticket_updated_at ON tickets;
 CREATE TRIGGER ticket_updated_at BEFORE UPDATE ON tickets FOR EACH ROW EXECUTE PROCEDURE update_ticket_timestamp();
+
+-- Recurring tickets table
+CREATE TABLE IF NOT EXISTS recurring_tickets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT DEFAULT 'medium',
+  frequency TEXT NOT NULL DEFAULT 'monthly',
+  day_of_week INTEGER,
+  end_date DATE,
+  paused BOOLEAN DEFAULT FALSE,
+  last_created TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE recurring_tickets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to recurring_tickets" ON recurring_tickets FOR ALL USING (true) WITH CHECK (true);

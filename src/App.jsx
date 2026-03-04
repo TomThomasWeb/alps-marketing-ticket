@@ -877,6 +877,28 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
       </>)}
 
       {tab === "report" && (() => {
+        // Weekly report data (previous Mon-Sun)
+        const today = new Date(now);
+        const dayOfWeek = today.getDay();
+        const lastSunday = new Date(today); lastSunday.setDate(today.getDate() - (dayOfWeek === 0 ? 7 : dayOfWeek)); lastSunday.setHours(23, 59, 59, 999);
+        const lastMonday = new Date(lastSunday); lastMonday.setDate(lastSunday.getDate() - 6); lastMonday.setHours(0, 0, 0, 0);
+        const wkLabel = lastMonday.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " \u2013 " + lastSunday.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+        const wkTC = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkTD = ct.filter((t) => { const d = new Date(t.completedAt); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkA = archiveEntries.filter((e) => { const d = new Date(e.date || e.created_at); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkL = leads.filter((l) => { const d = new Date(l.created_at); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkAvg = (() => { const m = ct.filter((t) => { const d = new Date(t.completedAt); return d >= lastMonday && d <= lastSunday; }); return m.length > 0 ? m.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / m.length : 0; })();
+        const wkReportLines = [
+          "ALPS MARKETING REPORT - WEEK OF " + wkLabel.toUpperCase(),
+          "=".repeat(50), "",
+          "TICKETS", "  Submitted: " + wkTC, "  Completed: " + wkTD, "  Avg Turnaround: " + fmtH(wkAvg), "",
+          "OUTBOUND CONTENT", "  Pieces Published: " + wkA, "",
+          "INBOUND LEADS", "  Total: " + wkL, "",
+          "Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        ].join("\n");
+        const copyWeeklyReport = () => { navigator.clipboard.writeText(wkReportLines); };
+
+        // Monthly report data
         const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
         const som = new Date(now.getFullYear(), now.getMonth(), 1);
         const mtTC = tickets.filter((t) => new Date(t.createdAt) >= som).length;
@@ -977,6 +999,35 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
         };
 
         return (<>
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C5}"} Weekly Report</h3>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Previous week: {wkLabel}</p>
+              </div>
+              <button onClick={copyWeeklyReport} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy Weekly Report</button>
+            </div>
+            <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{wkTC}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Submitted</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#16a34a" }}>{wkTD}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Completed</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#E64592" }}>{wkA}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Published</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#ca8a04" }}>{wkL}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads</div>
+              </div>
+            </div>
+            {wkAvg > 0 && <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-secondary)", textAlign: "center" }}>Avg turnaround: <strong>{fmtH(wkAvg)}</strong></div>}
+          </div>
+
           <div style={{ ...card, marginBottom: 20, textAlign: "center" }}>
             <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CB}"} Monthly Marketing Report</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>{monthName} summary across all marketing activity</p>
@@ -1024,7 +1075,129 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
 }
 
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin }) {
+function RecurringSchedules({ schedules, onCreate, onUpdate, onDelete, onPause }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" });
+
+  const FREQUENCIES = [
+    { key: "weekly", label: "Weekly" },
+    { key: "fortnightly", label: "Fortnightly" },
+    { key: "monthly", label: "Monthly" },
+    { key: "quarterly", label: "Quarterly" },
+  ];
+
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const startEdit = (s) => {
+    setForm({ title: s.title, description: s.description || "", priority: s.priority, frequency: s.frequency, day_of_week: s.day_of_week ?? 1, end_date: s.end_date || "" });
+    setEditing(s.id); setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    if (editing) {
+      onUpdate(editing, form);
+    } else {
+      onCreate(form);
+    }
+    setForm({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const nextDue = (s) => {
+    if (!s.last_created) {
+      if (s.frequency === "weekly" || s.frequency === "fortnightly") {
+        const d = new Date(); d.setHours(8, 0, 0, 0);
+        const target = s.day_of_week ?? 1;
+        const diff = (target - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      }
+      const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d;
+    }
+    const last = new Date(s.last_created);
+    const d = new Date(last);
+    if (s.frequency === "weekly") { d.setDate(d.getDate() + 7); }
+    else if (s.frequency === "fortnightly") { d.setDate(d.getDate() + 14); }
+    else if (s.frequency === "monthly") { d.setMonth(d.getMonth() + 1); }
+    else if (s.frequency === "quarterly") { d.setMonth(d.getMonth() + 3); }
+    d.setHours(8, 0, 0, 0);
+    return d;
+  };
+
+  const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>{"\u{1F501}"}</span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Recurring Tickets</h3>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" }}>{schedules.filter((s) => !s.paused).length} active schedule{schedules.filter((s) => !s.paused).length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+        <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" }); }} style={{ padding: "7px 14px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 New Schedule"}</button>
+      </div>
+
+      {showForm && (
+        <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Ticket Title</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Monthly Newsletter" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+          </div>
+          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What needs doing each time..." rows={2} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Frequency</label><select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{FREQUENCIES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}</select></div>
+            {(form.frequency === "weekly" || form.frequency === "fortnightly") && <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Day</label><select value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: Number(e.target.value) })} style={{ ...inputStyle, cursor: "pointer" }}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div>}
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>End Date (optional)</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} style={inputStyle} /></div>
+          </div>
+          <button onClick={handleSave} disabled={!form.title.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: form.title.trim() ? 1 : 0.5 }}>{editing ? "Update Schedule" : "Create Schedule"}</button>
+        </div>
+      )}
+
+      {schedules.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "24px 20px", color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 13, margin: 0 }}>No recurring tickets set up yet. Create one to automate repeating tasks.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {schedules.map((s) => {
+            const nd = nextDue(s);
+            const isExpired = s.end_date && new Date(s.end_date) < new Date();
+            const freq = FREQUENCIES.find((f) => f.key === s.frequency);
+            const dayLabel = (s.frequency === "weekly" || s.frequency === "fortnightly") ? " on " + DAYS[s.day_of_week ?? 1] + "s" : "";
+            return (
+              <div key={s.id} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: (s.paused || isExpired) ? 0.5 : 1, transition: "all 0.2s" }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{s.paused ? "\u23F8\uFE0F" : isExpired ? "\u23F9\uFE0F" : "\u{1F501}"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <span>{freq ? freq.label : s.frequency}{dayLabel} at 8:00 AM</span>
+                    <span>{"\u2022"}</span>
+                    <span>{s.paused ? "Paused" : isExpired ? "Expired" : "Next: " + fmtDate(nd)}</span>
+                    {s.end_date && <><span>{"\u2022"}</span><span>Ends: {fmtDate(s.end_date)}</span></>}
+                    {s.last_created && <><span>{"\u2022"}</span><span>Last: {fmtDate(s.last_created)}</span></>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => onPause(s.id, !s.paused)} title={s.paused ? "Resume" : "Pause"} style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 12, cursor: "pointer", color: "var(--text-muted)" }}>{s.paused ? "\u25B6\uFE0F" : "\u23F8\uFE0F"}</button>
+                  <button onClick={() => startEdit(s)} title="Edit" style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 12, cursor: "pointer", color: "var(--text-muted)" }}>{"\u270F\uFE0F"}</button>
+                  <button onClick={() => { if (window.confirm("Delete this recurring schedule?")) onDelete(s.id); }} title="Delete" style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #fecaca", background: "transparent", fontSize: 12, cursor: "pointer", color: "#dc2626" }}>{"\u2715"}</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -1092,6 +1265,8 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
           </>;
         })()}
       </div>
+
+      <RecurringSchedules schedules={recurringSchedules || []} onCreate={onCreateRecurring} onUpdate={onUpdateRecurring} onDelete={onDeleteRecurring} onPause={onPauseRecurring} />
 
       <div style={{ marginBottom: 24 }}>
         <StatsBar tickets={tickets} />
@@ -3531,6 +3706,7 @@ export default function App() {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [galleryImages, setGalleryImages] = useState([]);
   const [brokerToolkitItems, setBrokerToolkitItems] = useState([]);
+  const [recurringSchedules, setRecurringSchedules] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [dashboardTab, setDashboardTab] = useState("tickets");
@@ -3668,6 +3844,92 @@ export default function App() {
     const ch = supabase.channel("broker-toolkit-rt").on("postgres_changes", { event: "*", schema: "public", table: "broker_toolkit" }, () => { fbt(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Load recurring schedules
+  useEffect(() => {
+    async function frs() { const { data } = await supabase.from("recurring_tickets").select("*").order("created_at", { ascending: true }); if (data) setRecurringSchedules(data); }
+    frs();
+    const ch = supabase.channel("recurring-rt").on("postgres_changes", { event: "*", schema: "public", table: "recurring_tickets" }, () => { frs(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Auto-create tickets from due recurring schedules
+  useEffect(() => {
+    if (recurringSchedules.length === 0) return;
+    const createDueTickets = async () => {
+      const now = new Date();
+      for (const s of recurringSchedules) {
+        if (s.paused) continue;
+        if (s.end_date && new Date(s.end_date) < now) continue;
+        let isDue = false;
+        if (!s.last_created) {
+          isDue = true;
+        } else {
+          const last = new Date(s.last_created);
+          const diff = (now - last) / 86400000;
+          if (s.frequency === "weekly" && diff >= 7) isDue = true;
+          else if (s.frequency === "fortnightly" && diff >= 14) isDue = true;
+          else if (s.frequency === "monthly") { const next = new Date(last); next.setMonth(next.getMonth() + 1); isDue = now >= next; }
+          else if (s.frequency === "quarterly") { const next = new Date(last); next.setMonth(next.getMonth() + 3); isDue = now >= next; }
+        }
+        if (isDue) {
+          const ref = await getNextRef();
+          const { error } = await supabase.from("tickets").insert({
+            ref,
+            name: "Recurring Schedule",
+            title: s.title,
+            description: (s.description || "") + "\n\n\u{1F501} Auto-created from recurring schedule.",
+            priority: s.priority,
+            status: "open",
+            file_names: [],
+            notes: [],
+          });
+          if (!error) {
+            await supabase.from("recurring_tickets").update({ last_created: now.toISOString() }).eq("id", s.id);
+            toast("\u{1F501} Recurring ticket created: " + s.title, "success");
+          }
+        }
+      }
+    };
+    createDueTickets();
+  }, [recurringSchedules]);
+
+  // Recurring schedule CRUD handlers
+  const handleCreateRecurring = async (form) => {
+    const { error } = await supabase.from("recurring_tickets").insert({
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      frequency: form.frequency,
+      day_of_week: (form.frequency === "weekly" || form.frequency === "fortnightly") ? form.day_of_week : null,
+      end_date: form.end_date || null,
+      paused: false,
+      last_created: null,
+    });
+    if (error) toast("Failed to create schedule", "error"); else toast("Recurring schedule created", "success");
+  };
+
+  const handleUpdateRecurring = async (id, form) => {
+    const { error } = await supabase.from("recurring_tickets").update({
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      frequency: form.frequency,
+      day_of_week: (form.frequency === "weekly" || form.frequency === "fortnightly") ? form.day_of_week : null,
+      end_date: form.end_date || null,
+    }).eq("id", id);
+    if (error) toast("Failed to update schedule", "error"); else toast("Schedule updated", "success");
+  };
+
+  const handleDeleteRecurring = async (id) => {
+    const { error } = await supabase.from("recurring_tickets").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else toast("Schedule deleted", "success");
+  };
+
+  const handlePauseRecurring = async (id, paused) => {
+    const { error } = await supabase.from("recurring_tickets").update({ paused }).eq("id", id);
+    if (error) toast("Failed to update", "error"); else toast(paused ? "Schedule paused" : "Schedule resumed", "success");
+  };
 
   const handleBrokerToolkitSave = async (item) => {
     if (item.id) {
@@ -4120,7 +4382,7 @@ export default function App() {
               ))}
             </div>
             {dashboardTab === "tickets" ? (
-              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
+              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} />
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
