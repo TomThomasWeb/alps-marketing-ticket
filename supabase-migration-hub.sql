@@ -124,3 +124,17 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public access to notifications" ON notifications FOR ALL USING (true) WITH CHECK (true);
+
+-- Gallery images table
+CREATE TABLE IF NOT EXISTS gallery_images (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  url TEXT NOT NULL,
+  filename TEXT,
+  caption TEXT,
+  category TEXT DEFAULT 'general',
+  storage_path TEXT,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE gallery_images ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to gallery_images" ON gallery_images FOR ALL USING (true) WITH CHECK (true);

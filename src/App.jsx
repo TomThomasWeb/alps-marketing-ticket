@@ -217,11 +217,12 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
 
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
-        <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
           {[
             { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", color: "#8b5cf6" },
             { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
             { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
+            { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", color: "#0d9488" },
           ].map((r) => (
             <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
@@ -2757,6 +2758,138 @@ function ImageEditor() {
   );
 }
 
+function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("general");
+  const fileRef = useRef(null);
+
+  const GALLERY_CATEGORIES = [
+    { key: "all", label: "All", icon: "\u{1F5BC}\uFE0F" },
+    { key: "general", label: "General", icon: "\u{1F4F7}" },
+    { key: "events", label: "Events", icon: "\u{1F389}" },
+    { key: "products", label: "Products", icon: "\u{1F4E6}" },
+    { key: "team", label: "Team", icon: "\u{1F465}" },
+    { key: "social", label: "Social Media", icon: "\u{1F4F1}" },
+    { key: "branding", label: "Branding", icon: "\u{1F3A8}" },
+    { key: "office", label: "Office", icon: "\u{1F3E2}" },
+  ];
+
+  const filtered = images.filter((img) => {
+    if (filter !== "all" && img.category !== filter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (img.filename || "").toLowerCase().includes(q) || (img.category || "").toLowerCase().includes(q) || (img.caption || "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploading(true);
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) continue;
+      await onUpload(file, uploadCategory);
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const downloadImage = async (img) => {
+    try {
+      const response = await fetch(img.url);
+      const blob = await response.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = img.filename || "alps-image.jpg";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(img.url, "_blank");
+    }
+  };
+
+  const catCounts = {};
+  images.forEach((img) => { catCounts[img.category] = (catCounts[img.category] || 0) + 1; });
+
+  return (
+    <div style={{ width: "100%", maxWidth: 960 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F5BC}\uFE0F"} Alps Gallery</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Browse and download photos. Click any image to save it.</p>
+        </div>
+        <div style={{ position: "relative", minWidth: 200 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search images..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {GALLERY_CATEGORIES.map((cat) => {
+          const count = cat.key === "all" ? images.length : (catCounts[cat.key] || 0);
+          return (
+            <button key={cat.key} onClick={() => setFilter(cat.key)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === cat.key ? "var(--brand)" : "var(--border)"), background: filter === cat.key ? "var(--brand)" : "var(--bg-card)", color: filter === cat.key ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}>
+              <span>{cat.icon}</span> {cat.label}
+              {count > 0 && <span style={{ fontSize: 10, opacity: 0.7 }}>({count})</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, marginBottom: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <select value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>
+            {GALLERY_CATEGORIES.filter((c) => c.key !== "all").map((c) => (
+              <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+            ))}
+          </select>
+          <label style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ padding: "8px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: uploading ? "wait" : "pointer", opacity: uploading ? 0.6 : 1, transition: "all 0.15s" }}>
+              {uploading ? "Uploading..." : "\u{2B06}\uFE0F Upload Images"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleUpload} style={{ display: "none" }} />
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP {"\u2022"} Multiple files supported</span>
+          </label>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>{"\u{1F5BC}\uFE0F"}</div>
+          <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{images.length === 0 ? "No images yet" : "No images match your search"}</p>
+          <p style={{ fontSize: 13, margin: 0 }}>{images.length === 0 && isAdmin ? "Upload some photos to get started." : "Try a different filter or search term."}</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }} className="hub-gallery-grid">
+          {filtered.map((img) => {
+            const cat = GALLERY_CATEGORIES.find((c) => c.key === img.category) || GALLERY_CATEGORIES[1];
+            return (
+              <div key={img.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => downloadImage(img)}>
+                <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", background: "var(--bg-input)" }}>
+                  <img src={img.url} alt={img.filename} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s" }} onMouseOver={(e) => e.target.style.transform = "scale(1.05)"} onMouseOut={(e) => e.target.style.transform = "scale(1)"} />
+                </div>
+                <div style={{ padding: "10px 12px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{img.caption || img.filename}</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 10, color: cat.key === "all" ? "var(--text-muted)" : "var(--text-secondary)", background: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>{cat.icon} {cat.label}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{"\u2B07\uFE0F"}</span>
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this image?")) onDelete(img.id, img.storage_path); }} style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 6, background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.15s" }} onMouseOver={(e) => e.target.style.opacity = "1"} onMouseOut={(e) => e.target.style.opacity = "0"}>{"\u2715"}</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Toast({ toasts, onDismiss }) {
   return (
     <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column-reverse", gap: 8, pointerEvents: "none" }}>
@@ -2984,6 +3117,7 @@ export default function App() {
   const [brandAssets, setBrandAssets] = useState([]);
   const [contentTemplates, setContentTemplates] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [galleryImages, setGalleryImages] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [dashboardTab, setDashboardTab] = useState("tickets");
@@ -3105,6 +3239,30 @@ export default function App() {
     const ch = supabase.channel("calendar-rt").on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => { fc(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Load gallery images
+  useEffect(() => {
+    async function fg() { const { data } = await supabase.from("gallery_images").select("*").order("uploaded_at", { ascending: false }); if (data) setGalleryImages(data); }
+    fg();
+    const ch = supabase.channel("gallery-rt").on("postgres_changes", { event: "*", schema: "public", table: "gallery_images" }, () => { fg(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const handleGalleryUpload = async (file, category) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = "gallery/" + Date.now() + "_" + safeName;
+    const { error: uploadError } = await supabase.storage.from("ticket-attachments").upload(path, file);
+    if (uploadError) { toast("Upload failed: " + uploadError.message, "error"); return; }
+    const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+    const { error } = await supabase.from("gallery_images").insert({ url: urlData.publicUrl, filename: file.name, category, storage_path: path });
+    if (error) toast("Failed to save image", "error"); else toast("Image uploaded", "success");
+  };
+
+  const handleGalleryDelete = async (id, storagePath) => {
+    if (storagePath) await supabase.storage.from("ticket-attachments").remove([storagePath]);
+    const { error } = await supabase.from("gallery_images").delete().eq("id", id);
+    if (error) toast("Failed to delete image", "error"); else toast("Image deleted", "success");
+  };
 
   function mapRow(row) {
     // Handle both old format (["filename.pdf"]) and new format ([{name, url}])
@@ -3307,7 +3465,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -3399,6 +3557,7 @@ export default function App() {
           .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
           .hub-template-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-priority-grid { grid-template-columns: 1fr 1fr !important; }
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
@@ -3455,12 +3614,13 @@ export default function App() {
               {currentSection === "analytics" && <button className="active">Analytics</button>}
               {currentSection === "brand" && <button className="active">Brand Assets</button>}
               {currentSection === "calendar" && <button className="active">Content Calendar</button>}
+              {currentSection === "gallery" && <button className="active">Alps Gallery</button>}
             </nav>
           </div>
         )}
       </header>
 
-      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
@@ -3510,6 +3670,8 @@ export default function App() {
           <ImageEditor />
         ) : view === "calendar" ? (
           <ContentCalendar events={calendarEvents} isAdmin={dashUnlocked} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
+        ) : view === "gallery" ? (
+          <AlpsGallery images={galleryImages} isAdmin={dashUnlocked} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
