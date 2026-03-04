@@ -14,6 +14,7 @@ const PRIORITIES = {
   low: { label: "Low", color: "#16a34a", bg: "rgba(22,163,74,0.08)", border: "rgba(22,163,74,0.25)", icon: "\u{1F7E2}" },
 };
 
+const STATUS_FALLBACK = { label: "Open", color: "#6366f1", bg: "rgba(99,102,241,0.1)" };
 const STATUS = {
   open: { label: "Open", color: "#6366f1", bg: "rgba(99,102,241,0.1)" },
   in_progress: { label: "In Progress", color: "#0284c7", bg: "rgba(2,132,199,0.1)" },
@@ -463,7 +464,7 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [newDeadline, setNewDeadline] = useState(ticket.deadline || "");
   const p = PRIORITIES[ticket.priority];
-  const s = STATUS[ticket.status];
+  const s = STATUS[ticket.status] || STATUS_FALLBACK;
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
   const today = new Date().toISOString().split("T")[0];
 
@@ -626,7 +627,7 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
 function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTogglePin }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const p = PRIORITIES[ticket.priority];
-  const s = STATUS[ticket.status];
+  const s = STATUS[ticket.status] || STATUS_FALLBACK;
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
   const isOverdue = dueBadge && dueBadge.color === "#dc2626";
 
@@ -1110,7 +1111,7 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
 
         {ticket && (() => {
           const p = PRIORITIES[ticket.priority];
-          const s = STATUS[ticket.status];
+          const s = STATUS[ticket.status] || STATUS_FALLBACK;
           const dueBadge = getDueBadge(ticket.deadline, ticket.status);
           return (
             <div>
@@ -3262,7 +3263,7 @@ export default function App() {
       const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date }]).select();
       if (event.createTicket && inserted && inserted[0]) {
         const nextRef = tickets.length > 0 ? "M" + String(Math.max(...tickets.map((t) => parseInt((t.ref || "M000").slice(1)) || 0)) + 1).padStart(3, "0") : "M001";
-        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "new", deadline: event.date, calendar_event_id: inserted[0].id });
+        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, calendar_event_id: inserted[0].id });
       }
     }
   };
