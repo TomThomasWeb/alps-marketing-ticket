@@ -220,7 +220,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
           {[
             { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", color: "#8b5cf6" },
             { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
-            { id: "guide", icon: "\u{1F4D6}", title: "Self-Service Guide", desc: "FAQs, sizes & how-tos", color: "#ca8a04" },
+            { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
           ].map((r) => (
             <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
@@ -239,7 +239,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
             { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
             { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
-            { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar", color: "#2563eb" },
+            { id: "guide", icon: "\u{1F4D6}", label: "Self-Service Guide", color: "#ca8a04" },
             { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
           ].map((t) => (
             <button key={t.id} onClick={() => !t.soon && onNavigate(t.id)} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
@@ -1358,7 +1358,7 @@ function LeadForm({ onSave, onBackToHub }) {
   );
 }
 
-function LeadsDashboard({ leads, onUpdate }) {
+function LeadsDashboard({ leads, onUpdate, onDelete }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [viewMode, setViewMode] = useState("list");
@@ -1540,6 +1540,12 @@ function LeadsDashboard({ leads, onUpdate }) {
                         <input value={expandedLead === lead.id ? noteText : ""} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addNote(lead); }} placeholder="Add a note..." style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
                         <button onClick={() => addNote(lead)} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Add</button>
                       </div>
+                    </div>
+                    {onDelete && (
+                      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 12 }}>
+                        <button onClick={() => { if (window.confirm("Delete this lead from " + lead.broker + "? This cannot be undone.")) onDelete(lead.id); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => { e.target.style.background = "#fef2f2"; }} onMouseOut={(e) => { e.target.style.background = "transparent"; }}>{"\u{1F5D1}"} Delete Lead</button>
+                      </div>
+                    )}
                     </div>
                   </div>
                 )}
@@ -2253,11 +2259,10 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
 
   const EVENT_TYPES = {
     social: { label: "Social Post", color: "#2563eb", icon: "\u{1F4F1}" },
-    email: { label: "Email Send", color: "#16a34a", icon: "\u2709\uFE0F" },
-    print: { label: "Print", color: "#E64592", icon: "\u{1F5A8}\uFE0F" },
-    campaign: { label: "Campaign", color: "#8b5cf6", icon: "\u{1F680}" },
+    email: { label: "Email Campaign", color: "#16a34a", icon: "\u2709\uFE0F" },
+    event: { label: "Event", color: "#8b5cf6", icon: "\u{1F389}" },
     deadline: { label: "Deadline", color: "#dc2626", icon: "\u23F0" },
-    meeting: { label: "Meeting", color: "#ca8a04", icon: "\u{1F91D}" },
+    survey: { label: "Survey", color: "#ca8a04", icon: "\u{1F4CB}" },
   };
 
   const year = currentDate.getFullYear();
@@ -3228,6 +3233,7 @@ export default function App() {
   const handleArchiveDelete = async (id) => { await supabase.from("archive_entries").delete().eq("id", id); setEditArchiveEntry(null); setView("archive"); };
   const handleLeadSave = async (data) => { const { error } = await supabase.from("leads").insert(data); if (error) toast("Failed to save lead: " + error.message, "error"); else toast("Lead logged successfully", "success"); };
   const handleLeadUpdate = async (id, updates) => { const { error } = await supabase.from("leads").update(updates).eq("id", id); if (error) toast("Failed to update lead", "error"); };
+  const handleLeadDelete = async (id) => { const { error } = await supabase.from("leads").delete().eq("id", id); if (error) toast("Failed to delete lead", "error"); else toast("Lead deleted", "success"); };
   const handleAssetUpload = async (file, name, category) => {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = "brand/" + Date.now() + "_" + safeName;
@@ -3291,7 +3297,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "calendar") ? "tools" : view === "guide" ? "guide" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -3433,12 +3439,12 @@ export default function App() {
                   { id: "converter", label: "Converter" },
                   { id: "qr_generator", label: "QR Code" },
                   { id: "image_editor", label: "Image Editor" },
-                  { id: "calendar", label: "Calendar" },
+                  { id: "guide", label: "Self-Service Guide" },
                 ].map((t) => <button key={t.id} className={view === t.id ? "active" : ""} onClick={() => setView(t.id)}>{t.label}</button>)}
               </>}
               {currentSection === "analytics" && <button className="active">Analytics</button>}
               {currentSection === "brand" && <button className="active">Brand Assets</button>}
-              {currentSection === "guide" && <button className="active">Self-Service Guide</button>}
+              {currentSection === "calendar" && <button className="active">Content Calendar</button>}
             </nav>
           </div>
         )}
@@ -3479,7 +3485,7 @@ export default function App() {
         ) : view === "lead_form" ? (
           <LeadForm onSave={handleLeadSave} onBackToHub={() => setView("hub")} />
         ) : view === "leads_dashboard" ? (
-          <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} />
+          <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
         ) : view === "brand_assets" ? (
           <BrandAssets assets={brandAssets} isAdmin={dashUnlocked} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
         ) : view === "templates" ? (
@@ -3504,7 +3510,7 @@ export default function App() {
             {dashboardTab === "tickets" ? (
               <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
             ) : dashboardTab === "leads" ? (
-              <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} />
+              <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
               <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
             )}
