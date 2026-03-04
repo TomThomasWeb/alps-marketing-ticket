@@ -283,9 +283,10 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
             { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
             { id: "guide", icon: "\u{1F4D6}", label: "Self-Service Guide", color: "#ca8a04" },
+            { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", color: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
             { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
           ].map((t) => (
-            <button key={t.id} onClick={() => !t.soon && onNavigate(t.id)} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+            <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
               <span style={{ fontSize: 15 }}>{t.icon}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
               {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</span>}
@@ -1632,6 +1633,12 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
   const fileRef = useRef(null);
   const [uploadMeta, setUploadMeta] = useState({ name: "", category: "main_logo" });
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showBgUpload, setShowBgUpload] = useState(false);
+  const [bgUploadName, setBgUploadName] = useState("");
+  const bgFileRef = useRef(null);
+  const [showTplUpload, setShowTplUpload] = useState(false);
+  const [tplUploadName, setTplUploadName] = useState("");
+  const tplFileRef = useRef(null);
 
   const copyHex = (hex) => { navigator.clipboard.writeText(hex); setCopied(hex); setTimeout(() => setCopied(null), 1500); };
 
@@ -1645,9 +1652,12 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
     { key: "pet", label: "Pet", order: 6 },
     { key: "icons", label: "Icons", order: 7 },
     { key: "other", label: "Other", order: 8 },
+    { key: "video_bg", label: "Video Background", order: 90 },
+    { key: "template", label: "Branded Template", order: 91 },
   ];
   const categories = {}; ASSET_CATEGORIES.forEach((c) => { categories[c.key] = c.label; });
-  const filteredAssets = assets.filter((a) => filter === "all" || a.category === filter);
+  const logoAssets = assets.filter((a) => a.category !== "video_bg" && a.category !== "template");
+  const filteredAssets = logoAssets.filter((a) => filter === "all" || a.category === filter);
   const groupedByCat = {};
   filteredAssets.forEach((a) => {
     const cat = a.category || "other";
@@ -1788,7 +1798,7 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ display: "flex", gap: 3, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
               <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>All</button>
-              {ASSET_CATEGORIES.filter((c) => assets.some((a) => a.category === c.key)).map((c) => (
+              {ASSET_CATEGORIES.filter((c) => c.order < 90 && logoAssets.some((a) => a.category === c.key)).map((c) => (
                 <button key={c.key} onClick={() => setFilter(c.key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === c.key ? "var(--brand)" : "transparent", color: filter === c.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{c.label}</button>
               ))}
             </div>
@@ -1822,8 +1832,8 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
                   {filter === "all" && <h4 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>{catInfo.label}</h4>}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
                     {Object.entries(assetGroups).map(([name, files]) => {
-                      const previewFile = files.find((f) => /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(f.file_url)) || files[0];
-                      const isImg = previewFile && /\.(png|jpg|jpeg|webp|gif)$/i.test(previewFile.file_url);
+                      const previewFile = files.find((f) => /\.png$/i.test(f.file_url)) || files.find((f) => /\.(jpg|jpeg|webp|gif|svg)$/i.test(f.file_url)) || files[0];
+                      const isImg = previewFile && /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(previewFile.file_url);
                       return (
                         <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                           <div style={{ width: "100%", aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 12 }}>
@@ -1847,6 +1857,109 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
             })}
           </div>
         )}
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{"\u{1F3AC}"} Video Backgrounds</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Alps-branded backgrounds for Teams & Zoom calls.</p>
+          </div>
+          {isAdmin && <button onClick={() => { setShowBgUpload(!showBgUpload); }} style={{ padding: "7px 14px", background: showBgUpload ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showBgUpload ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showBgUpload ? "Cancel" : "\u2795 Upload"}</button>}
+        </div>
+        {showBgUpload && isAdmin && (
+          <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input style={inputStyle} value={bgUploadName} onChange={(e) => setBgUploadName(e.target.value)} placeholder="Background name..." />
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{"\u{1F4CE}"} Choose File<input ref={bgFileRef} type="file" accept="image/*" style={{ display: "none" }} /></label>
+              <button onClick={async () => { if (!bgFileRef.current?.files?.length || !bgUploadName.trim()) return; setUploading(true); await onUpload(bgFileRef.current.files[0], bgUploadName.trim(), "video_bg"); setUploading(false); setBgUploadName(""); setShowBgUpload(false); if (bgFileRef.current) bgFileRef.current.value = ""; }} disabled={uploading || !bgUploadName.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (uploading || !bgUploadName.trim()) ? 0.5 : 1, whiteSpace: "nowrap" }}>{uploading ? "Uploading..." : "Upload"}</button>
+            </div>
+            <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Recommended: 1920x1080 or 1280x720 PNG/JPG for best results on video calls.</p>
+          </div>
+        )}
+        {(() => {
+          const bgAssets = assets.filter((a) => a.category === "video_bg");
+          const bgGrouped = {};
+          bgAssets.forEach((a) => { const n = a.asset_name || "Background"; if (!bgGrouped[n]) bgGrouped[n] = []; bgGrouped[n].push(a); });
+          return Object.keys(bgGrouped).length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 8, opacity: 0.3 }}>{"\u{1F3AC}"}</div><p style={{ fontSize: 13, margin: 0 }}>No video backgrounds uploaded yet.</p></div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {Object.entries(bgGrouped).map(([name, files]) => {
+                const previewFile = files.find((f) => /\.(png|jpg|jpeg|webp)$/i.test(f.file_url)) || files[0];
+                const isImg = previewFile && /\.(png|jpg|jpeg|webp|gif)$/i.test(previewFile.file_url);
+                return (
+                  <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                    <div style={{ width: "100%", aspectRatio: "16/9", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1a2e" }}>
+                      {isImg ? <img src={previewFile.file_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ fontSize: 36, opacity: 0.3 }}>{"\u{1F3AC}"}</div>}
+                    </div>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>{name}</div>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {files.map((f) => (
+                          <a key={f.id} href={f.file_url} download target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textDecoration: "none", textTransform: "uppercase", transition: "all 0.15s" }}>{"\u2B07"} {formatExt(f.file_url)}</a>
+                        ))}
+                        {isAdmin && <button onClick={() => { if (window.confirm('Delete "' + name + '"?')) files.forEach((f) => onDeleteAsset(f.id, f.file_url)); }} style={{ padding: "3px 8px", background: "transparent", border: "1px solid #fecaca", borderRadius: 5, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{"\u{1F4C1}"} Branded Templates</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Ready-to-use Word, PowerPoint, and other document templates.</p>
+          </div>
+          {isAdmin && <button onClick={() => { setShowTplUpload(!showTplUpload); }} style={{ padding: "7px 14px", background: showTplUpload ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showTplUpload ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showTplUpload ? "Cancel" : "\u2795 Upload"}</button>}
+        </div>
+        {showTplUpload && isAdmin && (
+          <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input style={inputStyle} value={tplUploadName} onChange={(e) => setTplUploadName(e.target.value)} placeholder="Template name..." />
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{"\u{1F4CE}"} Choose File<input ref={tplFileRef} type="file" accept=".docx,.doc,.pptx,.ppt,.xlsx,.xls,.pdf,.zip" style={{ display: "none" }} /></label>
+              <button onClick={async () => { if (!tplFileRef.current?.files?.length || !tplUploadName.trim()) return; setUploading(true); await onUpload(tplFileRef.current.files[0], tplUploadName.trim(), "template"); setUploading(false); setTplUploadName(""); setShowTplUpload(false); if (tplFileRef.current) tplFileRef.current.value = ""; }} disabled={uploading || !tplUploadName.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (uploading || !tplUploadName.trim()) ? 0.5 : 1, whiteSpace: "nowrap" }}>{uploading ? "Uploading..." : "Upload"}</button>
+            </div>
+          </div>
+        )}
+        {(() => {
+          const tplAssets = assets.filter((a) => a.category === "template");
+          const tplGrouped = {};
+          tplAssets.forEach((a) => { const n = a.asset_name || "Template"; if (!tplGrouped[n]) tplGrouped[n] = []; tplGrouped[n].push(a); });
+          const tplIcon = (url) => {
+            const ext = (url || "").split(".").pop().split("?")[0].toLowerCase();
+            if (ext === "docx" || ext === "doc") return "\u{1F4DD}";
+            if (ext === "pptx" || ext === "ppt") return "\u{1F4CA}";
+            if (ext === "xlsx" || ext === "xls") return "\u{1F4CA}";
+            if (ext === "pdf") return "\u{1F4C4}";
+            return "\u{1F4CE}";
+          };
+          return Object.keys(tplGrouped).length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 8, opacity: 0.3 }}>{"\u{1F4C1}"}</div><p style={{ fontSize: 13, margin: 0 }}>No templates uploaded yet.</p></div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {Object.entries(tplGrouped).map(([name, files]) => (
+                <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 28, flexShrink: 0 }}>{tplIcon(files[0]?.file_url)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{name}</div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {files.map((f) => (
+                        <a key={f.id} href={f.file_url} download target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textDecoration: "none", textTransform: "uppercase", transition: "all 0.15s" }}>{"\u2B07"} {formatExt(f.file_url)}</a>
+                      ))}
+                      {isAdmin && <button onClick={() => { if (window.confirm('Delete "' + name + '"?')) files.forEach((f) => onDeleteAsset(f.id, f.file_url)); }} style={{ padding: "3px 8px", background: "transparent", border: "1px solid #fecaca", borderRadius: 5, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -2936,14 +3049,13 @@ function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
   const [editing, setEditing] = useState(null);
 
   const PRODUCTS = [
-    { key: "all", label: "All Products", icon: "\u{1F4E6}" },
-    { key: "general", label: "General / Alps", icon: "\u{1F3D4}\uFE0F" },
+    { key: "all", label: "All", icon: "\u{1F4E6}" },
+    { key: "general", label: "General", icon: "\u{1F4CB}" },
+    { key: "alps", label: "Alps", icon: "\u{1F3D4}\uFE0F" },
     { key: "motor", label: "Motor", icon: "\u{1F697}" },
     { key: "commercial", label: "Commercial", icon: "\u{1F3E2}" },
-    { key: "property", label: "Property", icon: "\u{1F3E0}" },
-    { key: "liability", label: "Liability", icon: "\u{1F6E1}\uFE0F" },
-    { key: "travel", label: "Travel", icon: "\u2708\uFE0F" },
-    { key: "pet", label: "Pet", icon: "\u{1F43E}" },
+    { key: "let", label: "Let", icon: "\u{1F3E0}" },
+    { key: "personal", label: "Personal", icon: "\u{1F464}" },
   ];
 
   const ASSET_TYPES = {
