@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient.js";
 import jsPDF from "jspdf";
 
 const ALPS_LOGO = "/alps-logo.webp";
+const ALPS_LOGO_REVERSED = "/alps-logo-reversed.webp";
 
 const DASHBOARD_PASSWORD = "Sunnyside!";
 
@@ -2321,13 +2322,19 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
     const selDay = dateObj ? dateObj.getDate() : day;
     const selMonth = dateObj ? dateObj.getMonth() : month;
     const sel = selectedDate === selDay && (dateObj ? dateObj.getMonth() === month : true);
+    const busyLevel = dayEvents.length === 0 ? "" : dayEvents.length <= 2 ? "rgba(35,29,104,0.02)" : dayEvents.length <= 4 ? "rgba(35,29,104,0.05)" : "rgba(35,29,104,0.08)";
+    const tooltipText = dayEvents.length > 0 ? dayEvents.map((ev) => (EVENT_TYPES[ev.type] || EVENT_TYPES.social).icon + " " + ev.title).join("\n") : "";
     return (
       <div key={day} onClick={() => { setSelectedDate(selDay); if (dateObj) setCurrentDate(new Date(dateObj.getFullYear(), dateObj.getMonth(), 1)); }}
         onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = "var(--brand-light)"; }}
         onDragLeave={(e) => { e.currentTarget.style.background = ""; }}
         onDrop={(e) => { e.preventDefault(); e.currentTarget.style.background = ""; handleDrop(selDay); }}
-        style={{ minHeight: viewMode === "week" ? 120 : 80, padding: "4px 6px", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", cursor: "pointer", background: sel ? "var(--brand-light)" : isTodayCell ? "rgba(34,197,94,0.04)" : "transparent", transition: "background 0.15s" }}>
-        <div style={{ fontSize: 12, fontWeight: isTodayCell ? 800 : 500, color: isTodayCell ? "#22c55e" : "var(--text-primary)", marginBottom: 2 }}>{dateObj ? dateObj.getDate() : day}</div>
+        title={tooltipText}
+        style={{ minHeight: viewMode === "week" ? 120 : 80, padding: "4px 6px", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", cursor: "pointer", background: sel ? "var(--brand-light)" : isTodayCell ? "rgba(34,197,94,0.04)" : busyLevel, transition: "background 0.15s" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+          <span style={{ fontSize: 12, fontWeight: isTodayCell ? 800 : 500, color: isTodayCell ? "#22c55e" : "var(--text-primary)" }}>{dateObj ? dateObj.getDate() : day}</span>
+          {dayEvents.length > 0 && viewMode === "month" && <span style={{ width: 6, height: 6, borderRadius: 3, background: dayEvents.length > 3 ? "#dc2626" : dayEvents.length > 1 ? "#ca8a04" : "var(--brand)", flexShrink: 0 }}></span>}
+        </div>
         {dayEvents.slice(0, viewMode === "week" ? 6 : 3).map((ev, j) => {
           const t = EVENT_TYPES[ev.type] || EVENT_TYPES.social;
           return <div key={j} draggable={isAdmin} onDragStart={() => setDragItem(ev)} style={{ fontSize: 10, padding: "2px 4px", marginBottom: 2, borderRadius: 3, background: t.color + "18", color: t.color, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isAdmin ? "grab" : "default", borderLeft: ev.source === "ticket" ? "2px solid " + t.color : "none" }}>{t.icon} {ev.title}</div>;
@@ -2449,15 +2456,37 @@ function ImageEditor() {
   const [cropStart, setCropStart] = useState(null);
   const [cropEnd, setCropEnd] = useState(null);
   const [cropping, setCropping] = useState(false);
+  const [cropRatio, setCropRatio] = useState("free");
   const imgRef = useRef(null);
+  const [watermark, setWatermark] = useState(false);
+  const [watermarkPos, setWatermarkPos] = useState("br");
+  const [watermarkSize, setWatermarkSize] = useState(15);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(60);
+  const watermarkImgRef = useRef(null);
+  const [undoStack, setUndoStack] = useState([]);
 
-  const BRAND_COLORS = [
+  const EDITOR_BRAND_COLORS = [
     { label: "Alps Main", color: "#231D68" },
     { label: "Motor", color: "#E64592" },
     { label: "Commercial", color: "#20A39E" },
     { label: "White", color: "#ffffff" },
     { label: "Black", color: "#000000" },
   ];
+
+  const CROP_RATIOS = [
+    { label: "Free", value: "free" },
+    { label: "1:1", value: "1:1" },
+    { label: "16:9", value: "16:9" },
+    { label: "4:3", value: "4:3" },
+    { label: "9:16", value: "9:16" },
+  ];
+
+  // Load watermark logo
+  useEffect(() => {
+    const wImg = new Image();
+    wImg.src = ALPS_LOGO_REVERSED;
+    wImg.onload = () => { watermarkImgRef.current = wImg; };
+  }, []);
 
   const handleFile = (e) => {
     const f = e.target.files[0];
@@ -2466,17 +2495,54 @@ function ImageEditor() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
-      img.onload = () => { setOrigW(img.width); setOrigH(img.height); imgRef.current = img; setPreview(ev.target.result); resetEdits(); };
+      img.onload = () => { setOrigW(img.width); setOrigH(img.height); imgRef.current = img; setPreview(ev.target.result); resetEdits(); setUndoStack([]); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(f);
+  };
+
+  const saveUndo = () => {
+    if (!imgRef.current) return;
+    setUndoStack((prev) => [...prev.slice(-4), { brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, watermark, watermarkPos, watermarkSize, watermarkOpacity, imgSrc: imgRef.current.src, w: origW, h: origH }]);
+  };
+
+  const undo = () => {
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setBrightness(last.brightness); setContrast(last.contrast); setSaturation(last.saturation);
+    setOverlayColor(last.overlayColor); setOverlayOpacity(last.overlayOpacity);
+    setTextOverlay(last.textOverlay); setTextSize(last.textSize); setTextColor(last.textColor); setTextPos(last.textPos);
+    setWatermark(last.watermark); setWatermarkPos(last.watermarkPos); setWatermarkSize(last.watermarkSize); setWatermarkOpacity(last.watermarkOpacity);
+    if (last.imgSrc !== imgRef.current?.src) {
+      const img = new Image();
+      img.onload = () => { imgRef.current = img; setOrigW(last.w); setOrigH(last.h); };
+      img.src = last.imgSrc;
+    }
   };
 
   const resetEdits = () => {
     setBrightness(100); setContrast(100); setSaturation(100);
     setOverlayColor(""); setOverlayOpacity(30); setTextOverlay("");
     setTextSize(48); setTextColor("#ffffff"); setTextPos("center");
-    setCropMode(false); setCropStart(null); setCropEnd(null);
+    setCropMode(false); setCropStart(null); setCropEnd(null); setCropRatio("free");
+    setWatermark(false); setWatermarkPos("br"); setWatermarkSize(15); setWatermarkOpacity(60);
+  };
+
+  const drawWatermark = (ctx, w, h, scale) => {
+    if (!watermark || !watermarkImgRef.current) return;
+    const wImg = watermarkImgRef.current;
+    const wSize = Math.round(w * watermarkSize / 100);
+    const aspect = wImg.width / wImg.height;
+    const wW = wSize;
+    const wH = wSize / aspect;
+    const pad = Math.round(w * 0.03);
+    let x = pad, y = pad;
+    if (watermarkPos === "br" || watermarkPos === "tr") x = w - wW - pad;
+    if (watermarkPos === "bl" || watermarkPos === "br") y = h - wH - pad;
+    ctx.globalAlpha = watermarkOpacity / 100;
+    ctx.drawImage(wImg, x, y, wW, wH);
+    ctx.globalAlpha = 1;
   };
 
   const renderPreview = useCallback(() => {
@@ -2488,19 +2554,13 @@ function ImageEditor() {
     canvas.width = img.width * scale;
     canvas.height = img.height * scale;
     const ctx = canvas.getContext("2d");
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%)";
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     ctx.filter = "none";
-    if (overlayColor) {
-      ctx.globalAlpha = overlayOpacity / 100;
-      ctx.fillStyle = overlayColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.globalAlpha = 1;
-    }
+    if (overlayColor) { ctx.globalAlpha = overlayOpacity / 100; ctx.fillStyle = overlayColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1; }
     if (textOverlay) {
-      ctx.font = `bold ${Math.round(textSize * scale)}px Inter, sans-serif`;
-      ctx.fillStyle = textColor;
-      ctx.textAlign = "center";
+      ctx.font = "bold " + Math.round(textSize * scale) + "px Inter, sans-serif";
+      ctx.fillStyle = textColor; ctx.textAlign = "center";
       const x = canvas.width / 2;
       let y = canvas.height / 2;
       if (textPos === "top") y = Math.round(textSize * scale) + 20;
@@ -2509,6 +2569,7 @@ function ImageEditor() {
       ctx.fillText(textOverlay, x, y);
       ctx.shadowColor = "transparent";
     }
+    drawWatermark(ctx, canvas.width, canvas.height, scale);
     if (cropMode && cropStart && cropEnd) {
       ctx.strokeStyle = "#6366f1"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
       const cx = Math.min(cropStart.x, cropEnd.x), cy = Math.min(cropStart.y, cropEnd.y);
@@ -2520,7 +2581,7 @@ function ImageEditor() {
       ctx.fillRect(0, cy, cx, ch);
       ctx.fillRect(cx + cw, cy, canvas.width - cx - cw, ch);
     }
-  }, [brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, cropMode, cropStart, cropEnd]);
+  }, [brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, cropMode, cropStart, cropEnd, watermark, watermarkPos, watermarkSize, watermarkOpacity]);
 
   useEffect(() => { renderPreview(); }, [renderPreview]);
 
@@ -2533,12 +2594,21 @@ function ImageEditor() {
   const handleCropMouseMove = (e) => {
     if (!cropping || !cropMode) return;
     const rect = previewCanvasRef.current.getBoundingClientRect();
-    setCropEnd({ x: Math.max(0, Math.min(e.clientX - rect.left, rect.width)), y: Math.max(0, Math.min(e.clientY - rect.top, rect.height)) });
+    let nx = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    let ny = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    if (cropRatio !== "free" && cropStart) {
+      const [rw, rh] = cropRatio.split(":").map(Number);
+      const dx = nx - cropStart.x;
+      const dy = Math.abs(dx) * (rh / rw) * (ny > cropStart.y ? 1 : -1);
+      ny = cropStart.y + dy;
+    }
+    setCropEnd({ x: nx, y: ny });
   };
   const handleCropMouseUp = () => { setCropping(false); };
 
   const applyCrop = () => {
     if (!cropStart || !cropEnd || !imgRef.current) return;
+    saveUndo();
     const canvas = previewCanvasRef.current;
     const scaleX = imgRef.current.width / canvas.width, scaleY = imgRef.current.height / canvas.height;
     const sx = Math.min(cropStart.x, cropEnd.x) * scaleX, sy = Math.min(cropStart.y, cropEnd.y) * scaleY;
@@ -2557,39 +2627,38 @@ function ImageEditor() {
     const canvas = canvasRef.current;
     canvas.width = img.width; canvas.height = img.height;
     const ctx = canvas.getContext("2d");
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%)";
     ctx.drawImage(img, 0, 0);
     ctx.filter = "none";
     if (overlayColor) { ctx.globalAlpha = overlayOpacity / 100; ctx.fillStyle = overlayColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1; }
     if (textOverlay) {
-      ctx.font = `bold ${textSize}px Inter, sans-serif`;
+      ctx.font = "bold " + textSize + "px Inter, sans-serif";
       ctx.fillStyle = textColor; ctx.textAlign = "center";
       let y = canvas.height / 2;
-      if (textPos === "top") y = textSize + 40;
-      else if (textPos === "bottom") y = canvas.height - 40;
+      if (textPos === "top") y = textSize + 40; else if (textPos === "bottom") y = canvas.height - 40;
       ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8;
       ctx.fillText(textOverlay, canvas.width / 2, y);
     }
+    drawWatermark(ctx, canvas.width, canvas.height, 1);
     canvas.toBlob((blob) => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "edited-" + (file ? file.name : "image.png");
-      a.click();
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "edited-" + (file ? file.name : "image.png"); a.click();
     }, "image/png");
   };
 
   const sliderStyle = { width: "100%", accentColor: "var(--brand)", cursor: "pointer" };
   const labelStyle = { display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 };
   const inputStyle = { padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", width: "100%" };
+  const panelStyle = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 };
+  const panelTitle = { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 };
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F58C}\uFE0F"} Image Editor</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text and brand overlays. Works entirely in your browser.</p>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text, brand overlays, and watermarks. Works entirely in your browser.</p>
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {!file ? (
-        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 20px", border: "2px dashed var(--border)", borderRadius: 14, cursor: "pointer", background: "var(--bg-card)", transition: "border-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 20px", border: "2px dashed var(--border)", borderRadius: 14, cursor: "pointer", background: "var(--bg-card)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
           <div style={{ fontSize: 40, opacity: 0.4 }}>{"\u{1F5BC}\uFE0F"}</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Click to upload an image</div>
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
@@ -2602,51 +2671,76 @@ function ImageEditor() {
               <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{origW} x {origH}px</span>
                 <div style={{ display: "flex", gap: 4 }}>
+                  {undoStack.length > 0 && <button onClick={undo} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "var(--text-muted)" }}>{"\u21A9"} Undo</button>}
                   <button onClick={() => setCropMode(!cropMode)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid " + (cropMode ? "var(--brand)" : "var(--border)"), background: cropMode ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: cropMode ? "var(--brand)" : "var(--text-muted)" }}>Crop</button>
-                  {cropMode && cropStart && cropEnd && <button onClick={applyCrop} style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#fff" }}>Apply Crop</button>}
+                  {cropMode && cropStart && cropEnd && <button onClick={applyCrop} style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--brand)", fontSize: 11, fontWeight: 600, color: "#fff", cursor: "pointer" }}>Apply Crop</button>}
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 8, cursor: cropMode ? "crosshair" : "default" }} onMouseDown={handleCropMouseDown} onMouseMove={handleCropMouseMove} onMouseUp={handleCropMouseUp} onMouseLeave={handleCropMouseUp}>
+              {cropMode && (
+                <div style={{ padding: "4px 10px", borderBottom: "1px solid var(--border)", display: "flex", gap: 4, background: "var(--bg-input)" }}>
+                  {CROP_RATIOS.map((r) => (
+                    <button key={r.value} onClick={() => setCropRatio(r.value)} style={{ padding: "3px 10px", borderRadius: 4, border: "1px solid " + (cropRatio === r.value ? "var(--brand)" : "var(--border)"), background: cropRatio === r.value ? "var(--brand-light)" : "transparent", fontSize: 10, fontWeight: 600, cursor: "pointer", color: cropRatio === r.value ? "var(--brand)" : "var(--text-muted)" }}>{r.label}</button>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 8, cursor: cropMode ? "crosshair" : "default" }} onMouseDown={handleCropMouseDown} onMouseMove={handleCropMouseMove} onMouseUp={handleCropMouseUp}>
                 <canvas ref={previewCanvasRef} style={{ maxWidth: "100%", display: "block", borderRadius: 4 }} />
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Download</button>
-              <button onClick={resetEdits} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)" }}>Reset</button>
-              <button onClick={() => { setFile(null); setPreview(null); imgRef.current = null; if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)" }}>New Image</button>
+              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{"\u{1F4BE}"} Download</button>
+              <button onClick={() => { saveUndo(); resetEdits(); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>Reset</button>
+              <button onClick={() => { setFile(null); setPreview(null); imgRef.current = null; if (fileRef.current) fileRef.current.value = ""; setUndoStack([]); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>New Image</button>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Adjust</div>
+            <div style={panelStyle}>
+              <div style={panelTitle}>Adjust</div>
               <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Brightness</span><span>{brightness}%</span></div><input type="range" min="20" max="200" value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} style={sliderStyle} /></div>
               <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Contrast</span><span>{contrast}%</span></div><input type="range" min="20" max="200" value={contrast} onChange={(e) => setContrast(Number(e.target.value))} style={sliderStyle} /></div>
               <div><div style={labelStyle}><span>Saturation</span><span>{saturation}%</span></div><input type="range" min="0" max="200" value={saturation} onChange={(e) => setSaturation(Number(e.target.value))} style={sliderStyle} /></div>
             </div>
 
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Brand Overlay</div>
+            <div style={panelStyle}>
+              <div style={panelTitle}>Brand Overlay</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-                <button onClick={() => setOverlayColor("")} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (!overlayColor ? "var(--brand)" : "var(--border)"), background: "repeating-conic-gradient(#80808030 0% 25%, transparent 0% 50%) 50%/8px 8px", cursor: "pointer" }} title="None" />
-                {BRAND_COLORS.map((c) => (
-                  <button key={c.color} onClick={() => setOverlayColor(c.color)} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (overlayColor === c.color ? "var(--brand)" : "var(--border)"), background: c.color, cursor: "pointer" }} title={c.label} />
+                <button onClick={() => setOverlayColor("")} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (!overlayColor ? "var(--brand)" : "var(--border)"), background: "repeating-conic-gradient(#80808030 0% 25%, transparent 0% 50%) 50%/8px 8px", cursor: "pointer" }}></button>
+                {EDITOR_BRAND_COLORS.map((c) => (
+                  <button key={c.color} onClick={() => setOverlayColor(c.color)} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (overlayColor === c.color ? "var(--brand)" : "var(--border)"), background: c.color, cursor: "pointer" }}></button>
                 ))}
               </div>
               {overlayColor && <div><div style={labelStyle}><span>Opacity</span><span>{overlayOpacity}%</span></div><input type="range" min="5" max="80" value={overlayOpacity} onChange={(e) => setOverlayOpacity(Number(e.target.value))} style={sliderStyle} /></div>}
             </div>
 
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Text</div>
+            <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F3F7}\uFE0F"} Watermark</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: watermark ? 10 : 0 }}>
+                <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} style={{ accentColor: "var(--brand)" }} />
+                Alps logo watermark
+              </label>
+              {watermark && <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 8 }}>
+                  {[{ key: "tl", label: "\u2196" }, { key: "tr", label: "\u2197" }, { key: "bl", label: "\u2199" }, { key: "br", label: "\u2198" }].map((p) => (
+                    <button key={p.key} onClick={() => setWatermarkPos(p.key)} style={{ padding: "5px", borderRadius: 4, border: "1px solid " + (watermarkPos === p.key ? "var(--brand)" : "var(--border)"), background: watermarkPos === p.key ? "var(--brand-light)" : "transparent", fontSize: 14, cursor: "pointer", color: watermarkPos === p.key ? "var(--brand)" : "var(--text-muted)" }}>{p.label}</button>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 6 }}><div style={labelStyle}><span>Size</span><span>{watermarkSize}%</span></div><input type="range" min="5" max="40" value={watermarkSize} onChange={(e) => setWatermarkSize(Number(e.target.value))} style={sliderStyle} /></div>
+                <div><div style={labelStyle}><span>Opacity</span><span>{watermarkOpacity}%</span></div><input type="range" min="10" max="100" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} style={sliderStyle} /></div>
+              </>}
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>Text</div>
               <input value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} placeholder="Add text..." style={{ ...inputStyle, marginBottom: 8 }} />
               {textOverlay && <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                   <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Size</div><input type="number" value={textSize} onChange={(e) => setTextSize(Number(e.target.value))} style={inputStyle} /></div>
-                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Colour</div><input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} style={{ width: "100%", height: 34, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", background: "var(--bg-input)" }} /></div>
+                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Colour</div><input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, cursor: "pointer" }} /></div>
                 </div>
                 <div style={{ display: "flex", gap: 4 }}>
                   {["top", "center", "bottom"].map((p) => (
-                    <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (textPos === p ? "var(--brand)" : "var(--border)"), background: textPos === p ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: textPos === p ? "var(--brand)" : "var(--text-muted)", textTransform: "capitalize" }}>{p}</button>
+                    <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (textPos === p ? "var(--brand)" : "var(--border)"), background: textPos === p ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: textPos === p ? "var(--brand)" : "var(--text-muted)" }}>{p}</button>
                   ))}
                 </div>
               </>}
@@ -2658,6 +2752,19 @@ function ImageEditor() {
   );
 }
 
+function Toast({ toasts, onDismiss }) {
+  return (
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column-reverse", gap: 8, pointerEvents: "none" }}>
+      {toasts.map((t) => (
+        <div key={t.id} style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: t.type === "error" ? "#fef2f2" : t.type === "success" ? "#f0fdf4" : "var(--bg-card)", border: "1px solid " + (t.type === "error" ? "#fecaca" : t.type === "success" ? "#bbf7d0" : "var(--border)"), borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", maxWidth: 380, animation: "fadeIn 0.2s ease", minWidth: 260 }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>{t.type === "error" ? "\u274C" : t.type === "success" ? "\u2705" : "\u2139\uFE0F"}</span>
+          <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: t.type === "error" ? "#991b1b" : t.type === "success" ? "#166534" : "var(--text-primary)", lineHeight: 1.4 }}>{t.message}</div>
+          <button onClick={() => onDismiss(t.id)} style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text-muted)", padding: "2px 6px", flexShrink: 0, lineHeight: 1 }}>{"\u2715"}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function OnboardingOverlay({ onDismiss }) {
   const [step, setStep] = useState(0);
@@ -2693,7 +2800,7 @@ function OnboardingOverlay({ onDismiss }) {
 }
 
 
-function NotificationsCenter({ notifications, onClear, onNavigate }) {
+function NotificationsCenter({ notifications, onClear, onNavigate, isAdmin }) {
   const [open, setOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
   const ref = useRef(null);
@@ -2716,15 +2823,15 @@ function NotificationsCenter({ notifications, onClear, onNavigate }) {
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(!open)} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: open ? "var(--brand-light)" : "var(--bg-card)", cursor: "pointer", position: "relative", fontSize: 16, lineHeight: 1, color: "var(--text-secondary)", transition: "all 0.2s" }} title="Notifications">
+      <button onClick={() => { if (isAdmin) setOpen(!open); }} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: open ? "var(--brand-light)" : "var(--bg-card)", cursor: isAdmin ? "pointer" : "default", position: "relative", fontSize: 16, lineHeight: 1, color: "var(--text-secondary)", transition: "all 0.2s" }} title={isAdmin ? "Notifications" : unread + " new notification" + (unread !== 1 ? "s" : "")}>
         {"\u{1F514}"}
-        {unread > 0 && <span style={{ position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{unread > 9 ? "9+" : unread}</span>}
+        {unread > 0 && <span style={{ position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{unread}</span>}
       </button>
-      {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 420, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.15)", zIndex: 100, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      {open && isAdmin && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 420, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow-hover)", zIndex: 100, display: "flex", flexDirection: "column", animation: "fadeIn 0.15s ease" }}>
           <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F514}"} Notifications</span>
-            {notifications.length > 0 && <button onClick={onClear} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Clear all</button>}
+            {notifications.length > 0 && <button onClick={onClear} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer", transition: "all 0.2s" }}>Clear all</button>}
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {notifications.length === 0 ? (
@@ -2733,7 +2840,7 @@ function NotificationsCenter({ notifications, onClear, onNavigate }) {
                 <p style={{ fontSize: 13, margin: 0 }}>No notifications yet</p>
               </div>
             ) : (
-              notifications.slice(0, 20).map((n, i) => (
+              notifications.slice(0, 30).map((n, i) => (
                 <div key={i} onClick={() => { if (n.action) { onNavigate(n.action); setOpen(false); } }}
                   style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", cursor: n.action ? "pointer" : "default", background: !n.read ? "var(--brand-light)" : "transparent", transition: "background 0.15s" }}
                   onMouseOver={(e) => { if (n.action) e.currentTarget.style.background = "var(--brand-light)"; }}
@@ -2873,6 +2980,8 @@ export default function App() {
   const [contentTemplates, setContentTemplates] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const [dashboardTab, setDashboardTab] = useState("tickets");
   const [showOnboarding, setShowOnboarding] = useState(() => { try { return !localStorage.getItem("alps_hub_onboarded"); } catch { return false; } });
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef(null);
@@ -2896,6 +3005,8 @@ export default function App() {
     setNotifications((prev) => [{ icon, title, body, action, time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
   };
   const clearNotifications = () => setNotifications([]);
+  const toast = (message, type = "info") => { const id = Date.now(); setToasts((prev) => [...prev, { id, message, type }]); setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000); };
+  const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
   const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
   // Load tickets from Supabase and subscribe to real-time changes
@@ -3032,20 +3143,23 @@ export default function App() {
     if (!error) {
       setLastSubmittedRef(ref);
       setView("submitted");
-    }
+      toast("Ticket " + ref + " submitted", "success");
+    } else { toast("Failed to submit ticket", "error"); }
   };
 
   const handleStatusChange = async (id, status) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
-      await supabase.from("tickets").update({ status }).eq("id", ticket.dbId);
+      const { error } = await supabase.from("tickets").update({ status }).eq("id", ticket.dbId);
+      if (error) toast("Failed to update status", "error");
     }
   };
 
   const handleComplete = async (id) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
-      await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", ticket.dbId);
+      const { error } = await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", ticket.dbId);
+      if (error) toast("Failed to complete ticket", "error"); else toast("Ticket completed", "success");
     }
   };
 
@@ -3104,17 +3218,21 @@ export default function App() {
 
 
   const handleArchiveSave = async (data) => {
-    if (editArchiveEntry && editArchiveEntry !== "new") { await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry); }
-    else { await supabase.from("archive_entries").insert(data); }
+    let error;
+    if (editArchiveEntry && editArchiveEntry !== "new") { ({ error } = await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry)); }
+    else { ({ error } = await supabase.from("archive_entries").insert(data)); }
+    if (error) { toast("Failed to save archive entry", "error"); return; }
+    toast("Archive entry saved", "success");
     setEditArchiveEntry(null); setView("archive");
   };
   const handleArchiveDelete = async (id) => { await supabase.from("archive_entries").delete().eq("id", id); setEditArchiveEntry(null); setView("archive"); };
-  const handleLeadSave = async (data) => { await supabase.from("leads").insert(data); };
-  const handleLeadUpdate = async (id, updates) => { await supabase.from("leads").update(updates).eq("id", id); };
+  const handleLeadSave = async (data) => { const { error } = await supabase.from("leads").insert(data); if (error) toast("Failed to save lead: " + error.message, "error"); else toast("Lead logged successfully", "success"); };
+  const handleLeadUpdate = async (id, updates) => { const { error } = await supabase.from("leads").update(updates).eq("id", id); if (error) toast("Failed to update lead", "error"); };
   const handleAssetUpload = async (file, name, category) => {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = "brand/" + Date.now() + "_" + safeName;
     const { error } = await supabase.storage.from("ticket-attachments").upload(path, file);
+    if (error) { toast("Upload failed: " + error.message, "error"); return; }
     if (!error) {
       const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
       await supabase.from("brand_assets").insert({ asset_name: name, category, file_url: urlData.publicUrl, file_path: path });
@@ -3181,37 +3299,65 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         ::selection { background: #231d68; color: white; }
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }
         @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
         [data-theme="light"] {
-          --bg-page: #ffffff; --bg-card: #f6f6f6; --bg-input: #ffffff; --bg-header: #ffffff;
-          --bg-completed: #fafafa; --bg-hover: #f8fafc;
-          --border: #e2e8f0; --border-light: #f1f5f9;
-          --text-primary: #1e293b; --text-body: #475569; --text-secondary: #64748b; --text-muted: #94a3b8;
-          --brand: #231d68; --brand-light: rgba(35,29,104,0.07); --brand-glow: rgba(35,29,104,0.1);
-          --shadow: 0 1px 3px rgba(0,0,0,0.04); --shadow-hover: 0 2px 12px rgba(35,29,104,0.08);
-          --nav-bg: #f6f6f6; --nav-inactive: #64748b;
-          --bar-bg: #e2e8f0;
+          --bg-page: #f8f9fb; --bg-card: #ffffff; --bg-input: #f4f5f7; --bg-header: #ffffff;
+          --bg-completed: #fafafa; --bg-hover: #f1f3f9;
+          --border: #e2e6ee; --border-light: #f0f2f6;
+          --text-primary: #1a1d2e; --text-body: #4a5068; --text-secondary: #6b7190; --text-muted: #9399b2;
+          --brand: #231d68; --brand-light: rgba(35,29,104,0.06); --brand-glow: rgba(35,29,104,0.1);
+          --shadow: 0 1px 3px rgba(0,0,0,0.04); --shadow-hover: 0 4px 16px rgba(35,29,104,0.1);
+          --nav-bg: #ffffff; --nav-inactive: #6b7190;
+          --bar-bg: #e8ebf0;
+          --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
         }
         [data-theme="dark"] {
-          --bg-page: #0f172a; --bg-card: #1e293b; --bg-input: #0f172a; --bg-header: #1e293b;
-          --bg-completed: #1a2332; --bg-hover: #1e293b;
-          --border: #334155; --border-light: #1e293b;
-          --text-primary: #e2e8f0; --text-body: #cbd5e1; --text-secondary: #94a3b8; --text-muted: #64748b;
-          --brand: #818cf8; --brand-light: rgba(129,140,248,0.15); --brand-glow: rgba(129,140,248,0.15);
-          --shadow: 0 1px 3px rgba(0,0,0,0.2); --shadow-hover: 0 2px 12px rgba(0,0,0,0.3);
-          --nav-bg: #0f172a; --nav-inactive: #94a3b8;
-          --bar-bg: #334155;
+          --bg-page: #0c1021; --bg-card: #161b2e; --bg-input: #0c1021; --bg-header: #131729;
+          --bg-completed: #141828; --bg-hover: #1a2038;
+          --border: #252d45; --border-light: #1a2038;
+          --text-primary: #e4e8f0; --text-body: #b4bcd0; --text-secondary: #8892b0; --text-muted: #5a6380;
+          --brand: #818cf8; --brand-light: rgba(129,140,248,0.12); --brand-glow: rgba(129,140,248,0.15);
+          --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-hover: 0 4px 16px rgba(0,0,0,0.4);
+          --nav-bg: #0c1021; --nav-inactive: #8892b0;
+          --bar-bg: #252d45;
+          --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
         }
         [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.2); }
         [data-theme="dark"] ::selection { background: #818cf8; }
-        [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
-          color-scheme: dark;
-        }
+        [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select { color-scheme: dark; }
+
+        /* Transition defaults */
+        button { transition: all 0.15s ease; }
+        button:hover:not(:disabled) { filter: brightness(1.05); }
+        button:active:not(:disabled) { transform: scale(0.98); }
+        input, textarea, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
+
+        /* Card hover micro-interaction */
+        .hub-card-hover { transition: all 0.2s ease; }
+        .hub-card-hover:hover { transform: translateY(-1px); box-shadow: var(--shadow-hover); border-color: var(--brand) !important; }
+
+        /* View transition */
+        .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
+
+        /* Secondary nav bar */
+        .hub-secondary-nav { display: flex; gap: 2px; padding: 2px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border); }
+        .hub-secondary-nav button { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--nav-inactive); white-space: nowrap; }
+        .hub-secondary-nav button.active { background: var(--brand); color: #fff; }
+        .hub-secondary-nav button:hover:not(.active) { background: var(--brand-light); color: var(--brand); }
+
+        /* Skeleton loader */
+        .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: pulse 1.5s ease infinite; border-radius: 6px; }
+
         @media (max-width: 900px) {
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr 1fr !important; }
@@ -3220,9 +3366,9 @@ export default function App() {
           .hub-editor-grid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
-          .hub-header { padding: 10px 16px !important; flex-wrap: wrap; gap: 8px; }
+          .hub-header { padding: 10px 16px !important; }
           .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .hub-nav button { padding: 7px 14px !important; font-size: 12px !important; white-space: nowrap; }
+          .hub-nav button { padding: 7px 12px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-hero-grid { grid-template-columns: 1fr !important; }
           .hub-hero-split { grid-template-columns: 1fr !important; }
@@ -3241,72 +3387,64 @@ export default function App() {
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-week-compare { flex-direction: column; gap: 4px !important; }
+          .hub-secondary-nav { overflow-x: auto; flex-wrap: nowrap; }
         }
       `}</style>
 
-      <header className="hub-header" style={{ padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 50, boxShadow: "var(--shadow)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img src={ALPS_LOGO} alt="Alps" style={{ height: 38, objectFit: "contain", cursor: "pointer" }} onClick={() => setView("hub")} />
-          <div style={{ width: 1, height: 28, background: "var(--border)" }}></div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentSection === "tickets" ? "Ticket Management" : currentSection === "archive" ? "Marketing Archive" : currentSection === "analytics" ? "Analytics" : currentSection === "leads" ? "Leads" : currentSection === "brand" ? "Brand Assets" : currentSection === "guide" ? "Self-Service Guide" : currentSection === "tools" ? ({templates: "Content Templates", converter: "File Converter", qr_generator: "QR Code Generator", image_editor: "Image Editor", calendar: "Content Calendar"}[view] || "Tools") : "Your marketing toolkit"}</span>
+      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--bg-header)", borderBottom: "1px solid var(--border)", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+        <div className="hub-header" style={{ padding: "10px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <img src={ALPS_LOGO} alt="Alps" style={{ height: 36, objectFit: "contain", cursor: "pointer", transition: "opacity 0.15s" }} onClick={() => setView("hub")} onMouseOver={(e) => e.target.style.opacity = "0.8"} onMouseOut={(e) => e.target.style.opacity = "1"} />
+            <div style={{ width: 1, height: 24, background: "var(--border)" }}></div>
+            <h1 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 15, lineHeight: 1, color: "var(--text-secondary)" }}>
+              {dark ? "\u2600" : "\u{1F319}"}
+            </button>
+            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={dashUnlocked} />
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button onClick={() => setDark(!dark)} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>
-            {dark ? "\u2600" : "\u{1F319}"}
-          </button>
-          {dashUnlocked && <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} />}
-          <nav className="hub-nav" style={{ display: "flex", gap: 3, background: "var(--nav-bg)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", alignItems: "center" }}>
-          {view !== "hub" && <button onClick={() => setView("hub")} style={{ padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "transparent", color: "var(--nav-inactive)", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.background = "rgba(99,102,241,0.08)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>Home</button>}
-          {view !== "hub" && currentSection !== "hub" && <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>}
-          {currentSection === "tickets" && (<>
-            <button onClick={() => setView("form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "form" || view === "submitted" ? "var(--brand)" : "transparent", color: view === "form" || view === "submitted" ? "#fff" : "var(--nav-inactive)" }}>Submit</button>
-            <button onClick={handleDashboardClick} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "dashboard" ? "var(--brand)" : "transparent", color: view === "dashboard" ? "#fff" : "var(--nav-inactive)", position: "relative" }}>
-              {dashUnlocked ? "" : "\u{1F512} "}Dashboard
-              {dashUnlocked && activeCount > 0 && (<span style={{ position: "absolute", top: 0, right: 2, width: 18, height: 18, borderRadius: "50%", background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>)}
-            </button>
-            {dashUnlocked && <button onClick={() => setView("activity")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "activity" ? "var(--brand)" : "transparent", color: view === "activity" ? "#fff" : "var(--nav-inactive)" }}>Activity</button>}
-            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "tracker" ? "var(--brand)" : "transparent", color: view === "tracker" ? "#fff" : "var(--nav-inactive)" }}>Track</button>
-          </>)}
-          {currentSection === "archive" && (<>
-            <button onClick={() => setView("archive")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "archive" ? "var(--brand)" : "transparent", color: view === "archive" ? "#fff" : "var(--nav-inactive)" }}>Browse</button>
-            {dashUnlocked && <button onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: (view === "archive_add" || view === "archive_edit") ? "var(--brand)" : "transparent", color: (view === "archive_add" || view === "archive_edit") ? "#fff" : "var(--nav-inactive)" }}>+ Add</button>}
-          </>)}
-          {currentSection === "leads" && (<>
-            <button onClick={() => setView("lead_form")} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "lead_form" ? "var(--brand)" : "transparent", color: view === "lead_form" ? "#fff" : "var(--nav-inactive)" }}>Log Lead</button>
-            <button onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: view === "leads_dashboard" ? "var(--brand)" : "transparent", color: view === "leads_dashboard" ? "#fff" : "var(--nav-inactive)" }}>{dashUnlocked ? "" : "\u{1F512} "}Dashboard</button>
-          </>)}
-          {(currentSection === "analytics" || currentSection === "brand" || currentSection === "hub") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: currentSection !== "hub" ? "var(--brand)" : "transparent", color: currentSection !== "hub" ? "#fff" : "var(--nav-inactive)", cursor: "default" }}>{currentSection === "analytics" ? "Analytics" : currentSection === "brand" ? "Brand Assets" : "Home"}</button>}
-          {(currentSection === "guide") && <button style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "default" }}>Guide</button>}
-          {currentSection === "tools" && (
-            <div ref={toolsRef} style={{ position: "relative" }}>
-              <button onClick={() => setToolsOpen(!toolsOpen)} style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", background: "var(--brand)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                {"\u{1F6E0}\uFE0F"} Tools <span style={{ fontSize: 10 }}>{toolsOpen ? "\u25B2" : "\u25BC"}</span>
-              </button>
-              {toolsOpen && (
-                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden", padding: 4 }}>
-                  {[
-                    { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
-                    { id: "converter", icon: "\u{1F504}", label: "File Converter" },
-                    { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
-                    { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
-                    { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar" },
-                  ].map((t) => (
-                    <button key={t.id} onClick={() => { setView(t.id); setToolsOpen(false); }} style={{ width: "100%", padding: "10px 14px", background: view === t.id ? "var(--brand-light)" : "transparent", border: "none", borderRadius: 6, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: view === t.id ? 700 : 500, color: view === t.id ? "var(--brand)" : "var(--text-primary)", transition: "all 0.15s" }} onMouseOver={(e) => { if (view !== t.id) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (view !== t.id) e.currentTarget.style.background = "transparent"; }}>
-                      <span style={{ fontSize: 16 }}>{t.icon}</span> {t.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
-        </div>
+        {view !== "hub" && (
+          <div style={{ padding: "0 32px 8px", display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+            <button onClick={() => setView("hub")} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-muted)", flexShrink: 0 }}>{"\u2190"} Home</button>
+            <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>
+            <nav className="hub-secondary-nav" style={{ flex: 1 }}>
+              {currentSection === "tickets" && <>
+                <button className={view === "form" ? "active" : ""} onClick={() => setView("form")}>Submit</button>
+                <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
+                  {dashUnlocked ? "" : "\u{1F512} "}Dashboard
+                  {dashUnlocked && activeCount > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>}
+                </button>
+                {dashUnlocked && <button className={view === "activity" ? "active" : ""} onClick={() => setView("activity")}>Activity</button>}
+                <button className={view === "tracker" ? "active" : ""} onClick={() => { setLastSubmittedRef(null); setView("tracker"); }}>Track</button>
+              </>}
+              {currentSection === "archive" && <>
+                <button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>Browse</button>
+                {dashUnlocked && <button className={(view === "archive_add" || view === "archive_edit") ? "active" : ""} onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }}>Add Entry</button>}
+              </>}
+              {currentSection === "leads" && <>
+                <button className={view === "lead_form" ? "active" : ""} onClick={() => setView("lead_form")}>Log Lead</button>
+                <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }}>Dashboard</button>
+              </>}
+              {currentSection === "tools" && <>
+                {[
+                  { id: "templates", label: "Templates" },
+                  { id: "converter", label: "Converter" },
+                  { id: "qr_generator", label: "QR Code" },
+                  { id: "image_editor", label: "Image Editor" },
+                  { id: "calendar", label: "Calendar" },
+                ].map((t) => <button key={t.id} className={view === t.id ? "active" : ""} onClick={() => setView(t.id)}>{t.label}</button>)}
+              </>}
+              {currentSection === "analytics" && <button className="active">Analytics</button>}
+              {currentSection === "brand" && <button className="active">Brand Assets</button>}
+              {currentSection === "guide" && <button className="active">Self-Service Guide</button>}
+            </nav>
+          </div>
+        )}
       </header>
 
-      <main className="hub-main" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
@@ -3357,10 +3495,24 @@ export default function App() {
         ) : view === "calendar" ? (
           <ContentCalendar events={calendarEvents} isAdmin={dashUnlocked} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
         ) : (
-          <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
+          <div style={{ width: "100%" }}>
+            <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
+              {[{ key: "tickets", label: "\u{1F4CB} Tickets" }, { key: "leads", label: "\u{1F4C8} Leads" }, { key: "analytics", label: "\u{1F4CA} Analytics" }].map((tab) => (
+                <button key={tab.key} onClick={() => setDashboardTab(tab.key)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: dashboardTab === tab.key ? "var(--brand)" : "transparent", color: dashboardTab === tab.key ? "#fff" : "var(--nav-inactive)" }}>{tab.label}</button>
+              ))}
+            </div>
+            {dashboardTab === "tickets" ? (
+              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
+            ) : dashboardTab === "leads" ? (
+              <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} />
+            ) : (
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+            )}
+          </div>
         )}
       </main>
       {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
