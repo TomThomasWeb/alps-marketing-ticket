@@ -138,3 +138,32 @@ CREATE TABLE IF NOT EXISTS gallery_images (
 
 ALTER TABLE gallery_images ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public access to gallery_images" ON gallery_images FOR ALL USING (true) WITH CHECK (true);
+
+-- Broker toolkit table
+CREATE TABLE IF NOT EXISTS broker_toolkit (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  product TEXT DEFAULT 'general',
+  type TEXT DEFAULT 'one_pager',
+  description TEXT,
+  file_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE broker_toolkit ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to broker_toolkit" ON broker_toolkit FOR ALL USING (true) WITH CHECK (true);
+
+-- Add updated_at to tickets if not exists
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Auto-update updated_at on ticket changes
+CREATE OR REPLACE FUNCTION update_ticket_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS ticket_updated_at ON tickets;
+CREATE TRIGGER ticket_updated_at BEFORE UPDATE ON tickets FOR EACH ROW EXECUTE PROCEDURE update_ticket_timestamp();

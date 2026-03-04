@@ -122,7 +122,7 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
@@ -148,14 +148,18 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
   // Build activity feed from recent data
   const feedItems = (() => {
     const items = [];
-    tickets.slice(0, 10).forEach((t) => {
+    tickets.slice(0, 15).forEach((t) => {
       items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker" });
+      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " now in progress", time: t.updatedAt || t.createdAt, action: "dashboard" });
       if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard" });
     });
     leads.slice(0, 5).forEach((l) => {
       items.push({ icon: "\u{1F4C8}", text: "Lead from " + l.broker, time: l.created_at, action: "leads_dashboard" });
     });
-    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 6);
+    (archiveEntries || []).slice(0, 5).forEach((e) => {
+      items.push({ icon: "\u{1F4DA}", text: "Added to Archive: " + (e.title || e.name || "Entry"), time: e.date || e.created_at, action: "archive" });
+    });
+    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 8);
   })();
 
   const fmtAgo = (ts) => {
@@ -215,6 +219,42 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         </div>
       </div>
 
+      {calendarEvents && (() => {
+        const now = new Date();
+        const sow = new Date(now); sow.setDate(now.getDate() - now.getDay() + 1); sow.setHours(0,0,0,0);
+        const eow = new Date(sow); eow.setDate(sow.getDate() + 6); eow.setHours(23,59,59,999);
+        const weekEvents = calendarEvents.filter((ev) => { const d = new Date(ev.date); return d >= sow && d <= eow; }).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const todayIdx = (now.getDay() + 6) % 7;
+        return weekEvents.length > 0 ? (
+          <div style={{ marginBottom: 32 }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>{"\u{1F4C5}"} THIS WEEK</h3>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
+                {days.map((d, i) => {
+                  const dayDate = new Date(sow); dayDate.setDate(sow.getDate() + i);
+                  const isToday = i === todayIdx;
+                  const hasEvents = weekEvents.some((ev) => new Date(ev.date).toDateString() === dayDate.toDateString());
+                  return <div key={d} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--brand)" : "var(--text-muted)", borderBottom: isToday ? "2px solid var(--brand)" : "2px solid transparent" }}>{d}{hasEvents && <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: "var(--brand)", marginLeft: 3, verticalAlign: "middle" }}></span>}</div>;
+                })}
+              </div>
+              <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6, maxHeight: 120, overflowY: "auto" }}>
+                {weekEvents.map((ev, i) => {
+                  const d = new Date(ev.date);
+                  const dayLabel = days[(d.getDay() + 6) % 7];
+                  const isToday = d.toDateString() === now.toDateString();
+                  return <div key={i} onClick={() => onNavigate("calendar")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: isToday ? "var(--brand)" : "var(--text-muted)", minWidth: 28 }}>{dayLabel}</span>
+                    <span style={{ width: 4, height: 4, borderRadius: 2, background: "var(--brand)", flexShrink: 0 }}></span>
+                    <span style={{ fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</span>
+                  </div>;
+                })}
+              </div>
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
         <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
@@ -223,6 +263,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
             { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
             { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", color: "#0d9488" },
+            { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials by product", color: "#ea580c" },
           ].map((r) => (
             <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
@@ -1027,6 +1068,30 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
       </div>
 
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        {(() => {
+          const open = tickets.filter((t) => t.status === "open").length;
+          const inP = tickets.filter((t) => t.status === "in_progress").length;
+          const total = open + inP;
+          const pct = tickets.length > 0 ? Math.round((tickets.filter((t) => t.status === "completed").length / tickets.length) * 100) : 0;
+          return <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{total > 5 ? "\u{1F525}" : total > 2 ? "\u{1F7E1}" : "\u{1F7E2}"}</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{total} active ticket{total !== 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{open} open {"\u2022"} {inP} in progress</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: pct + "%", background: pct > 80 ? "#16a34a" : pct > 50 ? "#ca8a04" : "var(--brand)", borderRadius: 3, transition: "width 0.3s" }}></div>
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3, textAlign: "right" }}>{pct}% completed</div>
+            </div>
+          </>;
+        })()}
+      </div>
+
       <div style={{ marginBottom: 24 }}>
         <StatsBar tickets={tickets} />
       </div>
@@ -1565,15 +1630,37 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
   const [filter, setFilter] = useState("all");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
-  const [uploadMeta, setUploadMeta] = useState({ name: "", category: "logo" });
+  const [uploadMeta, setUploadMeta] = useState({ name: "", category: "main_logo" });
   const [showUploadForm, setShowUploadForm] = useState(false);
 
   const copyHex = (hex) => { navigator.clipboard.writeText(hex); setCopied(hex); setTimeout(() => setCopied(null), 1500); };
 
-  const categories = { logo: "Logos", icon: "Icons" };
+  const ASSET_CATEGORIES = [
+    { key: "main_logo", label: "Main Logo", order: 0 },
+    { key: "motor", label: "Motor", order: 1 },
+    { key: "commercial", label: "Commercial", order: 2 },
+    { key: "property", label: "Property", order: 3 },
+    { key: "liability", label: "Liability", order: 4 },
+    { key: "travel", label: "Travel", order: 5 },
+    { key: "pet", label: "Pet", order: 6 },
+    { key: "icons", label: "Icons", order: 7 },
+    { key: "other", label: "Other", order: 8 },
+  ];
+  const categories = {}; ASSET_CATEGORIES.forEach((c) => { categories[c.key] = c.label; });
   const filteredAssets = assets.filter((a) => filter === "all" || a.category === filter);
-  const grouped = {};
-  filteredAssets.forEach((a) => { const g = a.asset_name || "Untitled"; if (!grouped[g]) grouped[g] = []; grouped[g].push(a); });
+  const groupedByCat = {};
+  filteredAssets.forEach((a) => {
+    const cat = a.category || "other";
+    if (!groupedByCat[cat]) groupedByCat[cat] = {};
+    const name = a.asset_name || "Untitled";
+    if (!groupedByCat[cat][name]) groupedByCat[cat][name] = [];
+    groupedByCat[cat][name].push(a);
+  });
+  const sortedCatKeys = Object.keys(groupedByCat).sort((a, b) => {
+    const aO = ASSET_CATEGORIES.find((c) => c.key === a);
+    const bO = ASSET_CATEGORIES.find((c) => c.key === b);
+    return (aO ? aO.order : 99) - (bO ? bO.order : 99);
+  });
 
   const handleUpload = async () => {
     if (!fileRef.current?.files?.length || !uploadMeta.name.trim()) return;
@@ -1696,53 +1783,69 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
       </div>
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Logos & Icons</h3>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ display: "flex", gap: 3, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-              <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
-              <button onClick={() => setFilter("logo")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "logo" ? "var(--brand)" : "transparent", color: filter === "logo" ? "#fff" : "var(--text-secondary)" }}>Logos</button>
-              <button onClick={() => setFilter("icon")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "icon" ? "var(--brand)" : "transparent", color: filter === "icon" ? "#fff" : "var(--text-secondary)" }}>Icons</button>
+              <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>All</button>
+              {ASSET_CATEGORIES.filter((c) => assets.some((a) => a.category === c.key)).map((c) => (
+                <button key={c.key} onClick={() => setFilter(c.key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === c.key ? "var(--brand)" : "transparent", color: filter === c.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{c.label}</button>
+              ))}
             </div>
-            {isAdmin && <button onClick={() => setShowUploadForm(!showUploadForm)} style={{ padding: "7px 14px", background: showUploadForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showUploadForm ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showUploadForm ? "Cancel" : "+ Upload"}</button>}
+            {isAdmin && <button onClick={() => setShowUploadForm(!showUploadForm)} style={{ padding: "7px 14px", background: showUploadForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showUploadForm ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showUploadForm ? "Cancel" : "\u2795 Upload"}</button>}
           </div>
         </div>
 
         {showUploadForm && isAdmin && (
           <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
               <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Asset Name</label><input style={inputStyle} value={uploadMeta.name} onChange={(e) => setUploadMeta({ ...uploadMeta, name: e.target.value })} placeholder="e.g. Alps Main Logo" /></div>
-              <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Category</label><select value={uploadMeta.category} onChange={(e) => setUploadMeta({ ...uploadMeta, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="logo">Logo</option><option value="icon">Icon</option></select></div>
-              <div style={{ display: "flex", gap: 8, paddingBottom: 1 }}>
-                <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{"\u{1F4CE}"} Choose Files<input ref={fileRef} type="file" multiple accept=".jpg,.jpeg,.png,.svg,.pdf,.webp" style={{ display: "none" }} /></label>
-                <button onClick={handleUpload} disabled={uploading || !uploadMeta.name.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: uploading ? "wait" : "pointer", opacity: uploadMeta.name.trim() ? 1 : 0.5 }}>{uploading ? "Uploading..." : "Upload"}</button>
-              </div>
+              <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Category</label><select value={uploadMeta.category} onChange={(e) => setUploadMeta({ ...uploadMeta, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{ASSET_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></div>
             </div>
-            <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Upload multiple format variants (JPG, PNG, SVG, PDF) under the same asset name. They will be grouped together for download.</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{"\u{1F4CE}"} Choose Files<input ref={fileRef} type="file" accept="image/*,.svg,.pdf" multiple style={{ display: "none" }} /></label>
+              <button onClick={handleUpload} disabled={uploading || !uploadMeta.name.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: uploading ? "wait" : "pointer", opacity: (uploading || !uploadMeta.name.trim()) ? 0.5 : 1 }}>{uploading ? "Uploading..." : "Upload"}</button>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Upload multiple formats (PNG, SVG, PDF, JPG) under the same name to group them.</span>
+            </div>
           </div>
         )}
 
-        {Object.keys(grouped).length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 10, opacity: 0.4 }}>{"\u{1F3A8}"}</div><p style={{ fontSize: 14, margin: 0 }}>No assets uploaded yet{isAdmin ? ". Click Upload to add logos and icons." : "."}</p></div>
+        {sortedCatKeys.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 10, opacity: 0.4 }}>{"\u{1F3A8}"}</div><p style={{ fontSize: 14, margin: 0 }}>No assets uploaded yet{isAdmin ? " \u2014 use the upload button above." : "."}</p></div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {Object.entries(grouped).map(([name, files]) => (
-              <div key={name} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: files[0]?.category === "icon" ? "#0284c7" : "#E64592", textTransform: "uppercase", letterSpacing: "0.04em", background: (files[0]?.category === "icon" ? "#0284c7" : "#E64592") + "12", padding: "2px 8px", borderRadius: 4 }}>{files[0]?.category === "icon" ? "Icon" : "Logo"}</span>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{name}</span>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{files.length} format{files.length !== 1 ? "s" : ""}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {sortedCatKeys.map((catKey) => {
+              const catInfo = ASSET_CATEGORIES.find((c) => c.key === catKey) || { label: catKey };
+              const assetGroups = groupedByCat[catKey];
+              return (
+                <div key={catKey}>
+                  {filter === "all" && <h4 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>{catInfo.label}</h4>}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                    {Object.entries(assetGroups).map(([name, files]) => {
+                      const previewFile = files.find((f) => /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(f.file_url)) || files[0];
+                      const isImg = previewFile && /\.(png|jpg|jpeg|webp|gif)$/i.test(previewFile.file_url);
+                      return (
+                        <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                          <div style={{ width: "100%", aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 12 }}>
+                            {isImg ? <img src={previewFile.file_url} alt={name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ fontSize: 48, opacity: 0.3 }}>{"\u{1F5BC}\uFE0F"}</div>}
+                          </div>
+                          <div style={{ padding: "10px 12px" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {files.map((f) => (
+                                <a key={f.id} href={f.file_url} download target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textDecoration: "none", textTransform: "uppercase", transition: "all 0.15s", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>{"\u2B07"} {formatExt(f.file_url)}</a>
+                              ))}
+                              {isAdmin && <button onClick={() => { if (window.confirm("Delete all formats of \"" + name + "\"?")) files.forEach((f) => onDeleteAsset(f.id, f.file_url)); }} style={{ padding: "3px 8px", background: "transparent", border: "1px solid #fecaca", borderRadius: 5, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {files.map((f) => (
-                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <a href={f.file_url} download target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, textDecoration: "none", color: "var(--brand)", fontSize: 12, fontWeight: 600, transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>{"\u2B07"} {formatExt(f.file_url)}</a>
-                      {isAdmin && <button onClick={() => onDeleteAsset(f.id, f.file_url)} style={{ padding: "4px 6px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, cursor: "pointer", lineHeight: 1 }}>{"\u2715"}</button>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -2463,6 +2566,11 @@ function ImageEditor() {
   const [cropEnd, setCropEnd] = useState(null);
   const [cropping, setCropping] = useState(false);
   const [cropRatio, setCropRatio] = useState("free");
+  const [exportFormat, setExportFormat] = useState("png");
+  const [exportQuality, setExportQuality] = useState(92);
+  const [resizeW, setResizeW] = useState("");
+  const [resizeH, setResizeH] = useState("");
+  const [resizeLock, setResizeLock] = useState(true);
   const imgRef = useRef(null);
   const [watermark, setWatermark] = useState(false);
   const [watermarkPos, setWatermarkPos] = useState("br");
@@ -2486,6 +2594,41 @@ function ImageEditor() {
     { label: "4:3", value: "4:3" },
     { label: "9:16", value: "9:16" },
   ];
+
+  const RESIZE_PRESETS = [
+    { label: "LinkedIn Post", w: 1200, h: 627 },
+    { label: "Instagram Square", w: 1080, h: 1080 },
+    { label: "Instagram Story", w: 1080, h: 1920 },
+    { label: "Facebook Cover", w: 820, h: 312 },
+    { label: "Email Header", w: 600, h: 200 },
+    { label: "Twitter Post", w: 1200, h: 675 },
+    { label: "YouTube Thumb", w: 1280, h: 720 },
+  ];
+
+  const applyResize = (w, h) => {
+    if (!imgRef.current) return;
+    saveUndo();
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgRef.current, 0, 0, w, h);
+    const newImg = new Image();
+    newImg.onload = () => { imgRef.current = newImg; setOrigW(w); setOrigH(h); setResizeW(""); setResizeH(""); };
+    newImg.src = canvas.toDataURL("image/png");
+  };
+
+  const handleResizeW = (val) => {
+    setResizeW(val);
+    if (resizeLock && imgRef.current && val) {
+      setResizeH(Math.round((Number(val) / imgRef.current.width) * imgRef.current.height));
+    }
+  };
+  const handleResizeH = (val) => {
+    setResizeH(val);
+    if (resizeLock && imgRef.current && val) {
+      setResizeW(Math.round((Number(val) / imgRef.current.height) * imgRef.current.width));
+    }
+  };
 
   // Load watermark logo
   useEffect(() => {
@@ -2646,9 +2789,13 @@ function ImageEditor() {
       ctx.fillText(textOverlay, canvas.width / 2, y);
     }
     drawWatermark(ctx, canvas.width, canvas.height, 1);
+    const mimeType = exportFormat === "jpeg" ? "image/jpeg" : exportFormat === "webp" ? "image/webp" : "image/png";
+    const ext = exportFormat === "jpeg" ? ".jpg" : exportFormat === "webp" ? ".webp" : ".png";
+    const quality = exportFormat === "png" ? undefined : exportQuality / 100;
+    const baseName = (file ? file.name.replace(/\.[^.]+$/, "") : "image");
     canvas.toBlob((blob) => {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "edited-" + (file ? file.name : "image.png"); a.click();
-    }, "image/png");
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "edited-" + baseName + ext; a.click();
+    }, mimeType, quality);
   };
 
   const sliderStyle = { width: "100%", accentColor: "var(--brand)", cursor: "pointer" };
@@ -2737,6 +2884,31 @@ function ImageEditor() {
             </div>
 
             <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F4D0}"} Resize</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+                {RESIZE_PRESETS.map((p) => (
+                  <button key={p.label} onClick={() => applyResize(p.w, p.h)} title={p.w + "x" + p.h} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "var(--bg-input)", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", transition: "all 0.15s" }}>{p.label}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input type="number" value={resizeW} onChange={(e) => handleResizeW(e.target.value)} placeholder="W" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
+                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>{resizeLock ? "\u{1F517}" : "\u26D3"}</button>
+                <input type="number" value={resizeH} onChange={(e) => handleResizeH(e.target.value)} placeholder="H" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
+                <button onClick={() => { if (resizeW && resizeH) applyResize(Number(resizeW), Number(resizeH)); }} disabled={!resizeW || !resizeH} style={{ padding: "6px 10px", border: "none", borderRadius: 4, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: (!resizeW || !resizeH) ? 0.4 : 1 }}>{"\u2713"}</button>
+              </div>
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F4BE}"} Export</div>
+              <div style={{ display: "flex", gap: 4, marginBottom: exportFormat !== "png" ? 8 : 0 }}>
+                {[{ k: "png", l: "PNG" }, { k: "jpeg", l: "JPEG" }, { k: "webp", l: "WEBP" }].map((f) => (
+                  <button key={f.k} onClick={() => setExportFormat(f.k)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (exportFormat === f.k ? "var(--brand)" : "var(--border)"), background: exportFormat === f.k ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: exportFormat === f.k ? "var(--brand)" : "var(--text-muted)" }}>{f.l}</button>
+                ))}
+              </div>
+              {exportFormat !== "png" && <div><div style={labelStyle}><span>Quality</span><span>{exportQuality}%</span></div><input type="range" min="10" max="100" value={exportQuality} onChange={(e) => setExportQuality(Number(e.target.value))} style={sliderStyle} /></div>}
+            </div>
+
+            <div style={panelStyle}>
               <div style={panelTitle}>Text</div>
               <input value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} placeholder="Add text..." style={{ ...inputStyle, marginBottom: 8 }} />
               {textOverlay && <>
@@ -2752,6 +2924,135 @@ function ImageEditor() {
               </>}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
+  const [filter, setFilter] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
+  const [editing, setEditing] = useState(null);
+
+  const PRODUCTS = [
+    { key: "all", label: "All Products", icon: "\u{1F4E6}" },
+    { key: "general", label: "General / Alps", icon: "\u{1F3D4}\uFE0F" },
+    { key: "motor", label: "Motor", icon: "\u{1F697}" },
+    { key: "commercial", label: "Commercial", icon: "\u{1F3E2}" },
+    { key: "property", label: "Property", icon: "\u{1F3E0}" },
+    { key: "liability", label: "Liability", icon: "\u{1F6E1}\uFE0F" },
+    { key: "travel", label: "Travel", icon: "\u2708\uFE0F" },
+    { key: "pet", label: "Pet", icon: "\u{1F43E}" },
+  ];
+
+  const ASSET_TYPES = {
+    one_pager: { label: "One-Pager", icon: "\u{1F4C4}" },
+    email_copy: { label: "Email Copy", icon: "\u{1F4E7}" },
+    social_pack: { label: "Social Pack", icon: "\u{1F4F1}" },
+    flyer: { label: "Flyer / Print", icon: "\u{1F5A8}\uFE0F" },
+    presentation: { label: "Presentation", icon: "\u{1F4CA}" },
+    guide: { label: "Guide / PDF", icon: "\u{1F4D6}" },
+    other: { label: "Other", icon: "\u{1F4CE}" },
+  };
+
+  const filtered = items.filter((item) => filter === "all" || item.product === filter);
+  const grouped = {};
+  filtered.forEach((item) => {
+    const key = item.product || "general";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(item);
+  });
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave({ ...form, id: editing || undefined });
+    setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const startEdit = (item) => {
+    setForm({ title: item.title, product: item.product, type: item.type, description: item.description || "", file_url: item.file_url || "" });
+    setEditing(item.id); setShowForm(true);
+  };
+
+  const prodCounts = {};
+  items.forEach((item) => { prodCounts[item.product || "general"] = (prodCounts[item.product || "general"] || 0) + 1; });
+
+  return (
+    <div style={{ width: "100%", maxWidth: 960 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4BC}"} Broker Toolkit</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Product sheets, email copy, social packs, and broker-facing materials.</p>
+        </div>
+        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Asset"}</button>}
+      </div>
+
+      {showForm && isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Motor One-Pager" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Product</label><select value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>{PRODUCTS.filter((p) => p.key !== "all").map((p) => <option key={p.key} value={p.key}>{p.icon} {p.label}</option>)}</select></div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>{Object.entries(ASSET_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>File URL (optional)</label><input value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="https://..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+          </div>
+          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of this asset..." rows={2} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }} /></div>
+          <button onClick={handleSave} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update Asset" : "Add Asset"}</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {PRODUCTS.map((p) => {
+          const count = p.key === "all" ? items.length : (prodCounts[p.key] || 0);
+          return <button key={p.key} onClick={() => setFilter(p.key)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === p.key ? "var(--brand)" : "var(--border)"), background: filter === p.key ? "var(--brand)" : "var(--bg-card)", color: filter === p.key ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}><span>{p.icon}</span> {p.label} {count > 0 && <span style={{ fontSize: 10, opacity: 0.7 }}>({count})</span>}</button>;
+        })}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>{"\u{1F4BC}"}</div>
+          <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{items.length === 0 ? "No assets yet" : "No assets for this product"}</p>
+          <p style={{ fontSize: 13, margin: 0 }}>{items.length === 0 && isAdmin ? "Add broker-facing materials to get started." : "Try a different filter."}</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {Object.entries(grouped).sort((a, b) => {
+            const order = PRODUCTS.map((p) => p.key);
+            return order.indexOf(a[0]) - order.indexOf(b[0]);
+          }).map(([prodKey, prodItems]) => {
+            const prod = PRODUCTS.find((p) => p.key === prodKey) || PRODUCTS[1];
+            return (
+              <div key={prodKey}>
+                {filter === "all" && <h3 style={{ margin: "8px 0 10px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{prod.icon} {prod.label}</h3>}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+                  {prodItems.map((item) => {
+                    const at = ASSET_TYPES[item.type] || ASSET_TYPES.other;
+                    return (
+                      <div key={item.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, position: "relative" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                          <span style={{ fontSize: 24 }}>{at.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
+                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{at.label}</div>
+                            {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>{item.description}</div>}
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 12px", background: "var(--brand)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, textDecoration: "none", transition: "all 0.15s" }}>{"\u2B07\uFE0F"} Download</a>}
+                              {isAdmin && <button onClick={() => startEdit(item)} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Edit</button>}
+                              {isAdmin && <button onClick={() => { if (window.confirm("Delete \"" + item.title + "\"?")) onDelete(item.id); }} style={{ padding: "4px 10px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, fontSize: 11, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -3118,6 +3419,7 @@ export default function App() {
   const [contentTemplates, setContentTemplates] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [galleryImages, setGalleryImages] = useState([]);
+  const [brokerToolkitItems, setBrokerToolkitItems] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [dashboardTab, setDashboardTab] = useState("tickets");
@@ -3248,6 +3550,29 @@ export default function App() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Load broker toolkit
+  useEffect(() => {
+    async function fbt() { const { data } = await supabase.from("broker_toolkit").select("*").order("created_at", { ascending: false }); if (data) setBrokerToolkitItems(data); }
+    fbt();
+    const ch = supabase.channel("broker-toolkit-rt").on("postgres_changes", { event: "*", schema: "public", table: "broker_toolkit" }, () => { fbt(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const handleBrokerToolkitSave = async (item) => {
+    if (item.id) {
+      const { error } = await supabase.from("broker_toolkit").update({ title: item.title, product: item.product, type: item.type, description: item.description, file_url: item.file_url }).eq("id", item.id);
+      if (error) toast("Failed to update", "error"); else toast("Asset updated", "success");
+    } else {
+      const { error } = await supabase.from("broker_toolkit").insert({ title: item.title, product: item.product, type: item.type, description: item.description, file_url: item.file_url });
+      if (error) toast("Failed to add asset", "error"); else toast("Asset added", "success");
+    }
+  };
+
+  const handleBrokerToolkitDelete = async (id) => {
+    const { error } = await supabase.from("broker_toolkit").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else toast("Asset deleted", "success");
+  };
+
   const handleGalleryUpload = async (file, category) => {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = "gallery/" + Date.now() + "_" + safeName;
@@ -3279,6 +3604,7 @@ export default function App() {
       status: row.status,
       createdAt: row.created_at,
       completedAt: row.completed_at || null,
+      updatedAt: row.updated_at || row.created_at,
       pinned: row.pinned || false,
       files,
       notes: row.notes || [],
@@ -3465,7 +3791,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -3615,19 +3941,20 @@ export default function App() {
               {currentSection === "brand" && <button className="active">Brand Assets</button>}
               {currentSection === "calendar" && <button className="active">Content Calendar</button>}
               {currentSection === "gallery" && <button className="active">Alps Gallery</button>}
+              {currentSection === "broker_toolkit" && <button className="active">Broker Toolkit</button>}
             </nav>
           </div>
         )}
       </header>
 
-      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -3672,6 +3999,8 @@ export default function App() {
           <ContentCalendar events={calendarEvents} isAdmin={dashUnlocked} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
         ) : view === "gallery" ? (
           <AlpsGallery images={galleryImages} isAdmin={dashUnlocked} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
+        ) : view === "broker_toolkit" ? (
+          <BrokerToolkit items={brokerToolkitItems} isAdmin={dashUnlocked} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
