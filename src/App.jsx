@@ -292,6 +292,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
             { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", color: "#0d9488" },
             { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials by product", color: "#ea580c" },
+            { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance", color: "#6366f1" },
           ].map((r) => (
             <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
@@ -310,7 +311,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
             { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
             { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
-            { id: "guide", icon: "\u{1F4D6}", label: "Self-Service Guide", color: "#ca8a04" },
+            { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base", color: "#ca8a04" },
             { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", color: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
             { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
             { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", color: "#6366f1", soon: true },
@@ -374,13 +375,11 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
           )}
         </div>
       </div>
+
+      <Changelog />
     </div>
   );
 }
-
-
-
-
 
 
 function PasswordGate({ onUnlock, dashPassword }) {
@@ -542,10 +541,12 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingPriority, setEditingPriority] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
+  const [timeSpent, setTimeSpent] = useState("");
   const [newDeadline, setNewDeadline] = useState(ticket.deadline || "");
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status] || STATUS_FALLBACK;
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
   const today = new Date().toISOString().split("T")[0];
 
   const submitNote = () => {
@@ -677,7 +678,8 @@ function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, o
                     {"\u25B6"} Start Progress
                   </button>
                 )}
-                <button onClick={() => onComplete(ticket.id)} style={{ padding: "8px 16px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(22,163,74,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(22,163,74,0.1)"}>
+                <select value={timeSpent} onChange={(e) => setTimeSpent(e.target.value)} style={{ padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, color: "var(--text-secondary)", outline: "none", cursor: "pointer" }}><option value="">Time spent?</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 hour</option><option value="2h">2 hours</option><option value="half_day">Half day</option><option value="full_day">Full day</option><option value="multi_day">Multi-day</option></select>
+                <button onClick={() => onComplete(ticket.id, timeSpent)} style={{ padding: "8px 16px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(22,163,74,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(22,163,74,0.1)"}>
                   {"\u2713"} Mark Complete
                 </button>
               </>
@@ -709,6 +711,7 @@ function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTo
   const p = PRIORITIES[ticket.priority];
   const s = STATUS[ticket.status] || STATUS_FALLBACK;
   const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
   const isOverdue = dueBadge && dueBadge.color === "#dc2626";
 
   return (
@@ -773,7 +776,7 @@ function StatsBar({ tickets }) {
   );
 }
 
-function AnalyticsPanel({ tickets, archiveEntries, leads }) {
+function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, onGoalSave, onGoalDelete }) {
   const [tab, setTab] = useState("tickets");
   const ts = (key) => ({ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: tab === key ? "var(--brand)" : "transparent", color: tab === key ? "#fff" : "var(--text-secondary)" });
   const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 };
@@ -958,6 +961,7 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
           "TICKETS",
           "  Submitted: " + mtTC, "  Completed: " + mtTD,
           "  Active Backlog: " + at.length, "  Avg Turnaround: " + fmtH(mtAvg),
+          "  Total Time Logged: " + (() => { const TIME_MINS = { "15m": 15, "30m": 30, "1h": 60, "2h": 120, "half_day": 240, "full_day": 480, "multi_day": 960 }; const total = tickets.filter((t) => t.timeSpent && new Date(t.createdAt) >= som).reduce((s, t) => s + (TIME_MINS[t.timeSpent] || 0), 0); const h = Math.floor(total / 60); const m = total % 60; return h > 0 ? h + "h " + m + "m" : m + "m"; })(),
           ...Object.entries(mtPri).map(([k, v]) => "  " + (PRIORITIES[k] ? PRIORITIES[k].label : k) + ": " + v), "",
           "OUTBOUND CONTENT",
           "  Pieces Published: " + mtA,
@@ -1499,7 +1503,7 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} />)}
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={(id, ts) => onComplete(id, ts)} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} />)}
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
@@ -1554,6 +1558,7 @@ function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm }) {
           const p = PRIORITIES[ticket.priority];
           const s = STATUS[ticket.status] || STATUS_FALLBACK;
           const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
           return (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
@@ -2131,6 +2136,8 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
 
   return (
     <div style={{ width: "100%" }}>
+      <TeamGoals goals={teamGoals || []} isAdmin={isAdmin} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F3A8}"} Brand Assets</h2>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
@@ -2843,7 +2850,7 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ title: "", type: "social", description: "", createTicket: false });
+  const [form, setForm] = useState({ title: "", type: "social", description: "", createTicket: false, status: "planned" });
   const [viewMode, setViewMode] = useState("month");
   const [dragItem, setDragItem] = useState(null);
 
@@ -2853,6 +2860,12 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
     event: { label: "Event", color: "#8b5cf6", icon: "\u{1F389}" },
     deadline: { label: "Deadline", color: "#dc2626", icon: "\u23F0" },
     survey: { label: "Survey", color: "#ca8a04", icon: "\u{1F4CB}" },
+  };
+
+  const EVENT_STATUS = {
+    planned: { label: "Planned", color: "#64748b" },
+    in_progress: { label: "In Progress", color: "#ca8a04" },
+    published: { label: "Published", color: "#16a34a" },
   };
 
   const year = currentDate.getFullYear();
@@ -2883,8 +2896,8 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
   const handleSave = () => {
     if (!form.title.trim() || !selectedDate) return;
     const dateStr = "" + year + "-" + String(month + 1).padStart(2, "0") + "-" + String(selectedDate).padStart(2, "0");
-    onSave({ ...form, date: dateStr, id: editing || undefined });
-    setForm({ title: "", type: "social", description: "", createTicket: false });
+    onSave({ ...form, date: dateStr, id: editing || undefined, status: form.status });
+    setForm({ title: "", type: "social", description: "", createTicket: false, status: "planned" });
     setEditing(null);
   };
 
@@ -3017,8 +3030,9 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
               <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" style={{ ...inputStyle, marginBottom: 8 }} />
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <button onClick={handleSave} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update" : "Add Event"}</button>
+                <div style={{ marginBottom: 8 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Status</label><div style={{ display: "flex", gap: 4 }}>{Object.entries(EVENT_STATUS).map(([k, v]) => <button key={k} onClick={() => setForm({ ...form, status: k })} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (form.status === k ? v.color : "var(--border)"), background: form.status === k ? v.color + "18" : "transparent", fontSize: 10, fontWeight: 600, cursor: "pointer", color: form.status === k ? v.color : "var(--text-muted)" }}>{v.label}</button>)}</div></div>
                 {!editing && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={form.createTicket} onChange={(e) => setForm({ ...form, createTicket: e.target.checked })} style={{ accentColor: "var(--brand)" }} />Also create a ticket</label>}
-                {editing && <button onClick={() => { setEditing(null); setForm({ title: "", type: "social", description: "", createTicket: false }); }} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "var(--text-secondary)" }}>Cancel</button>}
+                {editing && <button onClick={() => { setEditing(null); setForm({ title: "", type: "social", description: "", createTicket: false, status: "planned" }); }} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "var(--text-secondary)" }}>Cancel</button>}
               </div>
             </div>
           )}
@@ -3544,6 +3558,339 @@ function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
   );
 }
 
+function CampaignTracker({ campaigns, tickets, archiveEntries, leads, calendarEvents, isAdmin, onSave, onDelete }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: "", description: "", status: "active", start_date: "", end_date: "" });
+  const [expanded, setExpanded] = useState(null);
+
+  const CAMPAIGN_STATUS = {
+    planning: { label: "Planning", color: "#64748b" },
+    active: { label: "Active", color: "#16a34a" },
+    completed: { label: "Completed", color: "#2563eb" },
+    paused: { label: "Paused", color: "#ca8a04" },
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave({ ...form, id: editing || undefined });
+    setForm({ name: "", description: "", status: "active", start_date: "", end_date: "" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const getCampaignData = (c) => {
+    const tag = c.name.toLowerCase();
+    const cTickets = tickets.filter((t) => (t.title || "").toLowerCase().includes(tag) || (t.description || "").toLowerCase().includes(tag));
+    const cArchive = (archiveEntries || []).filter((e) => (e.title || "").toLowerCase().includes(tag));
+    const cEvents = (calendarEvents || []).filter((e) => (e.title || "").toLowerCase().includes(tag));
+    const cLeads = leads.filter((l) => (l.notes || "").toLowerCase().includes(tag) || (l.product || "").toLowerCase().includes(tag));
+    return { tickets: cTickets, archive: cArchive, events: cEvents, leads: cLeads };
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 960 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F3AF}"} Campaign Tracker</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Group tickets, content, and leads under campaigns.</p>
+        </div>
+        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ name: "", description: "", status: "active", start_date: "", end_date: "" }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 New Campaign"}</button>}
+      </div>
+
+      {showForm && isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Campaign Name</label><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Q2 Motor Push" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Status</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
+          </div>
+          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Campaign objectives..." style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "end" }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Start</label><input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} style={inputStyle} /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>End</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} style={inputStyle} /></div>
+            <button onClick={handleSave} disabled={!form.name.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: form.name.trim() ? 1 : 0.5 }}>{editing ? "Update" : "Create"}</button>
+          </div>
+        </div>
+      )}
+
+      {campaigns.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>{"\u{1F3AF}"}</div>
+          <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>No campaigns yet</p>
+          <p style={{ fontSize: 13, margin: 0 }}>Create a campaign to group related marketing activity.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {campaigns.map((c) => {
+            const st = CAMPAIGN_STATUS[c.status] || CAMPAIGN_STATUS.active;
+            const data = getCampaignData(c);
+            const isExp = expanded === c.id;
+            return (
+              <div key={c.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                <div onClick={() => setExpanded(isExp ? null : c.id)} style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 22 }}>{"\u{1F3AF}"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ padding: "2px 8px", borderRadius: 20, background: st.color + "18", color: st.color, fontWeight: 600 }}>{st.label}</span>
+                      <span>{data.tickets.length} tickets</span>
+                      <span>{data.archive.length} content</span>
+                      <span>{data.events.length} events</span>
+                      <span>{data.leads.length} leads</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 14, color: "var(--text-muted)", transition: "transform 0.2s", transform: isExp ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
+                </div>
+                {isExp && (
+                  <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border)" }}>
+                    {c.description && <p style={{ margin: "12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{c.description}</p>}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+                      <div><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Linked Tickets</div>{data.tickets.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None found</div> : data.tickets.slice(0, 5).map((t) => <div key={t.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0" }}><span style={{ fontWeight: 600, color: "var(--brand)" }}>{t.ref}</span> {t.title}</div>)}</div>
+                      <div><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Content Output</div>{data.archive.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None found</div> : data.archive.slice(0, 5).map((e, i) => <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0" }}>{e.title}</div>)}</div>
+                    </div>
+                    {isAdmin && <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                      <button onClick={() => { setForm({ name: c.name, description: c.description || "", status: c.status, start_date: c.start_date || "", end_date: c.end_date || "" }); setEditing(c.id); setShowForm(true); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 11, cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>
+                      <button onClick={() => { if (window.confirm("Delete this campaign?")) onDelete(c.id); }} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #fecaca", background: "transparent", fontSize: 11, cursor: "pointer", color: "#dc2626" }}>Delete</button>
+                    </div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [expanded, setExpanded] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ title: "", category: "general", content: "", order: 0 });
+
+  const CATEGORIES = [
+    { key: "all", label: "All" },
+    { key: "general", label: "General" },
+    { key: "brand", label: "Brand & Design" },
+    { key: "process", label: "Processes" },
+    { key: "tools", label: "Tools & How-To" },
+    { key: "policies", label: "Policies" },
+  ];
+
+  const filtered = articles.filter((a) => {
+    if (category !== "all" && a.category !== category) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (a.title || "").toLowerCase().includes(q) || (a.content || "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const handleSave = () => {
+    if (!form.title.trim() || !form.content.trim()) return;
+    onSave({ ...form, id: editing || undefined });
+    setForm({ title: "", category: "general", content: "", order: 0 });
+    setShowForm(false); setEditing(null);
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 800 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4D6}"} Knowledge Base</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Guides, FAQs, and how-to articles.</p>
+        </div>
+        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", category: "general", content: "", order: 0 }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Article"}</button>}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search articles..." style={{ ...inputStyle, paddingLeft: 34 }} />
+        </div>
+        <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
+          {CATEGORIES.map((c) => <button key={c.key} onClick={() => setCategory(c.key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: "pointer", border: "none", background: category === c.key ? "var(--brand)" : "transparent", color: category === c.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{c.label}</button>)}
+        </div>
+      </div>
+
+      {showForm && isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Title</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Article title" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{CATEGORIES.filter((c) => c.key !== "all").map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></div>
+          </div>
+          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Content (Markdown supported)</label><textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+          <button onClick={handleSave} disabled={!form.title.trim() || !form.content.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: (form.title.trim() && form.content.trim()) ? 1 : 0.5 }}>{editing ? "Update" : "Publish"}</button>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>{"\u{1F4D6}"}</div>
+          <p style={{ fontSize: 14, margin: 0 }}>{search.trim() ? "No articles matching your search" : "No articles yet"}</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.map((a) => {
+            const isExp = expanded === a.id;
+            const cat = CATEGORIES.find((c) => c.key === a.category) || CATEGORIES[1];
+            return (
+              <div key={a.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                <div onClick={() => setExpanded(isExp ? null : a.id)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>{"\u{1F4C4}"}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{a.title}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{cat.label}</div>
+                  </div>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "transform 0.2s", transform: isExp ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
+                </div>
+                {isExp && (
+                  <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border)" }}>
+                    <div style={{ margin: "14px 0", fontSize: 14, color: "var(--text-body)", lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(a.content || "") }}></div>
+                    {isAdmin && <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { setForm({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }); setEditing(a.id); setShowForm(true); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 11, cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>
+                      <button onClick={() => { if (window.confirm("Delete this article?")) onDelete(a.id); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #fecaca", background: "transparent", fontSize: 11, cursor: "pointer", color: "#dc2626" }}>Delete</button>
+                    </div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamGoals({ goals, isAdmin, onSave, onDelete, tickets, archiveEntries, leads }) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", target: 10, metric: "tickets_completed", period: "monthly" });
+  const [editing, setEditing] = useState(null);
+
+  const METRICS = {
+    tickets_completed: { label: "Tickets Completed", calc: (t, a, l, start, end) => t.filter((tk) => tk.completedAt && new Date(tk.completedAt) >= start && new Date(tk.completedAt) <= end).length },
+    tickets_submitted: { label: "Tickets Submitted", calc: (t, a, l, start, end) => t.filter((tk) => new Date(tk.createdAt) >= start && new Date(tk.createdAt) <= end).length },
+    content_published: { label: "Content Published", calc: (t, a, l, start, end) => (a || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= start && d <= end; }).length },
+    leads_generated: { label: "Leads Generated", calc: (t, a, l, start, end) => l.filter((ld) => new Date(ld.created_at) >= start && new Date(ld.created_at) <= end).length },
+  };
+
+  const getPeriodDates = (period) => {
+    const now = new Date();
+    let start, end;
+    if (period === "weekly") {
+      start = new Date(now); start.setDate(now.getDate() - ((now.getDay() + 6) % 7)); start.setHours(0,0,0,0);
+      end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+    } else if (period === "monthly") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1);
+      end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59, 999);
+    }
+    return { start, end };
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave({ ...form, id: editing || undefined });
+    setForm({ title: "", target: 10, metric: "tickets_completed", period: "monthly" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>{"\u{1F3AF}"}</span>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Team Goals</h3>
+        </div>
+        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); }} style={{ padding: "6px 12px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 6, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Goal"}</button>}
+      </div>
+
+      {showForm && isAdmin && (
+        <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, alignItems: "end" }}>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Goal</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Complete 20 tickets" /></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Target</label><input type="number" style={inputStyle} value={form.target} onChange={(e) => setForm({ ...form, target: Number(e.target.value) })} /></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Metric</label><select value={form.metric} onChange={(e) => setForm({ ...form, metric: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(METRICS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Period</label><select value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></div>
+          </div>
+          <button onClick={handleSave} style={{ marginTop: 10, padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update" : "Add Goal"}</button>
+        </div>
+      )}
+
+      {goals.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>No goals set. {isAdmin ? "Add goals to track progress." : ""}</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {goals.map((g) => {
+            const m = METRICS[g.metric] || METRICS.tickets_completed;
+            const { start, end } = getPeriodDates(g.period);
+            const current = m.calc(tickets, archiveEntries, leads, start, end);
+            const pct = Math.min(Math.round((current / (g.target || 1)) * 100), 100);
+            const hit = current >= g.target;
+            return (
+              <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{g.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: hit ? "#16a34a" : "var(--brand)" }}>{current}/{g.target}</span>
+                  </div>
+                  <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: pct + "%", background: hit ? "#16a34a" : "var(--brand)", borderRadius: 3, transition: "width 0.3s" }}></div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>{m.label} {"\u2022"} {g.period}</div>
+                </div>
+                {hit && <span style={{ fontSize: 16 }}>{"\u2705"}</span>}
+                {isAdmin && <button onClick={() => { if (window.confirm("Delete this goal?")) onDelete(g.id); }} style={{ padding: "3px 6px", border: "1px solid var(--border)", borderRadius: 4, background: "transparent", fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{"\u2715"}</button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Changelog() {
+  const entries = [
+    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns for unified reporting." },
+    { date: "Mar 2026", title: "Knowledge Base", desc: "Searchable articles replacing the old Self-Service Guide. Admin can add and edit." },
+    { date: "Mar 2026", title: "Team Goals & KPIs", desc: "Set targets and track progress in the Analytics dashboard." },
+    { date: "Mar 2026", title: "Admin Panel", desc: "OOO mode, password management, announcement banners, and data export." },
+    { date: "Mar 2026", title: "Recurring Tickets", desc: "Automated ticket creation on weekly/monthly schedules." },
+    { date: "Mar 2026", title: "Image Editor Upgrades", desc: "Resize presets for social platforms, JPEG/WEBP export with quality control." },
+    { date: "Mar 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails, video backgrounds, branded templates by category." },
+    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with categories, search, and one-click download." },
+    { date: "Feb 2026", title: "Broker Toolkit", desc: "Broker-facing materials organised by product line." },
+    { date: "Feb 2026", title: "Analytics & Reports", desc: "Weekly and monthly reports with PDF export and trend charts." },
+    { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Ticket system, content calendar, brand assets, and dashboards." },
+  ];
+  return (
+    <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+      <h3 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>{"\u{1F4DD}"} WHAT'S NEW</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+        {entries.slice(0, 6).map((e, i) => (
+          <div key={i} style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>{e.date}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{e.title}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{e.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -3912,6 +4259,9 @@ export default function App() {
   const [oooSummaryDismissed, setOooSummaryDismissed] = useState(false);
   const [dashPassword, setDashPassword] = useState("Sunnyside!");
   const [announcement, setAnnouncement] = useState({ text: "", active: false, link: "" });
+  const [campaigns, setCampaigns] = useState([]);
+  const [kbArticles, setKbArticles] = useState([]);
+  const [teamGoals, setTeamGoals] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [dashboardTab, setDashboardTab] = useState("tickets");
@@ -4047,6 +4397,30 @@ export default function App() {
     async function fbt() { const { data } = await supabase.from("broker_toolkit").select("*").order("created_at", { ascending: false }); if (data) setBrokerToolkitItems(data); }
     fbt();
     const ch = supabase.channel("broker-toolkit-rt").on("postgres_changes", { event: "*", schema: "public", table: "broker_toolkit" }, () => { fbt(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load campaigns
+  useEffect(() => {
+    async function fca() { const { data } = await supabase.from("campaigns").select("*").order("created_at", { ascending: false }); if (data) setCampaigns(data); }
+    fca();
+    const ch = supabase.channel("campaigns-rt").on("postgres_changes", { event: "*", schema: "public", table: "campaigns" }, () => { fca(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load knowledge base articles
+  useEffect(() => {
+    async function fkb() { const { data } = await supabase.from("kb_articles").select("*").order("order", { ascending: true }); if (data) setKbArticles(data); }
+    fkb();
+    const ch = supabase.channel("kb-rt").on("postgres_changes", { event: "*", schema: "public", table: "kb_articles" }, () => { fkb(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load team goals
+  useEffect(() => {
+    async function ftg() { const { data } = await supabase.from("team_goals").select("*").order("created_at", { ascending: true }); if (data) setTeamGoals(data); }
+    ftg();
+    const ch = supabase.channel("goals-rt").on("postgres_changes", { event: "*", schema: "public", table: "team_goals" }, () => { ftg(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -4193,6 +4567,27 @@ export default function App() {
     if (error) toast("Failed to update", "error"); else toast(paused ? "Schedule paused" : "Schedule resumed", "success");
   };
 
+  // Campaign handlers
+  const handleCampaignSave = async (c) => {
+    if (c.id) { await supabase.from("campaigns").update({ name: c.name, description: c.description, status: c.status, start_date: c.start_date || null, end_date: c.end_date || null }).eq("id", c.id); toast("Campaign updated", "success"); }
+    else { await supabase.from("campaigns").insert({ name: c.name, description: c.description, status: c.status, start_date: c.start_date || null, end_date: c.end_date || null }); toast("Campaign created", "success"); }
+  };
+  const handleCampaignDelete = async (id) => { await supabase.from("campaigns").delete().eq("id", id); toast("Campaign deleted", "success"); };
+
+  // Knowledge Base handlers
+  const handleKbSave = async (a) => {
+    if (a.id) { await supabase.from("kb_articles").update({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }).eq("id", a.id); toast("Article updated", "success"); }
+    else { await supabase.from("kb_articles").insert({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }); toast("Article published", "success"); }
+  };
+  const handleKbDelete = async (id) => { await supabase.from("kb_articles").delete().eq("id", id); toast("Article deleted", "success"); };
+
+  // Team Goals handlers
+  const handleGoalSave = async (g) => {
+    if (g.id) { await supabase.from("team_goals").update({ title: g.title, target: g.target, metric: g.metric, period: g.period }).eq("id", g.id); toast("Goal updated", "success"); }
+    else { await supabase.from("team_goals").insert({ title: g.title, target: g.target, metric: g.metric, period: g.period }); toast("Goal added", "success"); }
+  };
+  const handleGoalDelete = async (id) => { await supabase.from("team_goals").delete().eq("id", id); toast("Goal deleted", "success"); };
+
   const handleBrokerToolkitSave = async (item) => {
     if (item.id) {
       const { error } = await supabase.from("broker_toolkit").update({ title: item.title, product: item.product, type: item.type, description: item.description, file_url: item.file_url }).eq("id", item.id);
@@ -4239,6 +4634,7 @@ export default function App() {
       status: row.status,
       createdAt: row.created_at,
       completedAt: row.completed_at || null,
+      timeSpent: row.time_spent || null,
       updatedAt: row.updated_at || row.created_at,
       pinned: row.pinned || false,
       files,
@@ -4289,10 +4685,10 @@ export default function App() {
     }
   };
 
-  const handleComplete = async (id) => {
+  const handleComplete = async (id, timeSpent) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
-      const { error } = await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", ticket.dbId);
+      const { error } = await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString(), time_spent: timeSpent || null }).eq("id", ticket.dbId);
       if (error) toast("Failed to complete ticket", "error"); else toast("Ticket completed", "success");
     }
   };
@@ -4387,9 +4783,9 @@ export default function App() {
 
   const handleCalendarSave = async (event) => {
     if (event.id) {
-      await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description, date: event.date }).eq("id", event.id);
+      await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description, date: event.date, status: event.status || "planned" }).eq("id", event.id);
     } else {
-      const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date }]).select();
+      const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date, status: event.status || "planned" }]).select();
       if (event.createTicket && inserted && inserted[0]) {
         const nextRef = await getNextRef();
         await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, file_names: [], notes: [] });
@@ -4426,7 +4822,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : view === "admin" ? "admin" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : view === "campaigns" ? "campaigns" : view === "knowledge_base" ? "knowledge_base" : view === "admin" ? "admin" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -4508,13 +4904,13 @@ export default function App() {
           .hub-hero-grid { grid-template-columns: 1fr !important; }
           .hub-hero-split { grid-template-columns: 1fr !important; }
           .hub-editor-grid { grid-template-columns: 1fr !important; }
-          .hub-resource-grid { grid-template-columns: 1fr !important; }
+          .hub-resource-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-tickets-grid { grid-template-columns: 1fr !important; }
           .hub-layout-main { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr !important; }
           .hub-type-filter { display: none !important; }
           .hub-color-grid { grid-template-columns: repeat(3, 1fr) !important; }
-          .hub-main { padding: 20px 14px !important; }
+          .hub-main { padding: 20px 14px 80px 14px !important; }
           .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
           .hub-template-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -4524,7 +4920,13 @@ export default function App() {
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-week-compare { flex-direction: column; gap: 4px !important; }
           .hub-secondary-nav { overflow-x: auto; flex-wrap: nowrap; }
+          .hub-mobile-nav { display: flex !important; }
+          .hub-desktop-nav { display: none !important; }
+          h2 { font-size: 20px !important; }
         }
+        .hub-mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); }
+        .hub-mobile-nav button { background: none; border: none; padding: 6px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; transition: color 0.15s; }
+        .hub-mobile-nav button.active { color: var(--brand); }
       `}</style>
 
       <header style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--bg-header)", borderBottom: "1px solid var(--border)", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
@@ -4577,13 +4979,15 @@ export default function App() {
               {currentSection === "calendar" && <button className="active">Content Calendar</button>}
               {currentSection === "gallery" && <button className="active">Alps Gallery</button>}
               {currentSection === "broker_toolkit" && <button className="active">Broker Toolkit</button>}
+              {currentSection === "campaigns" && <button className="active">Campaigns</button>}
+              {currentSection === "knowledge_base" && <button className="active">Knowledge Base</button>}
               {currentSection === "admin" && <button className="active">Admin Panel</button>}
             </nav>
           </div>
         )}
       </header>
 
-      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit" || view === "admin") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit" || view === "admin" || view === "campaigns" || view === "knowledge_base") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
@@ -4610,7 +5014,7 @@ export default function App() {
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
-          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
         ) : view === "archive" ? (
           <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (
@@ -4624,7 +5028,7 @@ export default function App() {
         ) : view === "templates" ? (
           <ContentTemplates templates={contentTemplates} isAdmin={dashUnlocked} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
         ) : view === "guide" ? (
-          <SelfServiceGuide />
+          <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "converter" ? (
           <FileConverter />
         ) : view === "qr_generator" ? (
@@ -4637,6 +5041,10 @@ export default function App() {
           <AlpsGallery images={galleryImages} isAdmin={dashUnlocked} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "broker_toolkit" ? (
           <BrokerToolkit items={brokerToolkitItems} isAdmin={dashUnlocked} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
+        ) : view === "campaigns" ? (
+          <CampaignTracker campaigns={campaigns} tickets={tickets} archiveEntries={archiveEntries} leads={leads} calendarEvents={calendarEvents} isAdmin={dashUnlocked} onSave={handleCampaignSave} onDelete={handleCampaignDelete} />
+        ) : view === "knowledge_base" ? (
+          <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "admin" ? (
           <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} />
         ) : (
@@ -4651,12 +5059,20 @@ export default function App() {
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
-              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
             )}
           </div>
         )}
       </main>
       {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
+      <div className="hub-mobile-nav">
+        <button onClick={() => setView("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
+        <button onClick={() => setView("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Ticket</button>
+        <button onClick={() => setView("tracker")} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
+        <button onClick={() => { if (dashUnlocked) setView("dashboard"); else setView("password"); }} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
+        <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
+      </div>
+
       <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

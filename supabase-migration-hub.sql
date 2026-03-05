@@ -195,3 +195,46 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public access to app_settings" ON app_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- Campaigns table
+CREATE TABLE IF NOT EXISTS campaigns (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active',
+  start_date DATE,
+  end_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to campaigns" ON campaigns FOR ALL USING (true) WITH CHECK (true);
+
+-- Knowledge Base articles
+CREATE TABLE IF NOT EXISTS kb_articles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'general',
+  content TEXT,
+  "order" INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE kb_articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to kb_articles" ON kb_articles FOR ALL USING (true) WITH CHECK (true);
+
+-- Team Goals
+CREATE TABLE IF NOT EXISTS team_goals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  target INTEGER DEFAULT 10,
+  metric TEXT DEFAULT 'tickets_completed',
+  period TEXT DEFAULT 'monthly',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE team_goals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to team_goals" ON team_goals FOR ALL USING (true) WITH CHECK (true);
+
+-- Add time_spent to tickets
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS time_spent TEXT;
+
+-- Add status to calendar_events
+ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'planned';
