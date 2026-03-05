@@ -238,3 +238,28 @@ ALTER TABLE tickets ADD COLUMN IF NOT EXISTS time_spent TEXT;
 
 -- Add status to calendar_events
 ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'planned';
+
+-- Hub users table
+CREATE TABLE IF NOT EXISTS hub_users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  role TEXT DEFAULT 'user',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE hub_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to hub_users" ON hub_users FOR ALL USING (true) WITH CHECK (true);
+
+-- Insert default admin user
+INSERT INTO hub_users (name, username, password, role) VALUES ('Tom Thomas', 'tom', 'Sunnyside!', 'admin') ON CONFLICT (username) DO NOTHING;
+
+-- Audit log table
+CREATE TABLE IF NOT EXISTS audit_log (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_name TEXT NOT NULL,
+  action TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to audit_log" ON audit_log FOR ALL USING (true) WITH CHECK (true);

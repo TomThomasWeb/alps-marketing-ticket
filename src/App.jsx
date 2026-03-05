@@ -122,21 +122,13 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, dashPassword }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const [loginPw, setLoginPw] = useState("");
-  const [loginError, setLoginError] = useState(false);
-  const [loginShake, setLoginShake] = useState(false);
   const [homeTab, setHomeTab] = useState("resources");
-
-  const tryLogin = () => {
-    if (loginPw === dashPassword) { onUnlockInline(); setLoginPw(""); }
-    else { setLoginError(true); setLoginShake(true); setTimeout(() => setLoginShake(false), 500); setLoginPw(""); }
-  };
 
   const feedItems = (() => {
     const items = [];
@@ -321,54 +313,21 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         )}
 
         {homeTab === "dashboards" && (
-          <div>
-            <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
-              {[
-                { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" },
-                { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" },
-                { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" },
-              ].map((d) => (
-                <button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover">
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 22 }}>{d.icon}</span>
-                    {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>
-                </button>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <button onClick={() => onNavigate("admin")} style={cardBase} className="hub-card-hover">
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>{"\u2699\uFE0F"}</span>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Admin Panel</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{oooActive ? "OOO Active" : "Settings & controls"}</div>
-                  </div>
+          <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" },
+              { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" },
+              { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" },
+            ].map((d) => (
+              <button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 22 }}>{d.icon}</span>
+                  {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
                 </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>
               </button>
-              {!dashUnlocked ? (
-                <div style={{ ...cardBase, cursor: "default", animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{"\u{1F512}"} Unlock dashboards</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "7px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
-                    <button onClick={tryLogin} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
-                  </div>
-                  {loginError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Wrong password</div>}
-                </div>
-              ) : (
-                <div style={{ ...cardBase, cursor: "default", background: "var(--brand-light)", borderColor: "var(--brand)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 18 }}>{"\u2705"}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>Unlocked</div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All dashboards enabled</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         )}
       </div>
@@ -379,46 +338,52 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
 }
 
 
-function PasswordGate({ onUnlock, dashPassword }) {
-  const [pw, setPw] = useState("");
-  const [error, setError] = useState(false);
+function LoginPage({ onLogin, hubUsers }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
   const inputRef = useRef();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = () => {
-    if (pw === dashPassword) {
-      onUnlock();
+    if (!username.trim() || !password.trim()) return;
+    const user = hubUsers.find((u) => u.username === username.trim() && u.password === password);
+    if (user) {
+      onLogin({ id: user.id, name: user.name, username: user.username, role: user.role });
     } else {
-      setError(true);
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      setPw("");
-      inputRef.current?.focus();
+      setError("Invalid username or password");
+      setShake(true); setTimeout(() => setShake(false), 500);
+      setPassword("");
     }
   };
 
+  const inputStyle = { width: "100%", padding: "12px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border 0.2s" };
+
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 80px)", padding: 24 }}>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 32, maxWidth: 400, width: "100%", textAlign: "center", animation: shake ? "shakeAnim 0.4s ease" : "none" }}>
-        <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(35,29,104,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>{"\u{1F512}"}</div>
-        <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>Dashboard Access</h2>
-        <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Enter the password to view the ticket dashboard.</p>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input ref={inputRef} type="password" value={pw} onChange={(e) => { setPw(e.target.value); setError(false); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={{ flex: 1, padding: "11px 14px", background: "var(--bg-input)", border: "1px solid " + (error ? "#ef4444" : "var(--border)"), borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s" }} onFocus={(e) => { e.target.style.borderColor = error ? "#ef4444" : "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px " + (error ? "rgba(239,68,68,0.1)" : "var(--brand-glow)"); }} onBlur={(e) => { e.target.style.borderColor = error ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-          <button onClick={handleSubmit} style={{ padding: "11px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>
-            Unlock
-          </button>
+    <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 40, animation: shake ? "shakeAnim 0.4s ease" : "none" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>{"\u{1F512}"}</div>
+        <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Log In</h2>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Sign in to access dashboards and admin features.</p>
+        <div style={{ marginBottom: 12 }}>
+          <input ref={inputRef} type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Username" style={inputStyle} />
         </div>
-        {error && <p style={{ margin: "12px 0 0", fontSize: 13, color: "#ef4444", fontWeight: 500 }}>Incorrect password. Please try again.</p>}
+        <div style={{ marginBottom: 16 }}>
+          <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={inputStyle} />
+        </div>
+        {error && <div style={{ fontSize: 13, color: "#ef4444", marginBottom: 12 }}>{error}</div>}
+        <button onClick={handleSubmit} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>Log In</button>
+        {hubUsers.length === 0 && <p style={{ margin: "16px 0 0", fontSize: 12, color: "var(--text-muted)" }}>No users set up yet. Add users via the Admin Panel.</p>}
       </div>
     </div>
   );
 }
 
-function TicketForm({ onSubmit }) {
+function TicketForm({ onSubmit, currentUser }) {
   const [form, setForm] = useState({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
+  useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef();
@@ -1113,7 +1078,7 @@ function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, on
 }
 
 
-function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, onSaveSetting, galleryImages, kbArticles }) {
+function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog }) {
   const [adminTab, setAdminTab] = useState("overview");
   const [returnDate, setReturnDate] = useState(oooReturnDate || "");
   const [showSummary, setShowSummary] = useState(false);
@@ -1124,6 +1089,9 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
   const [annActive, setAnnActive] = useState(announcement?.active || false);
   const [annLink, setAnnLink] = useState(announcement?.link || "");
   const [exporting, setExporting] = useState(false);
+  const [userForm, setUserForm] = useState({ name: "", username: "", password: "", role: "user" });
+  const [editingUser, setEditingUser] = useState(null);
+  const [showUserForm, setShowUserForm] = useState(false);
   const [memo, setMemo] = useState("");
   const [memoSaved, setMemoSaved] = useState(false);
   const [memoLoaded, setMemoLoaded] = useState(false);
@@ -1239,6 +1207,8 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
         {tabBtn("settings", "\u2699\uFE0F Settings")}
         {tabBtn("schedules", "\u{1F501} Schedules")}
         {tabBtn("data", "\u{1F4E5} Data")}
+        {tabBtn("users", "\u{1F465} Users")}
+        {tabBtn("audit", "\u{1F4DC} Log")}
       </div>
 
       {adminTab === "overview" && (<>
@@ -1361,6 +1331,71 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
               </div>
             ))}
           </div>
+        </div>
+      </>)}
+
+      {adminTab === "users" && (<>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F465}"} User Management</h3>
+            <button onClick={() => { setShowUserForm(!showUserForm); setEditingUser(null); setUserForm({ name: "", username: "", password: "", role: "user" }); }} style={{ padding: "6px 12px", background: showUserForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 6, color: showUserForm ? "var(--text-primary)" : "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{showUserForm ? "Cancel" : "\u2795 Add User"}</button>
+          </div>
+
+          {showUserForm && (
+            <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Full Name</label><input style={inputStyle} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} placeholder="e.g. Tom Thomas" /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Username</label><input style={inputStyle} value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} placeholder="e.g. tom" /></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>{editingUser ? "New Password (leave blank to keep)" : "Password"}</label><input type="password" style={inputStyle} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} placeholder={editingUser ? "Leave blank to keep" : "Password"} /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Role</label><select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="admin">Admin</option><option value="user">User</option></select></div>
+              </div>
+              <button onClick={() => { if (!userForm.name.trim() || !userForm.username.trim() || (!editingUser && !userForm.password.trim())) return; if (editingUser) { onUpdateUser(editingUser, userForm); } else { onAddUser(userForm); } setUserForm({ name: "", username: "", password: "", role: "user" }); setShowUserForm(false); setEditingUser(null); }} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editingUser ? "Update User" : "Add User"}</button>
+            </div>
+          )}
+
+          {(hubUsers || []).length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>No users yet. Add a user to enable login.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(hubUsers || []).map((u) => (
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 16, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{u.name ? u.name.charAt(0).toUpperCase() : "?"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>@{u.username} {"\u2022"} {u.role}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => { setUserForm({ name: u.name, username: u.username, password: "", role: u.role }); setEditingUser(u.id); setShowUserForm(true); }} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>
+                    <button onClick={() => { if (window.confirm("Delete user " + u.name + "?")) onDeleteUser(u.id); }} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #fecaca", background: "transparent", fontSize: 10, cursor: "pointer", color: "#dc2626" }}>{"\u2715"}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </>)}
+
+      {adminTab === "audit" && (<>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4DC}"} Activity Audit Log</h3>
+          <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Recent admin actions and system events.</p>
+          {(auditLog || []).length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>No activity recorded yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {(auditLog || []).map((entry, i) => (
+                <div key={entry.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < auditLog.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u{1F4DD}"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-primary)" }}>{entry.action}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{entry.user_name} {"\u2022"} {new Date(entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </>)}
     </div>
@@ -1861,8 +1896,9 @@ function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
 }
 
 
-function LeadForm({ onSave, onBackToHub }) {
+function LeadForm({ onSave, onBackToHub, currentUser }) {
   const [form, setForm] = useState({ broker: "", enquiry: "", source: "phone", logged_by: "", next_steps: "needs_action" });
+  useEffect(() => { if (currentUser?.name && !form.logged_by) setForm((f) => ({ ...f, logged_by: currentUser.name })); }, [currentUser]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const handleSave = async () => { if (!form.broker.trim() || !form.enquiry.trim() || !form.logged_by.trim()) return; setSaving(true); await onSave({ broker: form.broker.trim(), enquiry: form.enquiry.trim(), source: form.source, logged_by: form.logged_by.trim(), next_steps: form.next_steps }); setSaving(false); setSaved(true); };
@@ -4330,7 +4366,12 @@ function ActivityLog({ tickets }) {
 export default function App() {
   const [view, setView] = useState("hub");
   const [tickets, setTickets] = useState([]);
-  const [dashUnlocked, setDashUnlocked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { const u = localStorage.getItem('alps_hub_user'); return u ? JSON.parse(u) : null; } catch { return null; }
+  });
+  const dashUnlocked = !!currentUser;
+  const [hubUsers, setHubUsers] = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
   const [archiveEntries, setArchiveEntries] = useState([]);
@@ -4521,6 +4562,54 @@ export default function App() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Load hub users
+  useEffect(() => {
+    async function fu() { const { data } = await supabase.from("hub_users").select("*").order("created_at", { ascending: true }); if (data) setHubUsers(data); }
+    fu();
+    const ch = supabase.channel("users-rt").on("postgres_changes", { event: "*", schema: "public", table: "hub_users" }, () => { fu(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load audit log
+  useEffect(() => {
+    async function fal() { const { data } = await supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(50); if (data) setAuditLog(data); }
+    fal();
+    const ch = supabase.channel("audit-rt").on("postgres_changes", { event: "*", schema: "public", table: "audit_log" }, () => { fal(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const logAudit = async (action) => {
+    await supabase.from("audit_log").insert({ user_name: currentUser?.name || "System", action }).catch(() => {});
+  };
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    try { localStorage.setItem("alps_hub_user", JSON.stringify(user)); } catch {}
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try { localStorage.removeItem("alps_hub_user"); } catch {}
+    setView("hub");
+  };
+
+  // User management
+  const handleAddUser = async (u) => {
+    const { error } = await supabase.from("hub_users").insert({ name: u.name, username: u.username, password: u.password, role: u.role || "user" });
+    if (error) toast("Failed to add user", "error"); else { toast("User added", "success"); logAudit("Added user: " + u.name); }
+  };
+  const handleUpdateUser = async (id, u) => {
+    const updates = { name: u.name, username: u.username, role: u.role };
+    if (u.password) updates.password = u.password;
+    const { error } = await supabase.from("hub_users").update(updates).eq("id", id);
+    if (error) toast("Failed to update", "error"); else { toast("User updated", "success"); logAudit("Updated user: " + u.name); }
+  };
+  const handleDeleteUser = async (id) => {
+    const user = hubUsers.find((u) => u.id === id);
+    const { error } = await supabase.from("hub_users").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else { toast("User deleted", "success"); logAudit("Deleted user: " + (user?.name || "Unknown")); }
+  };
+
   // Load OOO settings
   useEffect(() => {
     async function loadSettings() {
@@ -4553,7 +4642,7 @@ export default function App() {
     if (existing) { await supabase.from("app_settings").update({ value }).eq("key", "dashboard_password"); }
     else { await supabase.from("app_settings").insert({ key: "dashboard_password", value }); }
     setDashPassword(newPw);
-    toast("Password updated", "success");
+    toast("Password updated", "success"); logAudit("Changed dashboard password");
   };
 
   const handleUpdateAnnouncement = async (ann) => {
@@ -4561,7 +4650,7 @@ export default function App() {
     if (existing) { await supabase.from("app_settings").update({ value: ann }).eq("key", "announcement"); }
     else { await supabase.from("app_settings").insert({ key: "announcement", value: ann }); }
     setAnnouncement(ann);
-    toast(ann.active ? "Announcement published" : "Announcement saved", "success");
+    toast(ann.active ? "Announcement published" : "Announcement saved", "success"); logAudit(ann.active ? "Published announcement" : "Updated announcement");
   };
 
   const toggleOoo = async (active, returnDate) => {
@@ -4576,6 +4665,7 @@ export default function App() {
     setOooReturnDate(returnDate || "");
     if (active) { setOooStartDate(value.start_date); setOooSummaryDismissed(false); }
     toast(active ? "Out of office enabled" : "Welcome back!", active ? "info" : "success");
+    logAudit(active ? "Enabled OOO" : "Disabled OOO");
   };
 
   // Auto-create tickets from due recurring schedules
@@ -4893,7 +4983,7 @@ export default function App() {
   const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
 
   const handleDashboardClick = () => {
-    if (dashUnlocked) {
+    if (currentUser) {
       setView("dashboard");
     } else {
       setView("password");
@@ -5026,12 +5116,20 @@ export default function App() {
             <h1 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", cursor: "pointer", fontSize: 15, lineHeight: 1, color: "var(--text-secondary)" }}>
+            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer", transition: "all 0.15s" }}>
               {dark ? "\u2600" : "\u{1F319}"}
             </button>
             <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={dashUnlocked} />
+            {currentUser ? (
+              <>
+                <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{currentUser.name}</span>
+                <button onClick={() => setView("admin")} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4 }}>{"\u2699\uFE0F"} Admin</button>
+                <button onClick={handleLogout} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>Log Out</button>
+              </>
+            ) : (
+              <button onClick={() => setView("password")} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "var(--brand)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>Log In</button>
+            )}
           </div>
-        </div>
         {view !== "hub" && (
           <div style={{ padding: "0 32px 8px", display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
             <button onClick={() => setView("hub")} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-muted)", flexShrink: 0 }}>{"\u2190"} Home</button>
@@ -5052,7 +5150,7 @@ export default function App() {
               </>}
               {currentSection === "leads" && <>
                 <button className={view === "lead_form" ? "active" : ""} onClick={() => setView("lead_form")}>Log Lead</button>
-                <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => { if (dashUnlocked) setView("leads_dashboard"); else setView("password"); }}>Dashboard</button>
+                <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => { if (currentUser) setView("leads_dashboard"); else setView("password"); }}>Dashboard</button>
               </>}
               {currentSection === "tools" && <>
                 {[
@@ -5083,10 +5181,10 @@ export default function App() {
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} dashPassword={dashPassword} />
+          <HubHome onNavigate={(id) => { if ((id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") && !dashUnlocked) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
-            <TicketForm onSubmit={handleSubmit} />
+            <TicketForm onSubmit={handleSubmit} currentUser={currentUser} />
             {tickets.length > 0 && (
               <div style={{ marginTop: 24 }}>
                 <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "var(--brand)", letterSpacing: "0.02em" }}>Ticket Overview</h3>
@@ -5099,17 +5197,17 @@ export default function App() {
         ) : view === "tracker" ? (
           <SubmitterView tickets={tickets} submittedRef={null} onAddNote={handleAddNote} onBackToForm={() => setView("form")} />
         ) : view === "password" ? (
-          <PasswordGate dashPassword={dashPassword} onUnlock={handleUnlock} />
+          <LoginPage hubUsers={hubUsers} onLogin={handleUnlock} />
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
-          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
         ) : view === "archive" ? (
           <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (
           <ArchiveForm entry={editArchiveEntry !== "new" ? archiveEntries.find((e) => e.id === editArchiveEntry) : null} onSave={handleArchiveSave} onCancel={() => setView("archive")} onDelete={handleArchiveDelete} />
         ) : view === "lead_form" ? (
-          <LeadForm onSave={handleLeadSave} onBackToHub={() => setView("hub")} />
+          <LeadForm currentUser={currentUser} onSave={handleLeadSave} onBackToHub={() => setView("hub")} />
         ) : view === "leads_dashboard" ? (
           <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
         ) : view === "brand_assets" ? (
@@ -5135,7 +5233,7 @@ export default function App() {
         ) : view === "knowledge_base" ? (
           <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "admin" ? (
-          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
@@ -5148,7 +5246,7 @@ export default function App() {
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
-              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
             )}
           </div>
         )}
@@ -5158,7 +5256,7 @@ export default function App() {
         <button onClick={() => setView("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
         <button onClick={() => setView("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Ticket</button>
         <button onClick={() => setView("tracker")} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
-        <button onClick={() => { if (dashUnlocked) setView("dashboard"); else setView("password"); }} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
+        <button onClick={() => { if (currentUser) setView("dashboard"); else setView("password"); }} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
         <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
       </div>
 
