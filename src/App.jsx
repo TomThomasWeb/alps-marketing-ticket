@@ -132,6 +132,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
   const [loginPw, setLoginPw] = useState("");
   const [loginError, setLoginError] = useState(false);
   const [loginShake, setLoginShake] = useState(false);
+  const [homeTab, setHomeTab] = useState("resources");
 
   const tryLogin = () => {
     if (loginPw === dashPassword) {
@@ -145,7 +146,6 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
     }
   };
 
-  // Build activity feed from recent data
   const feedItems = (() => {
     const items = [];
     tickets.slice(0, 15).forEach((t) => {
@@ -170,52 +170,53 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
     return Math.floor(diff / 1440) + "d ago";
   };
 
+  const tabStyle = (key) => ({ padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === key ? "var(--brand)" : "transparent", color: homeTab === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" });
+
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
 
-      <div style={{ marginBottom: 32, paddingBottom: 28, borderBottom: "1px solid var(--border)" }}>
+      <div style={{ marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid var(--border)" }}>
         <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
-        <h2 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
+        <h2 style={{ margin: "0 0 16px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
 
         {oooActive && oooReturnDate && (
-          <div style={{ background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.25)", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 24 }}>{"\u{1F334}"}</span>
+          <div style={{ background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>{"\u{1F334}"}</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#ca8a04" }}>Out of Office</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Tom is currently away and will be back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#ca8a04" }}>Out of Office</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Tom is away and will be back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.</div>
             </div>
           </div>
         )}
 
-
         {announcement && announcement.active && announcement.text && (
-          <div style={{ background: "rgba(35,29,104,0.06)", border: "1px solid rgba(35,29,104,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 22 }}>{"\u{1F4E2}"}</span>
+          <div style={{ background: "rgba(35,29,104,0.06)", border: "1px solid rgba(35,29,104,0.15)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>{"\u{1F4E2}"}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>{announcement.text}</div>
-              {announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginTop: 4, display: "inline-block" }}>Learn more {"\u2192"}</a>}
+              {announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginTop: 2, display: "inline-block" }}>Learn more {"\u2192"}</a>}
             </div>
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-              <button onClick={() => onNavigate("form")} style={{ padding: "22px 20px", background: "var(--brand)", borderRadius: 14, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 3 }}>{"\u{1F4DD}"} Submit a Ticket</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Request marketing support</div>
-              </button>
-              <button onClick={() => onNavigate("lead_form")} style={{ padding: "22px 20px", background: "var(--bg-card)", borderRadius: 14, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{"\u{1F4C8}"} Log a Lead</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Record an inbound lead</div>
-              </button>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
-              <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0, transition: "color 0.15s" }}>{"\u{1F50D}"} Track a Ticket</button>
-              {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span> {activeCount} active</span>}
-              {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span> {leadsAction} need action</span>}
-              {completedThisMonth > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u2705"} {completedThisMonth} this month</span>}
+          <button onClick={() => onNavigate("form")} style={{ padding: "18px 16px", background: "var(--brand)", borderRadius: 12, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 2 }}>{"\u{1F4DD}"} Submit a Ticket</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Request marketing support</div>
+          </button>
+          <button onClick={() => onNavigate("lead_form")} style={{ padding: "18px 16px", background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{"\u{1F4C8}"} Log a Lead</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Record an inbound lead</div>
+          </button>
         </div>
 
-        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+          <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0 }}>{"\u{1F50D}"} Track a Ticket</button>
+          {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span> {activeCount} active</span>}
+          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span> {leadsAction} need action</span>}
+        </div>
+
+        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 14 }}>
           <div>
             {(() => {
               const now = new Date();
@@ -261,20 +262,21 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
               );
             })()}
           </div>
+
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recent Activity</span>
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recent Activity</span>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span>
             </div>
-            <div style={{ maxHeight: 160, overflowY: "auto" }}>
+            <div style={{ maxHeight: 130, overflowY: "auto" }}>
               {feedItems.length === 0 ? (
-                <div style={{ padding: "20px 14px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No recent activity</div>
+                <div style={{ padding: "16px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>
               ) : feedItems.map((f, i) => (
-                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "8px 14px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s", display: "flex", alignItems: "flex-start", gap: 8 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
-                  <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{f.icon}</span>
+                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "6px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s", display: "flex", alignItems: "flex-start", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{f.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{fmtAgo(f.time)}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-primary)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
+                    <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 1 }}>{fmtAgo(f.time)}</div>
                   </div>
                 </div>
               ))}
@@ -283,97 +285,103 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         </div>
       </div>
 
-      <div style={{ marginBottom: 32 }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
-        <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-          {[
-            { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", color: "#8b5cf6" },
-            { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
-            { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
-            { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", color: "#0d9488" },
-            { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials by product", color: "#ea580c" },
-            { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance", color: "#6366f1" },
-          ].map((r) => (
-            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "18px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.25s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.borderColor = r.color; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
-              <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{r.title}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 32 }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>TOOLS</h3>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[
-            { id: "templates", icon: "\u{1F4C4}", label: "Content Templates", color: "#0d9488" },
-            { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
-            { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
-            { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
-            { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base", color: "#ca8a04" },
-            { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", color: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
-            { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
-            { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", color: "#6366f1", soon: true },
-            { id: "linkedin_gen", icon: "\u{1F4DD}", label: "Personal LinkedIn Generator", color: "#0077b5", soon: true },
-          ].map((t) => (
-            <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
-              <span style={{ fontSize: 15 }}>{t.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
-              {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 0 }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>DASHBOARDS</h3>
-        <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-          {[
-            { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : null, color: "#231d68" },
-            { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : null, color: "#0d9488" },
-            { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports", color: "#dc2626" },
-          ].map((d) => (
-            <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 16 }}>{d.icon}</span>
-                {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
-              {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d.stat}</div>}
-            </button>
-          ))}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4, border: "1px solid var(--border)", marginBottom: 16 }}>
+          <button onClick={() => setHomeTab("resources")} style={tabStyle("resources")}>{"\u{1F4DA}"} Resources</button>
+          <button onClick={() => setHomeTab("tools")} style={tabStyle("tools")}>{"\u{1F6E0}\uFE0F"} Tools</button>
+          <button onClick={() => setHomeTab("dashboards")} style={tabStyle("dashboards")}>{"\u{1F4CA}"} Dashboards</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <button onClick={() => onNavigate("admin")} style={{ padding: "14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontSize: 16 }}>{"\u2699\uFE0F"}</span>
-              {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
+        {homeTab === "resources" && (
+          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            {[
+              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", color: "#8b5cf6" },
+              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", color: "#E64592" },
+              { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track marketing output", color: "#2563eb" },
+              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", color: "#0d9488" },
+              { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials", color: "#ea580c" },
+              { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance", color: "#6366f1" },
+            ].map((r) => (
+              <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "16px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }} className="hub-card-hover">
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{r.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{r.title}</div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.3 }}>{r.desc}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {homeTab === "tools" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            {[
+              { id: "templates", icon: "\u{1F4C4}", label: "Content Templates", color: "#0d9488" },
+              { id: "converter", icon: "\u{1F504}", label: "File Converter", color: "#64748b" },
+              { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", color: "#231D68" },
+              { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", color: "#e11d48" },
+              { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base", color: "#ca8a04" },
+              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", color: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
+              { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
+              { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", color: "#6366f1", soon: true },
+              { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", color: "#0077b5", soon: true },
+            ].map((t) => (
+              <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ padding: "16px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", textAlign: "left", transition: "all 0.2s", opacity: t.soon ? 0.5 : 1 }} className={t.soon ? "" : "hub-card-hover"}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{t.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{t.label}</div>
+                {t.soon && <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Coming Soon</div>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {homeTab === "dashboards" && (
+          <div>
+            <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+              {[
+                { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all", color: "#231d68" },
+                { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all", color: "#0d9488" },
+                { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs", color: "#dc2626" },
+              ].map((d) => (
+                <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }} className="hub-card-hover">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 18 }}>{d.icon}</span>
+                    {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
+                  {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d.stat}</div>}
+                </button>
+              ))}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Admin Panel</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{oooActive ? "OOO Active" : "Settings & controls"}</div>
-          </button>
-
-          {!dashUnlocked ? (
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{"\u{1F512}"} Unlock dashboards</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "8px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
-                <button onClick={tryLogin} style={{ padding: "8px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
-              </div>
-              {loginError && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>Wrong password</div>}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button onClick={() => onNavigate("admin")} style={{ padding: "14px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s" }} className="hub-card-hover">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>{"\u2699\uFE0F"}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Admin Panel</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{oooActive ? "OOO Active" : "Settings & controls"}</div>
+                  </div>
+                </div>
+              </button>
+              {!dashUnlocked ? (
+                <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{"\u{1F512}"} Unlock dashboards</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "7px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
+                    <button onClick={tryLogin} style={{ padding: "7px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
+                  </div>
+                  {loginError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Wrong password</div>}
+                </div>
+              ) : (
+                <div style={{ padding: "14px 16px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>{"\u2705"}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Admin Unlocked</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All dashboards enabled</div>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div style={{ padding: "14px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 16 }}>{"\u2705"}</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Admin Unlocked</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>Dashboards & editing enabled</div>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <Changelog />
@@ -1116,7 +1124,8 @@ function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, on
 }
 
 
-function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement }) {
+function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete }) {
+  const [adminTab, setAdminTab] = useState("settings");
   const [returnDate, setReturnDate] = useState(oooReturnDate || "");
   const [showSummary, setShowSummary] = useState(false);
   const [newPw, setNewPw] = useState("");
@@ -1127,155 +1136,126 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
   const [annLink, setAnnLink] = useState(announcement?.link || "");
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    setAnnText(announcement?.text || "");
-    setAnnActive(announcement?.active || false);
-    setAnnLink(announcement?.link || "");
-  }, [announcement]);
+  useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
 
   const getOooSummary = () => {
     if (!oooStartDate) return null;
-    const start = new Date(oooStartDate + "T00:00:00");
-    const now = new Date();
-    const ticketsAdded = tickets.filter((t) => new Date(t.createdAt) >= start && new Date(t.createdAt) <= now);
-    const leadsAdded = leads.filter((l) => new Date(l.created_at) >= start && new Date(l.created_at) <= now);
-    const archiveAdded = (archiveEntries || []).filter((e) => new Date(e.date || e.created_at) >= start && new Date(e.date || e.created_at) <= now);
-    const ticketsCompleted = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start && new Date(t.completedAt) <= now);
-    return { ticketsAdded, leadsAdded, archiveAdded, ticketsCompleted, startDate: start };
+    const start = new Date(oooStartDate + "T00:00:00"); const now = new Date();
+    return { ticketsAdded: tickets.filter((t) => new Date(t.createdAt) >= start && new Date(t.createdAt) <= now), leadsAdded: leads.filter((l) => new Date(l.created_at) >= start && new Date(l.created_at) <= now), ticketsCompleted: tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start && new Date(t.completedAt) <= now), startDate: start };
   };
-
-  const handleTurnOff = () => { onToggleOoo(false, ""); setShowSummary(true); };
   const summary = getOooSummary();
   const shouldShowSummary = !oooActive && oooStartDate && !oooSummaryDismissed && summary && (summary.ticketsAdded.length > 0 || summary.leadsAdded.length > 0);
 
-  const handlePasswordChange = () => {
-    if (!newPw.trim() || newPw !== pwConfirm) return;
-    onChangePassword(newPw.trim());
-    setNewPw(""); setPwConfirm(""); setPwSaved(true);
-    setTimeout(() => setPwSaved(false), 3000);
-  };
-
-  const handleAnnouncementSave = () => {
-    onUpdateAnnouncement({ text: annText, active: annActive, link: annLink });
-  };
+  const handlePasswordChange = () => { if (!newPw.trim() || newPw !== pwConfirm) return; onChangePassword(newPw.trim()); setNewPw(""); setPwConfirm(""); setPwSaved(true); setTimeout(() => setPwSaved(false), 3000); };
+  const handleAnnouncementSave = () => { onUpdateAnnouncement({ text: annText, active: annActive, link: annLink }); };
 
   const exportData = async () => {
     setExporting(true);
-    const data = {
-      exportDate: new Date().toISOString(),
-      tickets: tickets.map((t) => ({ ref: t.ref, title: t.title, name: t.name, status: t.status, priority: t.priority, createdAt: t.createdAt, completedAt: t.completedAt, deadline: t.deadline })),
-      leads: leads.map((l) => ({ broker: l.broker, product: l.product, source: l.source, next_steps: l.next_steps, created_at: l.created_at })),
-      archiveEntries: (archiveEntries || []).map((e) => ({ title: e.title, type: e.type, date: e.date })),
-      calendarEvents: (calendarEvents || []).map((e) => ({ title: e.title, type: e.type, date: e.date })),
-    };
+    const data = { exportDate: new Date().toISOString(), tickets: tickets.map((t) => ({ ref: t.ref, title: t.title, name: t.name, status: t.status, priority: t.priority, createdAt: t.createdAt, completedAt: t.completedAt, deadline: t.deadline, timeSpent: t.timeSpent })), leads: leads.map((l) => ({ broker: l.broker, product: l.product, source: l.source, next_steps: l.next_steps, created_at: l.created_at })), archiveEntries: (archiveEntries || []).map((e) => ({ title: e.title, type: e.type, date: e.date })), calendarEvents: (calendarEvents || []).map((e) => ({ title: e.title, type: e.type, date: e.date, status: e.status })) };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "alps-hub-export-" + new Date().toISOString().substring(0, 10) + ".json";
-    a.click();
-    setExporting(false);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "alps-hub-export-" + new Date().toISOString().substring(0, 10) + ".json"; a.click(); setExporting(false);
   };
-
   const exportCSV = (type) => {
-    let rows = [];
-    let filename = "";
-    if (type === "tickets") {
-      rows = [["Ref", "Title", "Submitter", "Status", "Priority", "Created", "Completed", "Deadline"]];
-      tickets.forEach((t) => rows.push([t.ref, t.title, t.name, t.status, t.priority, t.createdAt, t.completedAt || "", t.deadline || ""]));
-      filename = "alps-tickets-" + new Date().toISOString().substring(0, 10) + ".csv";
-    } else if (type === "leads") {
-      rows = [["Broker", "Product", "Source", "Status", "Created"]];
-      leads.forEach((l) => rows.push([l.broker, l.product, l.source, l.next_steps, l.created_at]));
-      filename = "alps-leads-" + new Date().toISOString().substring(0, 10) + ".csv";
-    } else if (type === "archive") {
-      rows = [["Title", "Type", "Date"]];
-      (archiveEntries || []).forEach((e) => rows.push([e.title, e.type, e.date]));
-      filename = "alps-archive-" + new Date().toISOString().substring(0, 10) + ".csv";
-    }
+    let rows = [], filename = "";
+    if (type === "tickets") { rows = [["Ref", "Title", "Submitter", "Status", "Priority", "Time Spent", "Created", "Completed", "Deadline"]]; tickets.forEach((t) => rows.push([t.ref, t.title, t.name, t.status, t.priority, t.timeSpent || "", t.createdAt, t.completedAt || "", t.deadline || ""])); filename = "alps-tickets.csv"; }
+    else if (type === "leads") { rows = [["Broker", "Product", "Source", "Status", "Created"]]; leads.forEach((l) => rows.push([l.broker, l.product, l.source, l.next_steps, l.created_at])); filename = "alps-leads.csv"; }
+    else if (type === "archive") { rows = [["Title", "Type", "Date"]]; (archiveEntries || []).forEach((e) => rows.push([e.title, e.type, e.date])); filename = "alps-archive.csv"; }
     const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    const blob = new Blob([csv], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
   };
 
-  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 };
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 16 };
   const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
-  const sectionHead = (icon, title) => <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}><span style={{ fontSize: 20 }}>{icon}</span><h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{title}</h3></div>;
+  const tabBtn = (key, label) => <button onClick={() => setAdminTab(key)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: adminTab === key ? "var(--brand)" : "transparent", color: adminTab === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{label}</button>;
 
   return (
-    <div style={{ width: "100%", maxWidth: 720 }}>
+    <div style={{ width: "100%", maxWidth: 800 }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u2699\uFE0F"} Admin Panel</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>App settings and controls.</p>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Manage settings, schedules, goals, and data.</p>
 
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 22 }}>{"\u{1F44B}"}</span>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Welcome Back!</h3>
-            </div>
-            <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 11, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 20 }}>{"\u{1F44B}"}</span><h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Welcome Back!</h3></div>
+            <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
           </div>
-          <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-secondary)" }}>Here is what happened while you were away (since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}):</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Tickets Added</div></div>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 700, color: "#ca8a04" }}>{summary.leadsAdded.length}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads Added</div></div>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>{summary.ticketsCompleted.length}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>Completed</div></div>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-secondary)" }}>Since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}:</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Tickets In</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#ca8a04" }}>{summary.leadsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Leads</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#16a34a" }}>{summary.ticketsCompleted.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Done</div></div>
           </div>
-          {summary.ticketsAdded.length > 0 && <div style={{ marginBottom: 10 }}><div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Tickets</div>{summary.ticketsAdded.slice(0, 8).map((t) => <div key={t.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", display: "flex", gap: 8 }}><span style={{ fontWeight: 700, color: "var(--brand)", minWidth: 50 }}>{t.ref}</span><span>{t.title}</span><span style={{ marginLeft: "auto", color: "var(--text-muted)", fontSize: 10 }}>{t.name}</span></div>)}{summary.ticketsAdded.length > 8 && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>... and {summary.ticketsAdded.length - 8} more</div>}</div>}
-          {summary.leadsAdded.length > 0 && <div><div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Leads</div>{summary.leadsAdded.slice(0, 5).map((l, i) => <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0" }}>{"\u{1F4C8}"} {l.broker}</div>)}</div>}
+          {summary.ticketsAdded.length > 0 && <div style={{ marginBottom: 8 }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Tickets</div>{summary.ticketsAdded.slice(0, 6).map((t) => <div key={t.id} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0", display: "flex", gap: 6 }}><span style={{ fontWeight: 700, color: "var(--brand)", minWidth: 44 }}>{t.ref}</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span></div>)}</div>}
         </div>
       )}
 
-      <div style={card}>
-        {sectionHead(oooActive ? "\u{1F334}" : "\u{1F3E2}", "Out of Office")}
-        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a", marginBottom: 12, display: "inline-block" }}>{oooActive ? "Active" : "Off"}</span>
-        {oooActive ? (
-          <div>
-            <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)" }}>Return date: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p>
-            <button onClick={handleTurnOff} style={{ padding: "10px 20px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} I'm back — Turn Off</button>
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 12, alignItems: "end" }}>
-            <div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Return Date</label><input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} /></div>
-            <button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5, whiteSpace: "nowrap" }}>{"\u{1F334}"} Enable OOO</button>
-          </div>
-        )}
+      <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4, border: "1px solid var(--border)", marginBottom: 20, overflowX: "auto" }}>
+        {tabBtn("settings", "\u2699\uFE0F Settings")}
+        {tabBtn("schedules", "\u{1F501} Schedules & Goals")}
+        {tabBtn("data", "\u{1F4E5} Data & Export")}
       </div>
 
-      <div style={card}>
-        {sectionHead("\u{1F4E2}", "Announcement Banner")}
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Show a message at the top of the homepage for all users.</p>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 12 }}><input type="checkbox" checked={annActive} onChange={(e) => setAnnActive(e.target.checked)} style={{ accentColor: "var(--brand)" }} /> Show announcement</label>
-        <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement message..." style={{ ...inputStyle, marginBottom: 8 }} />
-        <input value={annLink} onChange={(e) => setAnnLink(e.target.value)} placeholder="Optional link URL (https://...)" style={{ ...inputStyle, marginBottom: 12 }} />
-        <button onClick={handleAnnouncementSave} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save Announcement</button>
-      </div>
-
-      <div style={card}>
-        {sectionHead("\u{1F512}", "Dashboard Password")}
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Change the password used to unlock dashboards and admin features.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-          <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>New Password</label><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Enter new password" style={inputStyle} /></div>
-          <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Confirm</label><input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} placeholder="Confirm password" style={inputStyle} /></div>
+      {adminTab === "settings" && (<>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{oooActive ? "\u{1F334}" : "\u{1F3E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Out of Office</h3><span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a" }}>{oooActive ? "Active" : "Off"}</span></div>
+          {oooActive ? (
+            <div><p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Return: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p><button onClick={() => { onToggleOoo(false, ""); setShowSummary(true); }} style={{ padding: "8px 16px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} I'm back</button></div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, alignItems: "end" }}><div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Return Date</label><input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} /></div><button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5, whiteSpace: "nowrap" }}>Enable OOO</button></div>
+          )}
         </div>
-        {newPw && pwConfirm && newPw !== pwConfirm && <div style={{ fontSize: 11, color: "#dc2626", marginBottom: 8 }}>Passwords do not match</div>}
-        {pwSaved && <div style={{ fontSize: 11, color: "#16a34a", marginBottom: 8 }}>{"\u2705"} Password updated successfully</div>}
-        <button onClick={handlePasswordChange} disabled={!newPw.trim() || newPw !== pwConfirm} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!newPw.trim() || newPw !== pwConfirm) ? 0.5 : 1 }}>Update Password</button>
-      </div>
 
-      <div style={card}>
-        {sectionHead("\u{1F4E5}", "Export Data")}
-        <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Download your hub data for backup or reporting.</p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={exportData} disabled={exporting} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4BE}"} Export All (JSON)</button>
-          <button onClick={() => exportCSV("tickets")} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>{"\u{1F4CB}"} Tickets CSV</button>
-          <button onClick={() => exportCSV("leads")} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>{"\u{1F4C8}"} Leads CSV</button>
-          <button onClick={() => exportCSV("archive")} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>{"\u{1F4DA}"} Archive CSV</button>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Announcement Banner</h3></div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}><input type="checkbox" checked={annActive} onChange={(e) => setAnnActive(e.target.checked)} style={{ accentColor: "var(--brand)" }} /> Show on homepage</label>
+          <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement message..." style={{ ...inputStyle, marginBottom: 8 }} />
+          <input value={annLink} onChange={(e) => setAnnLink(e.target.value)} placeholder="Optional link (https://...)" style={{ ...inputStyle, marginBottom: 10 }} />
+          <button onClick={handleAnnouncementSave} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
         </div>
-      </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F512}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Dashboard Password</h3></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyle} />
+            <input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} placeholder="Confirm" style={inputStyle} />
+          </div>
+          {newPw && pwConfirm && newPw !== pwConfirm && <div style={{ fontSize: 10, color: "#dc2626", marginBottom: 6 }}>Passwords do not match</div>}
+          {pwSaved && <div style={{ fontSize: 10, color: "#16a34a", marginBottom: 6 }}>{"\u2705"} Updated</div>}
+          <button onClick={handlePasswordChange} disabled={!newPw.trim() || newPw !== pwConfirm} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!newPw.trim() || newPw !== pwConfirm) ? 0.5 : 1 }}>Update Password</button>
+        </div>
+      </>)}
+
+      {adminTab === "schedules" && (<>
+        <RecurringSchedules schedules={recurringSchedules || []} onCreate={onCreateRecurring} onUpdate={onUpdateRecurring} onDelete={onDeleteRecurring} onPause={onPauseRecurring} />
+        <TeamGoals goals={teamGoals || []} isAdmin={true} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+      </>)}
+
+      {adminTab === "data" && (<>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4E5}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Export Data</h3></div>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Download hub data for backup or reporting.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={exportData} disabled={exporting} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4BE}"} All Data (JSON)</button>
+            <button onClick={() => exportCSV("tickets")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Tickets CSV</button>
+            <button onClick={() => exportCSV("leads")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Leads CSV</button>
+            <button onClick={() => exportCSV("archive")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Archive CSV</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4CA}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Quick Stats</h3></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{tickets.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Total Tickets</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#16a34a" }}>{tickets.filter((t) => t.status === "completed").length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Completed</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#ca8a04" }}>{leads.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Total Leads</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#8b5cf6" }}>{(archiveEntries || []).length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Archive Entries</div></div>
+          </div>
+        </div>
+      </>)}
     </div>
   );
 }
+
 
 
 function RecurringSchedules({ schedules, onCreate, onUpdate, onDelete, onPause }) {
@@ -1400,7 +1380,7 @@ function RecurringSchedules({ schedules, onCreate, onUpdate, onDelete, onPause }
   );
 }
 
-function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring }) {
+function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -1468,8 +1448,6 @@ function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, o
           </>;
         })()}
       </div>
-
-      <RecurringSchedules schedules={recurringSchedules || []} onCreate={onCreateRecurring} onUpdate={onUpdateRecurring} onDelete={onDeleteRecurring} onPause={onPauseRecurring} />
 
       <div style={{ marginBottom: 24 }}>
         <StatsBar tickets={tickets} />
@@ -5046,7 +5024,7 @@ export default function App() {
         ) : view === "knowledge_base" ? (
           <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "admin" ? (
-          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} />
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
@@ -5055,7 +5033,7 @@ export default function App() {
               ))}
             </div>
             {dashboardTab === "tickets" ? (
-              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} />
+              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} />
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
