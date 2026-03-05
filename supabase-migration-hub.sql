@@ -184,3 +184,14 @@ CREATE TABLE IF NOT EXISTS recurring_tickets (
 
 ALTER TABLE recurring_tickets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public access to recurring_tickets" ON recurring_tickets FOR ALL USING (true) WITH CHECK (true);
+
+-- App settings table (for OOO and future admin settings)
+CREATE TABLE IF NOT EXISTS app_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  key TEXT UNIQUE NOT NULL,
+  value JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access to app_settings" ON app_settings FOR ALL USING (true) WITH CHECK (true);

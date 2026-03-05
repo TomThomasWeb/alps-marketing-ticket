@@ -122,7 +122,7 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
@@ -175,7 +175,17 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
 
       <div style={{ marginBottom: 32, paddingBottom: 28, borderBottom: "1px solid var(--border)" }}>
         <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
-        <h2 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Marketing Hub</h2>
+        <h2 style={{ margin: "0 0 20px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
+
+        {oooActive && oooReturnDate && (
+          <div style={{ background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.25)", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 24 }}>{"\u{1F334}"}</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#ca8a04" }}>Out of Office</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Tom is currently away and will be back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.</div>
+            </div>
+          </div>
+        )}
 
         <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 20 }}>
           <div>
@@ -196,6 +206,53 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
               {completedThisMonth > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{"\u2705"} {completedThisMonth} this month</span>}
             </div>
           </div>
+
+            {(() => {
+              const now = new Date();
+              const dow = now.getDay();
+              const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
+              const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
+              const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+              const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
+
+              const twArch = (archiveEntries || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= thisMon && d <= thisSun; }).length;
+              const lwArch = (archiveEntries || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= lastMon && d <= lastSun; }).length;
+              const twLeads = leads.filter((l) => { const d = new Date(l.created_at); return d >= thisMon && d <= thisSun; }).length;
+              const lwLeads = leads.filter((l) => { const d = new Date(l.created_at); return d >= lastMon && d <= lastSun; }).length;
+              const twComp = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= thisMon && new Date(t.completedAt) <= thisSun).length;
+              const lwComp = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= lastMon && new Date(t.completedAt) <= lastSun).length;
+
+              const cmp = (curr, prev) => {
+                if (prev === 0 && curr === 0) return { text: "Same as last week", color: "var(--text-muted)" };
+                if (prev === 0 && curr > 0) return { text: "\u2191 " + curr + " vs 0 last week", color: "#16a34a" };
+                const diff = curr - prev;
+                if (diff > 0) return { text: "\u2191 " + diff + " more than last week", color: "#16a34a" };
+                if (diff < 0) return { text: "\u2193 " + Math.abs(diff) + " fewer than last week", color: "#dc2626" };
+                return { text: "Same as last week", color: "var(--text-muted)" };
+              };
+
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
+                  {[
+                    { label: "Archived", val: twArch, prev: lwArch, icon: "\u{1F4DA}" },
+                    { label: "Leads", val: twLeads, prev: lwLeads, icon: "\u{1F4C8}" },
+                    { label: "Completed", val: twComp, prev: lwComp, icon: "\u2705" },
+                  ].map((s) => {
+                    const c = cmp(s.val, s.prev);
+                    return (
+                      <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14 }}>{s.icon}</span>
+                          <span style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{s.val}</span>
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 2 }}>{s.label} this week</div>
+                        <div style={{ fontSize: 10, color: c.color }}>{c.text}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -285,6 +342,8 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             { id: "guide", icon: "\u{1F4D6}", label: "Self-Service Guide", color: "#ca8a04" },
             { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", color: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
             { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", color: "#ea580c", soon: true },
+            { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", color: "#6366f1", soon: true },
+            { id: "linkedin_gen", icon: "\u{1F4DD}", label: "Personal LinkedIn Generator", color: "#0077b5", soon: true },
           ].map((t) => (
             <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s", opacity: t.soon ? 0.45 : 1 }} onMouseOver={(e) => { if (!t.soon) { e.currentTarget.style.borderColor = t.color; e.currentTarget.style.transform = "translateY(-1px)"; } }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
               <span style={{ fontSize: 15 }}>{t.icon}</span>
@@ -298,11 +357,12 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
       <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 280 }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>DASHBOARDS</h3>
-          <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
             {[
               { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : null, color: "#231d68" },
               { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : null, color: "#0d9488" },
               { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports", color: "#dc2626" },
+              { id: "admin", icon: "\u2699\uFE0F", title: "Admin", stat: oooActive ? "OOO Active" : "Settings", color: "#64748b" },
             ].map((d) => (
               <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.25s", opacity: !dashUnlocked ? 0.7 : 1 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = d.color; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -1074,6 +1134,124 @@ function AnalyticsPanel({ tickets, archiveEntries, leads }) {
   );
 }
 
+
+function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary }) {
+  const [returnDate, setReturnDate] = useState(oooReturnDate || "");
+  const [showSummary, setShowSummary] = useState(false);
+
+  // Calculate OOO summary
+  const getOooSummary = () => {
+    if (!oooStartDate) return null;
+    const start = new Date(oooStartDate + "T00:00:00");
+    const now = new Date();
+    const ticketsAdded = tickets.filter((t) => new Date(t.createdAt) >= start && new Date(t.createdAt) <= now);
+    const leadsAdded = leads.filter((l) => new Date(l.created_at) >= start && new Date(l.created_at) <= now);
+    const archiveAdded = (archiveEntries || []).filter((e) => new Date(e.date || e.created_at) >= start && new Date(e.date || e.created_at) <= now);
+    const ticketsCompleted = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start && new Date(t.completedAt) <= now);
+    return { ticketsAdded, leadsAdded, archiveAdded, ticketsCompleted, startDate: start };
+  };
+
+  const handleTurnOff = () => {
+    onToggleOoo(false, "");
+    setShowSummary(true);
+  };
+
+  const summary = getOooSummary();
+  const shouldShowSummary = !oooActive && oooStartDate && !oooSummaryDismissed && summary && (summary.ticketsAdded.length > 0 || summary.leadsAdded.length > 0);
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u2699\uFE0F"} Admin Panel</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>App settings and controls.</p>
+
+      {(shouldShowSummary || showSummary) && summary && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 22 }}>{"\u{1F44B}"}</span>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Welcome Back!</h3>
+            </div>
+            <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 11, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
+          </div>
+          <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-secondary)" }}>Here is what happened while you were away (since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}):</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Tickets Added</div>
+            </div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#ca8a04" }}>{summary.leadsAdded.length}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads Added</div>
+            </div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>{summary.ticketsCompleted.length}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Completed</div>
+            </div>
+          </div>
+          {summary.ticketsAdded.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Tickets</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {summary.ticketsAdded.slice(0, 8).map((t) => (
+                  <div key={t.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", display: "flex", gap: 8 }}>
+                    <span style={{ fontWeight: 700, color: "var(--brand)", minWidth: 50 }}>{t.ref}</span>
+                    <span>{t.title}</span>
+                    <span style={{ marginLeft: "auto", color: "var(--text-muted)", fontSize: 10 }}>{t.name}</span>
+                  </div>
+                ))}
+                {summary.ticketsAdded.length > 8 && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>... and {summary.ticketsAdded.length - 8} more</div>}
+              </div>
+            </div>
+          )}
+          {summary.leadsAdded.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Leads</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {summary.leadsAdded.slice(0, 5).map((l, i) => (
+                  <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0" }}>{"\u{1F4C8}"} {l.broker} \u2014 {l.product || "General"}</div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <span style={{ fontSize: 20 }}>{oooActive ? "\u{1F334}" : "\u{1F3E2}"}</span>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Out of Office</h3>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a" }}>{oooActive ? "Active" : "Off"}</span>
+        </div>
+
+        {oooActive ? (
+          <div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)" }}>You are currently out of office. Return date: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p>
+            <button onClick={handleTurnOff} style={{ padding: "10px 20px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} I am back \u2014 Turn Off</button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "flex", gap: 12, alignItems: "end", marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Return Date</label>
+                <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5 }}>{"\u{1F334}"} Enable OOO</button>
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>When enabled, a notice will appear on the homepage letting team members know you are away.</p>
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, opacity: 0.6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 20 }}>{"\u{1F6E0}\uFE0F"}</span>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>More Settings</h3>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Additional admin controls coming soon \u2014 email signature generator, dashboard password management, and notification preferences.</p>
+      </div>
+    </div>
+  );
+}
 
 function RecurringSchedules({ schedules, onCreate, onUpdate, onDelete, onPause }) {
   const [showForm, setShowForm] = useState(false);
@@ -2670,7 +2848,7 @@ function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tick
     if (tickets) {
       tickets.filter((t) => t.deadline && t.status !== "completed").forEach((t) => {
         const already = events.some((e) => e.ticket_ref === t.ref || e.ticket_ref === t.id);
-        if (!already) merged.push({ id: "ticket-" + t.id, title: (t.ref || "Ticket") + ": " + t.title, date: t.deadline, type: "deadline", description: "Ticket deadline", source: "ticket", ticketRef: t.ref || t.id });
+        if (!already) merged.push({ id: "ticket-" + t.id, title: (t.ref || "Ticket") + ": " + t.title, date: t.deadline.substring(0, 10), type: "deadline", description: "Ticket deadline", source: "ticket", ticketRef: t.ref || t.id });
       });
     }
     return merged;
@@ -3707,6 +3885,10 @@ export default function App() {
   const [galleryImages, setGalleryImages] = useState([]);
   const [brokerToolkitItems, setBrokerToolkitItems] = useState([]);
   const [recurringSchedules, setRecurringSchedules] = useState([]);
+  const [oooActive, setOooActive] = useState(false);
+  const [oooReturnDate, setOooReturnDate] = useState("");
+  const [oooStartDate, setOooStartDate] = useState("");
+  const [oooSummaryDismissed, setOooSummaryDismissed] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [dashboardTab, setDashboardTab] = useState("tickets");
@@ -3852,6 +4034,38 @@ export default function App() {
     const ch = supabase.channel("recurring-rt").on("postgres_changes", { event: "*", schema: "public", table: "recurring_tickets" }, () => { frs(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Load OOO settings
+  useEffect(() => {
+    async function loadOoo() {
+      const { data } = await supabase.from("app_settings").select("*").eq("key", "ooo").single();
+      if (data && data.value) {
+        try {
+          const v = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+          setOooActive(v.active || false);
+          setOooReturnDate(v.return_date || "");
+          setOooStartDate(v.start_date || "");
+        } catch {}
+      }
+    }
+    loadOoo();
+    const ch = supabase.channel("ooo-rt").on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => { loadOoo(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const toggleOoo = async (active, returnDate) => {
+    const value = { active, return_date: returnDate || "", start_date: active ? new Date().toISOString().substring(0, 10) : oooStartDate };
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "ooo").single();
+    if (existing) {
+      await supabase.from("app_settings").update({ value }).eq("key", "ooo");
+    } else {
+      await supabase.from("app_settings").insert({ key: "ooo", value });
+    }
+    setOooActive(active);
+    setOooReturnDate(returnDate || "");
+    if (active) { setOooStartDate(value.start_date); setOooSummaryDismissed(false); }
+    toast(active ? "Out of office enabled" : "Welcome back!", active ? "info" : "success");
+  };
 
   // Auto-create tickets from due recurring schedules
   useEffect(() => {
@@ -4129,8 +4343,8 @@ export default function App() {
     } else {
       const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date }]).select();
       if (event.createTicket && inserted && inserted[0]) {
-        const nextRef = tickets.length > 0 ? "M" + String(Math.max(...tickets.map((t) => parseInt((t.ref || "M000").slice(1)) || 0)) + 1).padStart(3, "0") : "M001";
-        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, calendar_event_id: inserted[0].id });
+        const nextRef = await getNextRef();
+        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, file_names: [], notes: []nserted[0].id });
       }
     }
   };
@@ -4164,7 +4378,7 @@ export default function App() {
   const templateViews = ["templates"];
   const guideViews = ["guide"];
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
+  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : view === "admin" ? "admin" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -4315,19 +4529,20 @@ export default function App() {
               {currentSection === "calendar" && <button className="active">Content Calendar</button>}
               {currentSection === "gallery" && <button className="active">Alps Gallery</button>}
               {currentSection === "broker_toolkit" && <button className="active">Broker Toolkit</button>}
+              {currentSection === "admin" && <button className="active">Admin Panel</button>}
             </nav>
           </div>
         )}
       </header>
 
-      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit" || view === "admin") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
             <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }}></div>
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -4374,6 +4589,8 @@ export default function App() {
           <AlpsGallery images={galleryImages} isAdmin={dashUnlocked} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "broker_toolkit" ? (
           <BrokerToolkit items={brokerToolkitItems} isAdmin={dashUnlocked} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
+        ) : view === "admin" ? (
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
