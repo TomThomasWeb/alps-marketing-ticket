@@ -226,9 +226,9 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
               return (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                   {[
-                    { label: "Outbound", val: arch.tw, prev: arch.lw, color: "#8b5cf6" },
-                    { label: "Leads", val: ld.tw, prev: ld.lw, color: "#ca8a04" },
-                    { label: "Completed", val: comp.tw, prev: comp.lw, color: "#16a34a" },
+                    { label: "Outbound Marketing", val: arch.tw, prev: arch.lw, color: "#8b5cf6" },
+                    { label: "Leads Added", val: ld.tw, prev: ld.lw, color: "#ca8a04" },
+                    { label: "Tickets Completed", val: comp.tw, prev: comp.lw, color: "#16a34a" },
                   ].map((s) => {
                     const c = cmp(s.val, s.prev);
                     return (
@@ -1113,8 +1113,8 @@ function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, on
 }
 
 
-function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete }) {
-  const [adminTab, setAdminTab] = useState("settings");
+function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, onSaveSetting, galleryImages, kbArticles }) {
+  const [adminTab, setAdminTab] = useState("overview");
   const [returnDate, setReturnDate] = useState(oooReturnDate || "");
   const [showSummary, setShowSummary] = useState(false);
   const [newPw, setNewPw] = useState("");
@@ -1124,8 +1124,27 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
   const [annActive, setAnnActive] = useState(announcement?.active || false);
   const [annLink, setAnnLink] = useState(announcement?.link || "");
   const [exporting, setExporting] = useState(false);
+  const [memo, setMemo] = useState("");
+  const [memoSaved, setMemoSaved] = useState(false);
+  const [memoLoaded, setMemoLoaded] = useState(false);
 
   useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
+
+  useEffect(() => {
+    if (!memoLoaded) {
+      supabase.from("app_settings").select("*").eq("key", "admin_memo").single().then(({ data }) => {
+        if (data && data.value) { try { setMemo(typeof data.value === "string" ? JSON.parse(data.value).text || "" : data.value.text || ""); } catch {} }
+        setMemoLoaded(true);
+      });
+    }
+  }, [memoLoaded]);
+
+  const saveMemo = async () => {
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "admin_memo").single();
+    if (existing) { await supabase.from("app_settings").update({ value: { text: memo } }).eq("key", "admin_memo"); }
+    else { await supabase.from("app_settings").insert({ key: "admin_memo", value: { text: memo } }); }
+    setMemoSaved(true); setTimeout(() => setMemoSaved(false), 2000);
+  };
 
   const getOooSummary = () => {
     if (!oooStartDate) return null;
@@ -1153,78 +1172,170 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
     const blob = new Blob([csv], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
   };
 
-  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 16 };
+  // Hub health calculations
+  const overdue = tickets.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline) < new Date()).length;
+  const unactioned = leads.filter((l) => l.next_steps === "needs_action").length;
+  const activeTickets = tickets.filter((t) => t.status !== "completed").length;
+  const goalsBehind = (teamGoals || []).filter((g) => {
+    const now = new Date(); let start;
+    if (g.period === "weekly") { start = new Date(now); start.setDate(now.getDate() - ((now.getDay() + 6) % 7)); start.setHours(0,0,0,0); }
+    else if (g.period === "monthly") { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else { const q = Math.floor(now.getMonth() / 3); start = new Date(now.getFullYear(), q * 3, 1); }
+    const end = new Date();
+    const elapsed = (end - start) / 86400000;
+    const totalDays = g.period === "weekly" ? 7 : g.period === "monthly" ? 30 : 90;
+    const pctThrough = Math.min(elapsed / totalDays, 1);
+    const expectedProgress = Math.round(g.target * pctThrough);
+    let current = 0;
+    if (g.metric === "tickets_completed") current = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start).length;
+    else if (g.metric === "content_published") current = (archiveEntries || []).filter((e) => new Date(e.date || e.created_at) >= start).length;
+    else if (g.metric === "leads_generated") current = leads.filter((l) => new Date(l.created_at) >= start).length;
+    return current < expectedProgress && pctThrough > 0.25;
+  }).length;
+
+  const nextSchedule = (() => {
+    const active = (recurringSchedules || []).filter((s) => !s.paused);
+    if (active.length === 0) return null;
+    const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const next = active.map((s) => {
+      const freq = { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 90 };
+      let nd;
+      if (!s.last_created) { nd = new Date(); nd.setDate(nd.getDate() + 1); }
+      else { nd = new Date(s.last_created); nd.setDate(nd.getDate() + (freq[s.frequency] || 30)); }
+      nd.setHours(8, 0, 0, 0);
+      return { ...s, nextDue: nd };
+    }).sort((a, b) => a.nextDue - b.nextDue);
+    return next[0];
+  })();
+
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 14 };
   const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
-  const tabBtn = (key, label) => <button onClick={() => setAdminTab(key)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: adminTab === key ? "var(--brand)" : "transparent", color: adminTab === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{label}</button>;
+  const tabBtn = (key, label) => <button onClick={() => setAdminTab(key)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: adminTab === key ? "var(--brand)" : "transparent", color: adminTab === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s", whiteSpace: "nowrap" }}>{label}</button>;
+  const healthDot = (count, warn) => <span style={{ width: 8, height: 8, borderRadius: 4, background: count > 0 ? (warn ? "#dc2626" : "#ca8a04") : "#16a34a", display: "inline-block" }}></span>;
 
   return (
     <div style={{ width: "100%", maxWidth: 800 }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u2699\uFE0F"} Admin Panel</h2>
-      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Manage settings, schedules, goals, and data.</p>
+      <p style={{ margin: "0 0 18px", fontSize: 14, color: "var(--text-secondary)" }}>Manage settings, schedules, goals, and data.</p>
 
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 20 }}>{"\u{1F44B}"}</span><h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Welcome Back!</h3></div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F44B}"} Welcome Back!</h3>
             <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
           </div>
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-secondary)" }}>Since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}:</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Tickets In</div></div>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}:</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Tickets</div></div>
             <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#ca8a04" }}>{summary.leadsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Leads</div></div>
             <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#16a34a" }}>{summary.ticketsCompleted.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Done</div></div>
           </div>
-          {summary.ticketsAdded.length > 0 && <div style={{ marginBottom: 8 }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>New Tickets</div>{summary.ticketsAdded.slice(0, 6).map((t) => <div key={t.id} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0", display: "flex", gap: 6 }}><span style={{ fontWeight: 700, color: "var(--brand)", minWidth: 44 }}>{t.ref}</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span></div>)}</div>}
+          {summary.ticketsAdded.length > 0 && <div style={{ marginTop: 10 }}>{summary.ticketsAdded.slice(0, 5).map((t) => <div key={t.id} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0" }}><strong style={{ color: "var(--brand)" }}>{t.ref}</strong> {t.title}</div>)}</div>}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4, border: "1px solid var(--border)", marginBottom: 20, overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18, overflowX: "auto" }}>
+        {tabBtn("overview", "\u{1F3E0} Overview")}
         {tabBtn("settings", "\u2699\uFE0F Settings")}
-        {tabBtn("schedules", "\u{1F501} Schedules & Goals")}
-        {tabBtn("data", "\u{1F4E5} Data & Export")}
+        {tabBtn("schedules", "\u{1F501} Schedules")}
+        {tabBtn("data", "\u{1F4E5} Data")}
       </div>
+
+      {adminTab === "overview" && (<>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F3E5}"} Hub Health</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(overdue, true)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{overdue} overdue ticket{overdue !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Past deadline and not completed</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(unactioned, false)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{unactioned} unactioned lead{unactioned !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Marked as needs action</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(goalsBehind, false)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{goalsBehind} goal{goalsBehind !== 1 ? "s" : ""} behind pace</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Below expected progress</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--brand)", display: "inline-block" }}></span>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{activeTickets} active ticket{activeTickets !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Open or in progress</div></div>
+            </div>
+          </div>
+          {nextSchedule && <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)" }}>{"\u{1F501}"} Next scheduled ticket: <strong>{nextSchedule.title}</strong> {"\u2014"} {nextSchedule.nextDue.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at 8:00 AM</div>}
+        </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CC}"} Pinned Notes</h3>
+            {memoSaved && <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>Saved</span>}
+          </div>
+          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Reminders, to-dos, notes to self..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", marginBottom: 8 }} />
+          <button onClick={saveMemo} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save Notes</button>
+        </div>
+
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Hub Usage</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8 }}>
+            {[
+              { label: "Tickets", val: tickets.length },
+              { label: "Leads", val: leads.length },
+              { label: "Archive", val: (archiveEntries || []).length },
+              { label: "Calendar", val: (calendarEvents || []).length },
+              { label: "Gallery", val: (galleryImages || []).length },
+              { label: "KB Articles", val: (kbArticles || []).length },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <TeamGoals goals={teamGoals || []} isAdmin={true} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+      </>)}
 
       {adminTab === "settings" && (<>
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{oooActive ? "\u{1F334}" : "\u{1F3E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Out of Office</h3><span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a" }}>{oooActive ? "Active" : "Off"}</span></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 16 }}>{oooActive ? "\u{1F334}" : "\u{1F3E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Out of Office</h3><span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a" }}>{oooActive ? "Active" : "Off"}</span></div>
           {oooActive ? (
-            <div><p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Return: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p><button onClick={() => { onToggleOoo(false, ""); setShowSummary(true); }} style={{ padding: "8px 16px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} I'm back</button></div>
+            <div><p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Return: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p><button onClick={() => { onToggleOoo(false, ""); setShowSummary(true); }} style={{ padding: "8px 16px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>I'm back</button></div>
           ) : (
-            <div style={{ display: "flex", gap: 10, alignItems: "end" }}><div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Return Date</label><input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} /></div><button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5, whiteSpace: "nowrap" }}>Enable OOO</button></div>
+            <div style={{ display: "flex", gap: 10, alignItems: "end" }}><div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Return Date</label><input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} /></div><button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5, whiteSpace: "nowrap" }}>Enable</button></div>
           )}
         </div>
 
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Announcement Banner</h3></div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E2}"} Announcement Banner</h3>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}><input type="checkbox" checked={annActive} onChange={(e) => setAnnActive(e.target.checked)} style={{ accentColor: "var(--brand)" }} /> Show on homepage</label>
-          <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement message..." style={{ ...inputStyle, marginBottom: 8 }} />
+          <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement..." style={{ ...inputStyle, marginBottom: 8 }} />
           <input value={annLink} onChange={(e) => setAnnLink(e.target.value)} placeholder="Optional link (https://...)" style={{ ...inputStyle, marginBottom: 10 }} />
-          <button onClick={handleAnnouncementSave} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+          <button onClick={handleAnnouncementSave} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
         </div>
 
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F512}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Dashboard Password</h3></div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F512}"} Dashboard Password</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
             <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyle} />
             <input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} placeholder="Confirm" style={inputStyle} />
           </div>
           {newPw && pwConfirm && newPw !== pwConfirm && <div style={{ fontSize: 10, color: "#dc2626", marginBottom: 6 }}>Passwords do not match</div>}
-          {pwSaved && <div style={{ fontSize: 10, color: "#16a34a", marginBottom: 6 }}>{"\u2705"} Updated</div>}
-          <button onClick={handlePasswordChange} disabled={!newPw.trim() || newPw !== pwConfirm} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!newPw.trim() || newPw !== pwConfirm) ? 0.5 : 1 }}>Update Password</button>
+          {pwSaved && <div style={{ fontSize: 10, color: "#16a34a", marginBottom: 6 }}>Updated successfully</div>}
+          <button onClick={handlePasswordChange} disabled={!newPw.trim() || newPw !== pwConfirm} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!newPw.trim() || newPw !== pwConfirm) ? 0.5 : 1 }}>Update Password</button>
         </div>
       </>)}
 
       {adminTab === "schedules" && (<>
         <RecurringSchedules schedules={recurringSchedules || []} onCreate={onCreateRecurring} onUpdate={onUpdateRecurring} onDelete={onDeleteRecurring} onPause={onPauseRecurring} />
-        <TeamGoals goals={teamGoals || []} isAdmin={true} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
       </>)}
 
       {adminTab === "data" && (<>
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4E5}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Export Data</h3></div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E5}"} Export Data</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Download hub data for backup or reporting.</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={exportData} disabled={exporting} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4BE}"} All Data (JSON)</button>
+            <button onClick={exportData} disabled={exporting} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>All Data (JSON)</button>
             <button onClick={() => exportCSV("tickets")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Tickets CSV</button>
             <button onClick={() => exportCSV("leads")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Leads CSV</button>
             <button onClick={() => exportCSV("archive")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Archive CSV</button>
@@ -1232,18 +1343,30 @@ function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, ticke
         </div>
 
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 18 }}>{"\u{1F4CA}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Quick Stats</h3></div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{tickets.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Total Tickets</div></div>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#16a34a" }}>{tickets.filter((t) => t.status === "completed").length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Completed</div></div>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#ca8a04" }}>{leads.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Total Leads</div></div>
-            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#8b5cf6" }}>{(archiveEntries || []).length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Archive Entries</div></div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Storage Summary</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+            {[
+              { label: "Tickets", val: tickets.length },
+              { label: "Leads", val: leads.length },
+              { label: "Archive", val: (archiveEntries || []).length },
+              { label: "Events", val: (calendarEvents || []).length },
+              { label: "Gallery", val: (galleryImages || []).length },
+              { label: "KB Articles", val: (kbArticles || []).length },
+              { label: "Schedules", val: (recurringSchedules || []).length },
+              { label: "Goals", val: (teamGoals || []).length },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </>)}
     </div>
   );
 }
+
 
 
 
@@ -2103,8 +2226,6 @@ function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <TeamGoals goals={teamGoals || []} isAdmin={isAdmin} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
-
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F3A8}"} Brand Assets</h2>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
@@ -4982,7 +5103,7 @@ export default function App() {
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
-          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
         ) : view === "archive" ? (
           <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (
@@ -5014,7 +5135,7 @@ export default function App() {
         ) : view === "knowledge_base" ? (
           <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "admin" ? (
-          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
@@ -5027,7 +5148,7 @@ export default function App() {
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
-              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} />
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} />
             )}
           </div>
         )}
