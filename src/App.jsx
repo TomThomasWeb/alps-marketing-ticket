@@ -125,7 +125,6 @@ function FileChip({ name, url, onRemove }) {
 function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, dashPassword }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
-  const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
@@ -143,12 +142,12 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
     const items = [];
     tickets.slice(0, 15).forEach((t) => {
       items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker" });
-      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " now in progress", time: t.updatedAt || t.createdAt, action: "dashboard" });
+      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard" });
       if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard" });
     });
     leads.slice(0, 5).forEach((l) => { items.push({ icon: "\u{1F4C8}", text: "Lead from " + l.broker, time: l.created_at, action: "leads_dashboard" }); });
-    (archiveEntries || []).slice(0, 5).forEach((e) => { items.push({ icon: "\u{1F4DA}", text: "Added to Archive: " + (e.title || e.name || "Entry"), time: e.date || e.created_at, action: "archive" }); });
-    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 8);
+    (archiveEntries || []).slice(0, 5).forEach((e) => { items.push({ icon: "\u{1F4DA}", text: (e.title || e.name || "Entry") + " published", time: e.date || e.created_at, action: "archive" }); });
+    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 7);
   })();
 
   const fmtAgo = (ts) => {
@@ -159,89 +158,83 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
     return Math.floor(diff / 1440) + "d ago";
   };
 
-  const tabCounts = { resources: 6, tools: 9, dashboards: 4 };
+  const cardBase = { padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.2s ease" };
 
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
 
-      <div style={{ marginBottom: 24, paddingBottom: 22, borderBottom: "1px solid var(--border)", background: "linear-gradient(135deg, rgba(35,29,104,0.04) 0%, rgba(230,69,146,0.02) 50%, transparent 100%)", borderRadius: "16px 16px 0 0", margin: "-32px -24px 24px", padding: "32px 24px 22px" }}>
-        <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
-        <h2 style={{ margin: "0 0 16px", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greeting}</p>
+          <h2 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
+        </div>
 
         {oooActive && oooReturnDate && (
-          <div style={{ background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, backdropFilter: "blur(8px)" }}>
-            <span style={{ fontSize: 20 }}>{"\u{1F334}"}</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#ca8a04" }}>Out of Office</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Tom is away and will be back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.</div>
-            </div>
+          <div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+            <span style={{ fontSize: 18 }}>{"\u{1F334}"}</span>
+            <span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span>
           </div>
         )}
 
         {announcement && announcement.active && announcement.text && (
-          <div style={{ background: "rgba(35,29,104,0.06)", border: "1px solid rgba(35,29,104,0.12)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 18 }}>{"\u{1F4E2}"}</span>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>{announcement.text}</div>
-              {announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginTop: 2, display: "inline-block" }}>Learn more {"\u2192"}</a>}
+              <span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>
+              {announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}
             </div>
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-          <button onClick={() => onNavigate("form")} style={{ padding: "18px 16px", background: "linear-gradient(135deg, #231d68 0%, #3b2fa0 100%)", borderRadius: 12, border: "none", cursor: "pointer", textAlign: "left", transition: "all 0.2s", boxShadow: "0 4px 14px rgba(35,29,104,0.2)" }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-1px)"} onMouseOut={(e) => e.currentTarget.style.transform = "none"}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.95)", marginBottom: 2 }}>{"\u{1F4DD}"} Submit a Ticket</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <button onClick={() => onNavigate("form")} style={{ ...cardBase, background: "var(--brand)", border: "1px solid var(--brand)", boxShadow: "0 2px 8px rgba(35,29,104,0.15)" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(35,29,104,0.25)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.15)"; e.currentTarget.style.transform = "none"; }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{"\u{1F4DD}"} Submit a Ticket</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>Request marketing support</div>
           </button>
-          <button onClick={() => onNavigate("lead_form")} style={{ padding: "18px 16px", background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", cursor: "pointer", textAlign: "left", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border)"; }}>
+          <button onClick={() => onNavigate("lead_form")} style={cardBase} className="hub-card-hover">
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{"\u{1F4C8}"} Log a Lead</div>
             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Record an inbound lead</div>
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
           <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0 }}>{"\u{1F50D}"} Track a Ticket</button>
-          {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--brand)", display: "inline-block" }}></span> {activeCount} active</span>}
-          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#ca8a04", display: "inline-block" }}></span> {leadsAction} need action</span>}
+          {activeCount > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{activeCount} active</span>}
+          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04" }}>{leadsAction} need action</span>}
         </div>
 
         <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 14 }}>
           <div>
             {(() => {
-              const now = new Date();
-              const dow = now.getDay();
+              const now = new Date(); const dow = now.getDay();
               const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
               const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
               const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
               const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
-              const twArch = (archiveEntries || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= thisMon && d <= thisSun; }).length;
-              const lwArch = (archiveEntries || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= lastMon && d <= lastSun; }).length;
-              const twLeads = leads.filter((l) => { const d = new Date(l.created_at); return d >= thisMon && d <= thisSun; }).length;
-              const lwLeads = leads.filter((l) => { const d = new Date(l.created_at); return d >= lastMon && d <= lastSun; }).length;
-              const twComp = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= thisMon && new Date(t.completedAt) <= thisSun).length;
-              const lwComp = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= lastMon && new Date(t.completedAt) <= lastSun).length;
+              const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
+              const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
+              const ld = calc(leads, (l) => l.created_at);
+              const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
               const cmp = (curr, prev) => {
-                if (prev === 0 && curr === 0) return { text: "Same as last week", color: "var(--text-muted)" };
-                if (prev === 0 && curr > 0) return { text: "\u2191 " + curr + " vs last week", color: "#16a34a" };
+                if (curr === 0 && prev === 0) return { text: "Same as last week", color: "var(--text-muted)" };
+                if (prev === 0 && curr > 0) return { text: "\u2191" + curr + " vs last week", color: "#16a34a" };
                 const diff = curr - prev;
-                if (diff > 0) return { text: "\u2191 " + diff + " more", color: "#16a34a" };
-                if (diff < 0) return { text: "\u2193 " + Math.abs(diff) + " fewer", color: "#dc2626" };
+                if (diff > 0) return { text: "\u2191" + diff + " more", color: "#16a34a" };
+                if (diff < 0) return { text: "\u2193" + Math.abs(diff) + " fewer", color: "#dc2626" };
                 return { text: "Same as last week", color: "var(--text-muted)" };
               };
-              const stats = [
-                { label: "Outbound", val: twArch, prev: lwArch, accent: "#8b5cf6", bg: "rgba(139,92,246,0.06)" },
-                { label: "Leads", val: twLeads, prev: lwLeads, accent: "#ca8a04", bg: "rgba(202,138,4,0.06)" },
-                { label: "Completed", val: twComp, prev: lwComp, accent: "#16a34a", bg: "rgba(22,163,74,0.06)" },
-              ];
               return (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                  {stats.map((s) => {
+                  {[
+                    { label: "Outbound", val: arch.tw, prev: arch.lw, color: "#8b5cf6" },
+                    { label: "Leads", val: ld.tw, prev: ld.lw, color: "#ca8a04" },
+                    { label: "Completed", val: comp.tw, prev: comp.lw, color: "#16a34a" },
+                  ].map((s) => {
                     const c = cmp(s.val, s.prev);
                     return (
-                      <div key={s.label} style={{ background: s.bg, border: "1px solid transparent", borderRadius: 10, padding: "12px", position: "relative", overflow: "hidden" }}>
-                        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: s.accent, borderRadius: "10px 10px 0 0" }}></div>
-                        <div style={{ fontSize: 24, fontWeight: 800, color: s.accent, marginBottom: 2 }}>{s.val}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>{s.label} this week</div>
+                      <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px" }}>
+                        <div style={{ fontSize: 26, fontWeight: 800, color: s.color, letterSpacing: "-0.02em", lineHeight: 1 }}>{s.val}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", margin: "4px 0 2px" }}>{s.label}</div>
                         <div style={{ fontSize: 10, color: c.color }}>{c.text}</div>
                       </div>
                     );
@@ -251,21 +244,21 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
             })()}
           </div>
 
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-input)" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recent Activity</span>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span>
             </div>
-            <div style={{ maxHeight: 130, overflowY: "auto" }}>
+            <div style={{ flex: 1, overflowY: "auto", maxHeight: 140 }}>
               {feedItems.length === 0 ? (
-                <div style={{ padding: "16px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>
+                <div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>
               ) : feedItems.map((f, i) => (
-                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "6px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s", display: "flex", alignItems: "flex-start", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
-                  <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{f.icon}</span>
+                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: "var(--text-primary)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
-                    <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 1 }}>{fmtAgo(f.time)}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
                   </div>
+                  <span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span>
                 </div>
               ))}
             </div>
@@ -273,16 +266,15 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         </div>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "inline-flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4, border: "1px solid var(--border)", marginBottom: 16 }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18 }}>
           {[
-            { key: "resources", icon: "\u{1F4DA}", label: "Resources" },
-            { key: "tools", icon: "\u{1F6E0}\uFE0F", label: "Tools" },
-            { key: "dashboards", icon: "\u{1F4CA}", label: "Dashboards" },
+            { key: "resources", label: "Resources", count: 6 },
+            { key: "tools", label: "Tools", count: 9 },
+            { key: "dashboards", label: "Dashboards", count: 4 },
           ].map((tab) => (
-            <button key={tab.key} onClick={() => setHomeTab(tab.key)} style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === tab.key ? "var(--brand)" : "transparent", color: homeTab === tab.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 6 }}>
+            <button key={tab.key} onClick={() => setHomeTab(tab.key)} style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === tab.key ? "var(--brand)" : "transparent", color: homeTab === tab.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>
               {tab.label}
-              <span style={{ fontSize: 10, opacity: 0.7, background: homeTab === tab.key ? "rgba(255,255,255,0.2)" : "var(--bg-input)", padding: "1px 6px", borderRadius: 10, fontWeight: 700 }}>{tabCounts[tab.key]}</span>
             </button>
           ))}
         </div>
@@ -290,18 +282,17 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         {homeTab === "resources" && (
           <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             {[
-              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials", accent: "#8b5cf6" },
-              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons", accent: "#E64592" },
-              { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content", accent: "#2563eb" },
-              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos", accent: "#0d9488" },
-              { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials", accent: "#ea580c" },
-              { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance", accent: "#6366f1" },
+              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials" },
+              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons" },
+              { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content" },
+              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" },
+              { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" },
+              { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance" },
             ].map((r) => (
-              <button key={r.id} onClick={() => onNavigate(r.id)} style={{ padding: "16px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s", position: "relative", overflow: "hidden" }} className="hub-card-hover">
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: r.accent }}></div>
-                <div style={{ fontSize: 20, marginBottom: 6 }}>{r.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{r.title}</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.3 }}>{r.desc}</div>
+              <button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover">
+                <div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div>
               </button>
             ))}
           </div>
@@ -310,21 +301,20 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         {homeTab === "tools" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             {[
-              { id: "templates", icon: "\u{1F4C4}", label: "Content Templates", accent: "#0d9488" },
-              { id: "converter", icon: "\u{1F504}", label: "File Converter", accent: "#64748b" },
-              { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator", accent: "#231D68" },
-              { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor", accent: "#e11d48" },
-              { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base", accent: "#ca8a04" },
-              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", accent: "#7c3aed", href: "https://whitelabel.alpsltd.co.uk/" },
-              { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", accent: "#ea580c", soon: true },
-              { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", accent: "#6366f1", soon: true },
-              { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", accent: "#0077b5", soon: true },
+              { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
+              { id: "converter", icon: "\u{1F504}", label: "File Converter" },
+              { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
+              { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
+              { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" },
+              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", href: "https://whitelabel.alpsltd.co.uk/" },
+              { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", soon: true },
+              { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", soon: true },
+              { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", soon: true },
             ].map((t) => (
-              <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ padding: "16px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: t.soon ? "default" : "pointer", textAlign: "left", transition: "all 0.2s", opacity: t.soon ? 0.45 : 1, position: "relative", overflow: "hidden" }} className={t.soon ? "" : "hub-card-hover"}>
-                {!t.soon && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: t.accent }}></div>}
-                <div style={{ fontSize: 20, marginBottom: 6 }}>{t.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{t.label}</div>
-                {t.soon && <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Coming Soon</div>}
+              <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ ...cardBase, opacity: t.soon ? 0.4 : 1, cursor: t.soon ? "default" : "pointer" }} className={t.soon ? "" : "hub-card-hover"}>
+                <div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: t.soon ? 3 : 0 }}>{t.label}</div>
+                {t.soon && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</div>}
               </button>
             ))}
           </div>
@@ -332,49 +322,49 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
 
         {homeTab === "dashboards" && (
           <div>
-            <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
               {[
-                { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all", accent: "#231d68" },
-                { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all", accent: "#0d9488" },
-                { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs", accent: "#dc2626" },
+                { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" },
+                { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" },
+                { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" },
               ].map((d) => (
-                <button key={d.id} onClick={() => onNavigate(d.id)} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s", position: "relative", overflow: "hidden" }} className="hub-card-hover">
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: d.accent }}></div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 20 }}>{d.icon}</span>
+                <button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 22 }}>{d.icon}</span>
                     {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
-                  {d.stat && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d.stat}</div>}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>
                 </button>
               ))}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <button onClick={() => onNavigate("admin")} style={{ padding: "14px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.2s", position: "relative", overflow: "hidden" }} className="hub-card-hover">
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "#64748b" }}></div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{"\u2699\uFE0F"}</span>
+              <button onClick={() => onNavigate("admin")} style={cardBase} className="hub-card-hover">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>{"\u2699\uFE0F"}</span>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Admin Panel</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Admin Panel</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{oooActive ? "OOO Active" : "Settings & controls"}</div>
                   </div>
                 </div>
               </button>
               {!dashUnlocked ? (
-                <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
+                <div style={{ ...cardBase, cursor: "default", animation: loginShake ? "shakeAnim 0.4s ease" : "none" }}>
                   <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>{"\u{1F512}"} Unlock dashboards</div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input type="password" value={loginPw} onChange={(e) => { setLoginPw(e.target.value); setLoginError(false); }} onKeyDown={(e) => { if (e.key === "Enter") tryLogin(); }} placeholder="Password" style={{ flex: 1, padding: "7px 10px", background: "var(--bg-input)", border: "1px solid " + (loginError ? "#ef4444" : "var(--border)"), borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
-                    <button onClick={tryLogin} style={{ padding: "7px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
+                    <button onClick={tryLogin} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Go</button>
                   </div>
                   {loginError && <div style={{ fontSize: 10, color: "#ef4444", marginTop: 4 }}>Wrong password</div>}
                 </div>
               ) : (
-                <div style={{ padding: "14px 16px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid var(--brand)", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 16 }}>{"\u2705"}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Admin Unlocked</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All dashboards enabled</div>
+                <div style={{ ...cardBase, cursor: "default", background: "var(--brand-light)", borderColor: "var(--brand)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{"\u2705"}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>Unlocked</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>All dashboards enabled</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3840,31 +3830,28 @@ function TeamGoals({ goals, isAdmin, onSave, onDelete, tickets, archiveEntries, 
 
 function Changelog() {
   const entries = [
-    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns for unified reporting.", accent: "#6366f1" },
-    { date: "Mar 2026", title: "Knowledge Base", desc: "Searchable articles replacing the old Self-Service Guide.", accent: "#ca8a04" },
-    { date: "Mar 2026", title: "Team Goals & KPIs", desc: "Set targets and track progress in the Analytics dashboard.", accent: "#16a34a" },
-    { date: "Mar 2026", title: "Admin Panel", desc: "OOO mode, password management, announcement banners, and data export.", accent: "#64748b" },
-    { date: "Mar 2026", title: "Recurring Tickets", desc: "Automated ticket creation on weekly/monthly schedules.", accent: "#231d68" },
-    { date: "Mar 2026", title: "Image Editor Upgrades", desc: "Resize presets for social platforms, JPEG/WEBP export.", accent: "#e11d48" },
-    { date: "Feb 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails, video backgrounds, branded templates.", accent: "#E64592" },
-    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with categories, search, and one-click download.", accent: "#0d9488" },
-    { date: "Feb 2026", title: "Broker Toolkit", desc: "Broker-facing materials organised by product line.", accent: "#ea580c" },
-    { date: "Feb 2026", title: "Analytics & Reports", desc: "Weekly and monthly reports with PDF export.", accent: "#dc2626" },
-    { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Ticket system, content calendar, brand assets, and dashboards.", accent: "#231d68" },
+    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns." },
+    { date: "Mar 2026", title: "Knowledge Base", desc: "Searchable articles replacing the Self-Service Guide." },
+    { date: "Mar 2026", title: "Team Goals & KPIs", desc: "Set targets and track progress." },
+    { date: "Mar 2026", title: "Admin Panel", desc: "OOO, passwords, announcements, and data export." },
+    { date: "Mar 2026", title: "Recurring Tickets", desc: "Automated ticket creation on schedules." },
+    { date: "Mar 2026", title: "Image Editor Upgrades", desc: "Resize presets and multi-format export." },
+    { date: "Feb 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails and branded templates." },
+    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with search and download." },
+    { date: "Feb 2026", title: "Broker Toolkit", desc: "Broker materials by product line." },
+    { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Tickets, calendar, brand assets, dashboards." },
   ];
   return (
-    <div style={{ paddingTop: 20, position: "relative" }}>
-      <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg, transparent, var(--border), transparent)" }}></div>
-      <h3 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>{"\u2728"} WHAT'S NEW</h3>
+    <div style={{ paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+      <h3 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>What's New</h3>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
         {entries.slice(0, 6).map((e, i) => (
-          <div key={i} style={{ padding: "12px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, position: "relative", overflow: "hidden", transition: "all 0.15s" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 3, background: e.accent }}></div>
-            <div style={{ paddingLeft: 6 }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3, fontWeight: 600 }}>{e.date}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{e.title}</div>
-              <div style={{ fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.4 }}>{e.desc}</div>
+          <div key={i} style={{ padding: "12px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, transition: "border-color 0.15s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>{e.title}</span>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 500 }}>{e.date}</span>
             </div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{e.desc}</div>
           </div>
         ))}
       </div>
@@ -4855,8 +4842,8 @@ export default function App() {
         input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
 
         /* Card hover micro-interaction */
-        .hub-card-hover { transition: all 0.2s ease; }
-        .hub-card-hover:hover { transform: translateY(-1px); box-shadow: var(--shadow-hover); border-color: var(--brand) !important; }
+        .hub-card-hover { transition: all 0.18s ease; }
+        .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
 
         /* View transition */
         .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
