@@ -4344,7 +4344,7 @@ export default function App() {
       const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date }]).select();
       if (event.createTicket && inserted && inserted[0]) {
         const nextRef = await getNextRef();
-        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, file_names: [], notes: []nserted[0].id });
+        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, file_names: [], notes: [] });
       }
     }
   };
