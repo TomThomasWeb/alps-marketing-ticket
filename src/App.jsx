@@ -122,7 +122,7 @@ function FileChip({ name, url, onRemove }) {
 }
 
 
-function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement }) {
+function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, dashPassword }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const completedThisMonth = (() => { const s = new Date(); s.setDate(1); s.setHours(0,0,0,0); return tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= s).length; })();
@@ -283,43 +283,6 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
         </div>
       </div>
 
-
-      {calendarEvents && (() => {
-        const now = new Date();
-        const sow = new Date(now); sow.setDate(now.getDate() - now.getDay() + 1); sow.setHours(0,0,0,0);
-        const eow = new Date(sow); eow.setDate(sow.getDate() + 6); eow.setHours(23,59,59,999);
-        const weekEvents = calendarEvents.filter((ev) => { const d = new Date(ev.date); return d >= sow && d <= eow; }).sort((a, b) => new Date(a.date) - new Date(b.date));
-        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        const todayIdx = (now.getDay() + 6) % 7;
-        return weekEvents.length > 0 ? (
-          <div style={{ marginBottom: 32 }}>
-            <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>{"\u{1F4C5}"} THIS WEEK</h3>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-                {days.map((d, i) => {
-                  const dayDate = new Date(sow); dayDate.setDate(sow.getDate() + i);
-                  const isToday = i === todayIdx;
-                  const hasEvents = weekEvents.some((ev) => new Date(ev.date).toDateString() === dayDate.toDateString());
-                  return <div key={d} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--brand)" : "var(--text-muted)", borderBottom: isToday ? "2px solid var(--brand)" : "2px solid transparent" }}>{d}{hasEvents && <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: "var(--brand)", marginLeft: 3, verticalAlign: "middle" }}></span>}</div>;
-                })}
-              </div>
-              <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6, maxHeight: 120, overflowY: "auto" }}>
-                {weekEvents.map((ev, i) => {
-                  const d = new Date(ev.date);
-                  const dayLabel = days[(d.getDay() + 6) % 7];
-                  const isToday = d.toDateString() === now.toDateString();
-                  return <div key={i} onClick={() => onNavigate("calendar")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: isToday ? "var(--brand)" : "var(--text-muted)", minWidth: 28 }}>{dayLabel}</span>
-                    <span style={{ width: 4, height: 4, borderRadius: 2, background: "var(--brand)", flexShrink: 0 }}></span>
-                    <span style={{ fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</span>
-                  </div>;
-                })}
-              </div>
-            </div>
-          </div>
-        ) : null;
-      })()}
-
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em" }}>RESOURCES</h3>
         <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
@@ -420,7 +383,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, onUnlockInline, not
 
 
 
-function PasswordGate({ onUnlock }) {
+function PasswordGate({ onUnlock, dashPassword }) {
   const [pw, setPw] = useState("");
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
@@ -4627,7 +4590,7 @@ export default function App() {
             <p style={{ fontSize: 14, margin: 0 }}>Loading tickets...</p>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} />
+          <HubHome onNavigate={(id) => { if (id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") { if (!dashUnlocked) { setView("password"); return; } } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} onUnlockInline={() => setDashUnlocked(true)} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} dashPassword={dashPassword} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} />
@@ -4643,7 +4606,7 @@ export default function App() {
         ) : view === "tracker" ? (
           <SubmitterView tickets={tickets} submittedRef={null} onAddNote={handleAddNote} onBackToForm={() => setView("form")} />
         ) : view === "password" ? (
-          <PasswordGate onUnlock={handleUnlock} />
+          <PasswordGate dashPassword={dashPassword} onUnlock={handleUnlock} />
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
