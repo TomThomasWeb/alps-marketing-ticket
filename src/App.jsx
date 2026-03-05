@@ -341,6 +341,7 @@ function HubHome({ onNavigate, tickets, dashUnlocked, leads, notifications, cale
 function LoginPage({ onLogin, hubUsers }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
   const inputRef = useRef();
@@ -370,13 +371,15 @@ function LoginPage({ onLogin, hubUsers }) {
         <div style={{ marginBottom: 12 }}>
           <input ref={inputRef} type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Username" style={inputStyle} />
         </div>
-        <div style={{ marginBottom: 16 }}>
-          <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={inputStyle} />
+        <div style={{ marginBottom: 16, position: "relative" }}>
+          <input type={showPw ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={{ ...inputStyle, paddingRight: 44 }} />
+          <button onClick={() => setShowPw(!showPw)} type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--text-muted)", padding: 0, lineHeight: 1 }}>{showPw ? "\u{1F441}\uFE0F" : "\u{1F441}\u200D\u{1F5E8}\uFE0F"}</button>
         </div>
         {error && <div style={{ fontSize: 13, color: "#ef4444", marginBottom: 12 }}>{error}</div>}
         <button onClick={handleSubmit} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>Log In</button>
         {hubUsers.length === 0 && <p style={{ margin: "16px 0 0", fontSize: 12, color: "var(--text-muted)" }}>No users set up yet. Add users via the Admin Panel.</p>}
       </div>
+      <p style={{ margin: "16px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Forgot your login? Message Tom Thomas to reset.</p>
     </div>
   );
 }
@@ -4585,6 +4588,7 @@ export default function App() {
   const handleLogin = (user) => {
     setCurrentUser(user);
     try { localStorage.setItem("alps_hub_user", JSON.stringify(user)); } catch {}
+    if (view === "password") setView("hub");
   };
 
   const handleLogout = () => {
@@ -4990,10 +4994,7 @@ export default function App() {
     }
   };
 
-  const handleUnlock = () => {
-    setDashUnlocked(true);
-    if (view === "password") setView("hub");
-  };
+
 
   const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity"];
   const archiveViews = ["archive", "archive_add", "archive_edit"];
@@ -5198,7 +5199,7 @@ export default function App() {
         ) : view === "tracker" ? (
           <SubmitterView tickets={tickets} submittedRef={null} onAddNote={handleAddNote} onBackToForm={() => setView("form")} />
         ) : view === "password" ? (
-          <LoginPage hubUsers={hubUsers} onLogin={handleUnlock} />
+          <LoginPage hubUsers={hubUsers} onLogin={handleLogin} />
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
