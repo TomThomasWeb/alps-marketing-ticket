@@ -1,0 +1,1078 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+import { PRIORITIES, BRAND_COLORS } from "../constants.js";
+
+export function SelfServiceGuide() {
+  const [open, setOpen] = useState(null);
+  const toggle = (id) => setOpen(open === id ? null : id);
+
+  const sections = [
+    { id: "sizes", title: "\u{1F4D0} Image & Asset Sizes", items: [
+      { q: "Social media image sizes", a: "LinkedIn: 1200x627px (post), 1584x396px (cover)\nFacebook: 1200x630px (post), 820x312px (cover)\nInstagram: 1080x1080px (post), 1080x1920px (story)\nX/Twitter: 1600x900px (post), 1500x500px (header)" },
+      { q: "Email banner size", a: "Standard email banner: 600px wide, 200-300px tall. Keep file size under 200KB for fast loading." },
+      { q: "Print material specs", a: "A4 flyer: 210x297mm (3mm bleed)\nA5 flyer: 148x210mm (3mm bleed)\nDL leaflet: 99x210mm\nBusiness card: 85x55mm\nAlways supply at 300dpi with CMYK colour." },
+      { q: "PowerPoint slide dimensions", a: "Standard: 16:9 (33.867cm x 19.05cm)\nWe use widescreen by default. Fonts should be minimum 18pt for body text on slides." },
+    ]},
+    { id: "brand", title: "\u{1F3A8} Brand & Logo Usage", items: [
+      { q: "Where do I find Alps logos?", a: "Go to Brand Assets in the Marketing Hub. You can download logos in PNG, SVG, JPG, and PDF formats." },
+      { q: "Can I edit the Alps logo?", a: "No. The logo should not be stretched, recoloured, rotated, or modified in any way. Always use the approved versions from the Brand Assets page." },
+      { q: "What fonts does Alps use?", a: "Headlines: Museo Sans 700\nBody copy: Montserrat Regular\nThese are listed in the Brand Assets section with the full colour palette." },
+      { q: "How do I use the brand colours?", a: "Main: #231D68\nMotor: #E64592\nCommercial: #20A39E\nLet: #FAB315\nPersonal: #464B99\nAlt Man: #27D7F4\nClick any colour in Brand Assets to copy the hex code." },
+    ]},
+    { id: "requests", title: "\u{1F4DD} Marketing Requests", items: [
+      { q: "How do I request marketing work?", a: "Use the Submit a Ticket feature on the Marketing Hub homepage. Fill in the form with as much detail as possible, and select the appropriate template and priority." },
+      { q: "What's the typical turnaround?", a: "Low priority: 5-7 working days\nMedium priority: 3-5 working days\nHigh priority: 1-2 working days\nCritical/urgent: Same day where possible\nThese are estimates and depend on current workload." },
+      { q: "How do I track my request?", a: "Use Track a Ticket on the Hub homepage. Enter the reference number (e.g. M001) you received when you submitted. You can also add comments to your ticket and edit it if needed." },
+      { q: "What if I need changes to completed work?", a: "Add a note to your existing ticket via the tracker. If it's a new piece of work, submit a new ticket referencing the original." },
+    ]},
+    { id: "content", title: "\u{1F4DA} Content & Campaigns", items: [
+      { q: "How do I get content published?", a: "Submit a ticket with the content, target audience, channel, and any deadlines. Include all copy, images, and links needed." },
+      { q: "What's the approvals process?", a: "All external-facing content goes through marketing review before publishing. Allow at least 1 working day for review and revisions." },
+      { q: "How do I log a marketing lead?", a: "Use Log a Lead on the Hub homepage. Fill in the broker name, what the enquiry is about, the source channel, and set next steps." },
+    ]},
+    { id: "tools", title: "\u{1F6E0}\uFE0F Tools & Access", items: [
+      { q: "What can I do without logging in?", a: "Anyone can: submit tickets, track tickets, log leads, browse the archive, view brand assets, and read this guide. The dashboard, analytics, and admin features require a user account." },
+      { q: "How do I get an account?", a: "Click Sign Up to create an account. Your account will be pending until an admin approves it. Once approved, you can log in and access dashboards, analytics, and commenting features." },
+    ]},
+  ];
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4D6}"} Self-Service Guide</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Everything you need to know about working with the marketing team. Click a section to expand.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {sections.map((section) => (
+          <div key={section.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            <button onClick={() => toggle(section.id)} style={{ width: "100%", padding: "16px 20px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{section.title}</span>
+              <span style={{ fontSize: 18, color: "var(--text-muted)", transition: "transform 0.2s", transform: open === section.id ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
+            </button>
+            {open === section.id && (
+              <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {section.items.map((item, i) => (
+                  <div key={i} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: 14 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>{item.q}</div>
+                    <pre style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{item.a}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+export function FileConverter() {
+  const [files, setFiles] = useState([]);
+  const [outputFormat, setOutputFormat] = useState("png");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [lockAspect, setLockAspect] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [results, setResults] = useState([]);
+  const canvasRef = useRef(null);
+  const fileRef = useRef(null);
+  const [batchMode, setBatchMode] = useState(false);
+
+  const formats = [
+    { value: "png", label: "PNG", mime: "image/png" },
+    { value: "jpeg", label: "JPG", mime: "image/jpeg" },
+    { value: "webp", label: "WEBP", mime: "image/webp" },
+  ];
+
+  const SOCIAL_PRESETS = [
+    { label: "LinkedIn Post", w: 1200, h: 627, icon: "\u{1F4BC}" },
+    { label: "LinkedIn Cover", w: 1584, h: 396, icon: "\u{1F4BC}" },
+    { label: "Facebook Post", w: 1200, h: 630, icon: "\u{1F4D8}" },
+    { label: "Facebook Cover", w: 820, h: 312, icon: "\u{1F4D8}" },
+    { label: "Instagram Post", w: 1080, h: 1080, icon: "\u{1F4F7}" },
+    { label: "Instagram Story", w: 1080, h: 1920, icon: "\u{1F4F7}" },
+    { label: "X / Twitter Post", w: 1600, h: 900, icon: "\u{1D54F}" },
+    { label: "X / Twitter Header", w: 1500, h: 500, icon: "\u{1D54F}" },
+    { label: "Email Banner", w: 600, h: 250, icon: "\u2709\uFE0F" },
+  ];
+  const [showPresets, setShowPresets] = useState(false);
+  const applyPreset = (p) => { setWidth(String(p.w)); setHeight(String(p.h)); setLockAspect(false); setShowPresets(false); };
+
+  const handleFiles = (e) => {
+    const selected = Array.from(e.target.files).filter((f) => f.type.startsWith("image/"));
+    if (selected.length === 0) return;
+    setResults([]);
+    const loaded = [];
+    selected.forEach((f) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          loaded.push({ file: f, img, preview: ev.target.result, origW: img.width, origH: img.height });
+          if (loaded.length === selected.length) {
+            setFiles(loaded);
+            if (!batchMode && loaded.length === 1) {
+              setWidth(String(loaded[0].origW));
+              setHeight(String(loaded[0].origH));
+            }
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+
+  const handleWidthChange = (v) => {
+    setWidth(v);
+    if (lockAspect && files.length === 1 && v && files[0].origW) {
+      setHeight(String(Math.round((parseInt(v) / files[0].origW) * files[0].origH)));
+    }
+  };
+  const handleHeightChange = (v) => {
+    setHeight(v);
+    if (lockAspect && files.length === 1 && v && files[0].origH) {
+      setWidth(String(Math.round((parseInt(v) / files[0].origH) * files[0].origW)));
+    }
+  };
+
+  const convert = async () => {
+    if (files.length === 0) return;
+    setProcessing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const fmt = formats.find((f) => f.value === outputFormat);
+    const output = [];
+
+    for (const item of files) {
+      const targetW = width ? parseInt(width) : item.origW;
+      const targetH = height ? parseInt(height) : item.origH;
+      canvas.width = targetW;
+      canvas.height = targetH;
+      if (outputFormat === "jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, targetW, targetH); }
+      ctx.drawImage(item.img, 0, 0, targetW, targetH);
+      const dataUrl = canvas.toDataURL(fmt.mime, 0.92);
+      const baseName = item.file.name.replace(/\.[^.]+$/, "");
+      output.push({
+        name: baseName + "-" + targetW + "x" + targetH + "." + outputFormat,
+        dataUrl,
+        size: Math.round((dataUrl.length * 3) / 4 / 1024),
+        w: targetW,
+        h: targetH,
+      });
+    }
+    setResults(output);
+    setProcessing(false);
+  };
+
+  const downloadOne = (r) => {
+    const a = document.createElement("a"); a.href = r.dataUrl; a.download = r.name; a.click();
+  };
+  const downloadAll = () => { results.forEach((r, i) => setTimeout(() => downloadOne(r), i * 200)); };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 600 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F504}"} File Converter</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Resize, convert, and batch-process images for social media and web.</p>
+
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <button onClick={() => { setBatchMode(false); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (!batchMode ? "var(--brand)" : "var(--border)"), background: !batchMode ? "var(--brand-light)" : "transparent", color: !batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Single Image</button>
+          <button onClick={() => { setBatchMode(true); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (batchMode ? "var(--brand)" : "var(--border)"), background: batchMode ? "var(--brand-light)" : "transparent", color: batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4DA}"} Batch Mode</button>
+        </div>
+
+        {files.length === 0 ? (
+          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "40px 20px", border: "2px dashed var(--border)", borderRadius: 12, cursor: "pointer", marginBottom: 16, transition: "border-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+            <div style={{ fontSize: 32, opacity: 0.4 }}>{batchMode ? "\u{1F4DA}" : "\u{1F5BC}\uFE0F"}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>{batchMode ? "Select multiple images" : "Select an image"}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
+            <input ref={fileRef} type="file" accept="image/*" multiple={batchMode} onChange={handleFiles} style={{ display: "none" }} />
+          </label>
+        ) : (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{files.length} image{files.length !== 1 ? "s" : ""} selected</span>
+              <button onClick={() => { setFiles([]); setResults([]); if (fileRef.current) fileRef.current.value = ""; }} style={{ fontSize: 12, background: "transparent", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 12px", cursor: "pointer", color: "var(--text-muted)" }}>Clear</button>
+            </div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+              {files.map((f, i) => (
+                <div key={i} style={{ flexShrink: 0, width: 80, textAlign: "center" }}>
+                  <img src={f.preview} alt={f.file.name} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }} />
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.file.name}</div>
+                  <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{f.origW}x{f.origH}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {files.length > 0 && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Width (px)</label>
+                <input style={inputStyle} type="number" value={width} onChange={(e) => handleWidthChange(e.target.value)} placeholder={files[0] ? String(files[0].origW) : ""} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Height (px)</label>
+                <input style={inputStyle} type="number" value={height} onChange={(e) => handleHeightChange(e.target.value)} placeholder={files[0] ? String(files[0].origH) : ""} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Format</label>
+                <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>{formats.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}</select>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+              {!batchMode && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={lockAspect} onChange={(e) => setLockAspect(e.target.checked)} style={{ accentColor: "var(--brand)" }} />Lock aspect ratio</label>}
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setShowPresets(!showPresets)} style={{ padding: "6px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "var(--text-secondary)", fontWeight: 600 }}>Social Presets {showPresets ? "\u25B2" : "\u25BC"}</button>
+                {showPresets && (
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, width: 240, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-hover)", zIndex: 10, maxHeight: 280, overflowY: "auto" }}>
+                    {SOCIAL_PRESETS.map((p) => (
+                      <button key={p.label} onClick={() => applyPreset(p)} style={{ width: "100%", padding: "8px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left", fontSize: 12, color: "var(--text-primary)", display: "flex", justifyContent: "space-between" }}>
+                        <span>{p.icon} {p.label}</span><span style={{ color: "var(--text-muted)" }}>{p.w}x{p.h}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={convert} disabled={processing} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: processing ? 0.6 : 1 }}>{processing ? "Processing..." : "Convert" + (files.length > 1 ? " All (" + files.length + ")" : "")}</button>
+          </>
+        )}
+
+        {results.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{results.length} file{results.length !== 1 ? "s" : ""} ready</span>
+              {results.length > 1 && <button onClick={downloadAll} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4E6}"} Download All</button>}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {results.map((r, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-input)", borderRadius: 8 }}>
+                  <img src={r.dataUrl} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 4, border: "1px solid var(--border)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{r.w}x{r.h} {"\u00B7"} ~{r.size}KB</div>
+                  </div>
+                  <button onClick={() => downloadOne(r)} style={{ padding: "6px 14px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Download</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+export function QRCodeGenerator() {
+  const [url, setUrl] = useState("");
+  const [size, setSize] = useState(300);
+  const [color, setColor] = useState("231D68");
+  const [bgColor, setBgColor] = useState("ffffff");
+  const [generated, setGenerated] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const canvasRef = useRef(null);
+  const logoRef = useRef(null);
+
+  const presetColors = [
+    { label: "Alps Main", hex: "231D68" },
+    { label: "Motor", hex: "E64592" },
+    { label: "Commercial", hex: "20A39E" },
+    { label: "Black", hex: "000000" },
+  ];
+
+  const generate = () => {
+    if (!url.trim()) return;
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encodeURIComponent(url.trim()) + "&color=" + color + "&bgcolor=" + bgColor + "&format=png&margin=1";
+    setGenerated({ url: qrUrl, inputUrl: url.trim() });
+  };
+
+  const handleLogo = (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setLogoFile(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target.result);
+    reader.readAsDataURL(f);
+  };
+
+  const renderWithLogo = useCallback(() => {
+    if (!generated || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const qrImg = new Image();
+    qrImg.crossOrigin = "anonymous";
+    qrImg.onload = () => {
+      canvas.width = qrImg.width;
+      canvas.height = qrImg.height;
+      ctx.drawImage(qrImg, 0, 0);
+      if (logoPreview) {
+        const logoImg = new Image();
+        logoImg.onload = () => {
+          const logoSize = Math.round(qrImg.width * 0.22);
+          const x = (qrImg.width - logoSize) / 2;
+          const y = (qrImg.height - logoSize) / 2;
+          const pad = 6;
+          ctx.fillStyle = "#" + bgColor;
+          ctx.beginPath();
+          ctx.roundRect(x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, 8);
+          ctx.fill();
+          ctx.drawImage(logoImg, x, y, logoSize, logoSize);
+        };
+        logoImg.src = logoPreview;
+      }
+    };
+    qrImg.src = generated.url;
+  }, [generated, logoPreview, bgColor]);
+
+  useEffect(() => { renderWithLogo(); }, [renderWithLogo]);
+
+  const downloadQR = () => {
+    if (!canvasRef.current) return;
+    try {
+      canvasRef.current.toBlob((blob) => {
+        if (!blob) { window.open(generated.url, "_blank"); return; }
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "qr-code-" + size + "px.png";
+        link.click();
+      });
+    } catch (e) { window.open(generated.url, "_blank"); }
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 560 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F517}"} QR Code Generator</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Generate QR codes with optional logo overlay for print materials and campaigns.</p>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>URL or Text *</label>
+          <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" onKeyDown={(e) => e.key === "Enter" && generate()} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Size</label>
+            <select value={size} onChange={(e) => setSize(Number(e.target.value))} style={{ ...inputStyle, cursor: "pointer" }}>
+              <option value={200}>200 x 200px</option>
+              <option value={300}>300 x 300px</option>
+              <option value={500}>500 x 500px</option>
+              <option value={800}>800 x 800px (print)</option>
+              <option value={1000}>1000 x 1000px (large print)</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>QR Colour</label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {presetColors.map((c) => (
+                <button key={c.hex} onClick={() => setColor(c.hex)} title={c.label} style={{ width: 32, height: 32, borderRadius: 6, background: "#" + c.hex, border: "2px solid " + (color === c.hex ? "var(--brand)" : "var(--border)"), cursor: "pointer" }}></button>
+              ))}
+              <div style={{ position: "relative", flex: 1 }}>
+                <input type="text" value={"#" + color} onChange={(e) => { const v = e.target.value.replace("#", ""); if (/^[0-9a-fA-F]{0,6}$/.test(v)) setColor(v); }} style={{ ...inputStyle, paddingLeft: 8, fontFamily: "monospace", fontSize: 12 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Centre Logo <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "var(--text-secondary)", textAlign: "center" }}>
+              {logoFile ? logoFile.name : "Choose logo image..."}
+              <input ref={logoRef} type="file" accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
+            </label>
+            {logoFile && (
+              <button onClick={() => { setLogoFile(null); setLogoPreview(null); if (logoRef.current) logoRef.current.value = ""; }} style={{ padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "#ef4444" }}>Remove</button>
+            )}
+          </div>
+          {logoPreview && <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}><img src={logoPreview} alt="Logo" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "contain", background: "#fff", border: "1px solid var(--border)" }} /><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Logo will appear at ~22% of QR size</span></div>}
+        </div>
+
+        <button onClick={generate} disabled={!url.trim()} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: url.trim() ? 1 : 0.5, marginBottom: generated ? 16 : 0, transition: "opacity 0.2s" }}>Generate QR Code</button>
+
+        {generated && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ display: "inline-block", padding: 16, background: "#fff", borderRadius: 12, border: "1px solid var(--border)", marginBottom: 12 }}>
+              <canvas ref={canvasRef} style={{ display: "block", width: Math.min(size, 280), height: Math.min(size, 280) }} />
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, wordBreak: "break-all" }}>{generated.inputUrl}</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button onClick={downloadQR} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4BE}"} Download PNG</button>
+              <button onClick={() => { navigator.clipboard.writeText(generated.url); }} style={{ padding: "10px 20px", background: "var(--brand-light)", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy URL</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+export function ImageEditor() {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [origW, setOrigW] = useState(0);
+  const [origH, setOrigH] = useState(0);
+  const canvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
+  const fileRef = useRef(null);
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [overlayColor, setOverlayColor] = useState("");
+  const [overlayOpacity, setOverlayOpacity] = useState(30);
+  const [textOverlay, setTextOverlay] = useState("");
+  const [textSize, setTextSize] = useState(48);
+  const [textColor, setTextColor] = useState("#ffffff");
+  const [textPos, setTextPos] = useState("center");
+  const [cropMode, setCropMode] = useState(false);
+  const [cropStart, setCropStart] = useState(null);
+  const [cropEnd, setCropEnd] = useState(null);
+  const [cropping, setCropping] = useState(false);
+  const [cropRatio, setCropRatio] = useState("free");
+  const [exportFormat, setExportFormat] = useState("png");
+  const [exportQuality, setExportQuality] = useState(92);
+  const [resizeW, setResizeW] = useState("");
+  const [resizeH, setResizeH] = useState("");
+  const [resizeLock, setResizeLock] = useState(true);
+  const imgRef = useRef(null);
+  const [watermark, setWatermark] = useState(false);
+  const [watermarkPos, setWatermarkPos] = useState("br");
+  const [watermarkSize, setWatermarkSize] = useState(15);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(60);
+  const watermarkImgRef = useRef(null);
+  const [undoStack, setUndoStack] = useState([]);
+
+  const EDITOR_BRAND_COLORS = [
+    { label: "Alps Main", color: "#231D68" },
+    { label: "Motor", color: "#E64592" },
+    { label: "Commercial", color: "#20A39E" },
+    { label: "White", color: "#ffffff" },
+    { label: "Black", color: "#000000" },
+  ];
+
+  const CROP_RATIOS = [
+    { label: "Free", value: "free" },
+    { label: "1:1", value: "1:1" },
+    { label: "16:9", value: "16:9" },
+    { label: "4:3", value: "4:3" },
+    { label: "9:16", value: "9:16" },
+  ];
+
+  const RESIZE_PRESETS = [
+    { label: "LinkedIn Post", w: 1200, h: 627 },
+    { label: "Instagram Square", w: 1080, h: 1080 },
+    { label: "Instagram Story", w: 1080, h: 1920 },
+    { label: "Facebook Cover", w: 820, h: 312 },
+    { label: "Email Header", w: 600, h: 200 },
+    { label: "Twitter Post", w: 1200, h: 675 },
+    { label: "YouTube Thumb", w: 1280, h: 720 },
+  ];
+
+  const applyResize = (w, h) => {
+    if (!imgRef.current) return;
+    saveUndo();
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(imgRef.current, 0, 0, w, h);
+    const newImg = new Image();
+    newImg.onload = () => { imgRef.current = newImg; setOrigW(w); setOrigH(h); setResizeW(""); setResizeH(""); };
+    newImg.src = canvas.toDataURL("image/png");
+  };
+
+  const handleResizeW = (val) => {
+    setResizeW(val);
+    if (resizeLock && imgRef.current && val) {
+      setResizeH(Math.round((Number(val) / imgRef.current.width) * imgRef.current.height));
+    }
+  };
+  const handleResizeH = (val) => {
+    setResizeH(val);
+    if (resizeLock && imgRef.current && val) {
+      setResizeW(Math.round((Number(val) / imgRef.current.height) * imgRef.current.width));
+    }
+  };
+
+  // Load watermark logo
+  useEffect(() => {
+    const wImg = new Image();
+    wImg.src = ALPS_LOGO_REVERSED;
+    wImg.onload = () => { watermarkImgRef.current = wImg; };
+  }, []);
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => { setOrigW(img.width); setOrigH(img.height); imgRef.current = img; setPreview(ev.target.result); resetEdits(); setUndoStack([]); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const saveUndo = () => {
+    if (!imgRef.current) return;
+    setUndoStack((prev) => [...prev.slice(-4), { brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, watermark, watermarkPos, watermarkSize, watermarkOpacity, imgSrc: imgRef.current.src, w: origW, h: origH }]);
+  };
+
+  const undo = () => {
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setBrightness(last.brightness); setContrast(last.contrast); setSaturation(last.saturation);
+    setOverlayColor(last.overlayColor); setOverlayOpacity(last.overlayOpacity);
+    setTextOverlay(last.textOverlay); setTextSize(last.textSize); setTextColor(last.textColor); setTextPos(last.textPos);
+    setWatermark(last.watermark); setWatermarkPos(last.watermarkPos); setWatermarkSize(last.watermarkSize); setWatermarkOpacity(last.watermarkOpacity);
+    if (last.imgSrc !== imgRef.current?.src) {
+      const img = new Image();
+      img.onload = () => { imgRef.current = img; setOrigW(last.w); setOrigH(last.h); };
+      img.src = last.imgSrc;
+    }
+  };
+
+  const resetEdits = () => {
+    setBrightness(100); setContrast(100); setSaturation(100);
+    setOverlayColor(""); setOverlayOpacity(30); setTextOverlay("");
+    setTextSize(48); setTextColor("#ffffff"); setTextPos("center");
+    setCropMode(false); setCropStart(null); setCropEnd(null); setCropRatio("free");
+    setWatermark(false); setWatermarkPos("br"); setWatermarkSize(15); setWatermarkOpacity(60);
+  };
+
+  const drawWatermark = (ctx, w, h, scale) => {
+    if (!watermark || !watermarkImgRef.current) return;
+    const wImg = watermarkImgRef.current;
+    const wSize = Math.round(w * watermarkSize / 100);
+    const aspect = wImg.width / wImg.height;
+    const wW = wSize;
+    const wH = wSize / aspect;
+    const pad = Math.round(w * 0.03);
+    let x = pad, y = pad;
+    if (watermarkPos === "br" || watermarkPos === "tr") x = w - wW - pad;
+    if (watermarkPos === "bl" || watermarkPos === "br") y = h - wH - pad;
+    ctx.globalAlpha = watermarkOpacity / 100;
+    ctx.drawImage(wImg, x, y, wW, wH);
+    ctx.globalAlpha = 1;
+  };
+
+  const renderPreview = useCallback(() => {
+    if (!imgRef.current || !previewCanvasRef.current) return;
+    const img = imgRef.current;
+    const canvas = previewCanvasRef.current;
+    const maxW = 600, maxH = 420;
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%)";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.filter = "none";
+    if (overlayColor) { ctx.globalAlpha = overlayOpacity / 100; ctx.fillStyle = overlayColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1; }
+    if (textOverlay) {
+      ctx.font = "bold " + Math.round(textSize * scale) + "px Inter, sans-serif";
+      ctx.fillStyle = textColor; ctx.textAlign = "center";
+      const x = canvas.width / 2;
+      let y = canvas.height / 2;
+      if (textPos === "top") y = Math.round(textSize * scale) + 20;
+      else if (textPos === "bottom") y = canvas.height - 20;
+      ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+      ctx.fillText(textOverlay, x, y);
+      ctx.shadowColor = "transparent";
+    }
+    drawWatermark(ctx, canvas.width, canvas.height, scale);
+    if (cropMode && cropStart && cropEnd) {
+      ctx.strokeStyle = "#6366f1"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      const cx = Math.min(cropStart.x, cropEnd.x), cy = Math.min(cropStart.y, cropEnd.y);
+      const cw = Math.abs(cropEnd.x - cropStart.x), ch = Math.abs(cropEnd.y - cropStart.y);
+      ctx.strokeRect(cx, cy, cw, ch);
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, 0, canvas.width, cy);
+      ctx.fillRect(0, cy + ch, canvas.width, canvas.height - cy - ch);
+      ctx.fillRect(0, cy, cx, ch);
+      ctx.fillRect(cx + cw, cy, canvas.width - cx - cw, ch);
+    }
+  }, [brightness, contrast, saturation, overlayColor, overlayOpacity, textOverlay, textSize, textColor, textPos, cropMode, cropStart, cropEnd, watermark, watermarkPos, watermarkSize, watermarkOpacity]);
+
+  useEffect(() => { renderPreview(); }, [renderPreview]);
+
+  const handleCropMouseDown = (e) => {
+    if (!cropMode) return;
+    const rect = previewCanvasRef.current.getBoundingClientRect();
+    setCropStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setCropEnd(null); setCropping(true);
+  };
+  const handleCropMouseMove = (e) => {
+    if (!cropping || !cropMode) return;
+    const rect = previewCanvasRef.current.getBoundingClientRect();
+    let nx = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    let ny = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    if (cropRatio !== "free" && cropStart) {
+      const [rw, rh] = cropRatio.split(":").map(Number);
+      const dx = nx - cropStart.x;
+      const dy = Math.abs(dx) * (rh / rw) * (ny > cropStart.y ? 1 : -1);
+      ny = cropStart.y + dy;
+    }
+    setCropEnd({ x: nx, y: ny });
+  };
+  const handleCropMouseUp = () => { setCropping(false); };
+
+  const applyCrop = () => {
+    if (!cropStart || !cropEnd || !imgRef.current) return;
+    saveUndo();
+    const canvas = previewCanvasRef.current;
+    const scaleX = imgRef.current.width / canvas.width, scaleY = imgRef.current.height / canvas.height;
+    const sx = Math.min(cropStart.x, cropEnd.x) * scaleX, sy = Math.min(cropStart.y, cropEnd.y) * scaleY;
+    const sw = Math.abs(cropEnd.x - cropStart.x) * scaleX, sh = Math.abs(cropEnd.y - cropStart.y) * scaleY;
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = sw; tmpCanvas.height = sh;
+    tmpCanvas.getContext("2d").drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, sw, sh);
+    const newImg = new Image();
+    newImg.onload = () => { imgRef.current = newImg; setOrigW(sw); setOrigH(sh); setCropMode(false); setCropStart(null); setCropEnd(null); renderPreview(); };
+    newImg.src = tmpCanvas.toDataURL("image/png");
+  };
+
+  const exportImage = () => {
+    if (!imgRef.current) return;
+    const img = imgRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%)";
+    ctx.drawImage(img, 0, 0);
+    ctx.filter = "none";
+    if (overlayColor) { ctx.globalAlpha = overlayOpacity / 100; ctx.fillStyle = overlayColor; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1; }
+    if (textOverlay) {
+      ctx.font = "bold " + textSize + "px Inter, sans-serif";
+      ctx.fillStyle = textColor; ctx.textAlign = "center";
+      let y = canvas.height / 2;
+      if (textPos === "top") y = textSize + 40; else if (textPos === "bottom") y = canvas.height - 40;
+      ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 8;
+      ctx.fillText(textOverlay, canvas.width / 2, y);
+    }
+    drawWatermark(ctx, canvas.width, canvas.height, 1);
+    const mimeType = exportFormat === "jpeg" ? "image/jpeg" : exportFormat === "webp" ? "image/webp" : "image/png";
+    const ext = exportFormat === "jpeg" ? ".jpg" : exportFormat === "webp" ? ".webp" : ".png";
+    const quality = exportFormat === "png" ? undefined : exportQuality / 100;
+    const baseName = (file ? file.name.replace(/\.[^.]+$/, "") : "image");
+    canvas.toBlob((blob) => {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "edited-" + baseName + ext; a.click();
+    }, mimeType, quality);
+  };
+
+  const sliderStyle = { width: "100%", accentColor: "var(--brand)", cursor: "pointer" };
+  const labelStyle = { display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 };
+  const inputStyle = { padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", width: "100%" };
+  const panelStyle = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14 };
+  const panelTitle = { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 720 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F58C}\uFE0F"} Image Editor</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text, brand overlays, and watermarks. Works entirely in your browser.</p>
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      {!file ? (
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 20px", border: "2px dashed var(--border)", borderRadius: 14, cursor: "pointer", background: "var(--bg-card)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
+          <div style={{ fontSize: 40, opacity: 0.4 }}>{"\u{1F5BC}\uFE0F"}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Click to upload an image</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+        </label>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 16 }} className="hub-editor-grid">
+          <div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{origW} x {origH}px</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {undoStack.length > 0 && <button onClick={undo} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "var(--text-muted)" }}>{"\u21A9"} Undo</button>}
+                  <button onClick={() => setCropMode(!cropMode)} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid " + (cropMode ? "var(--brand)" : "var(--border)"), background: cropMode ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: cropMode ? "var(--brand)" : "var(--text-muted)" }}>Crop</button>
+                  {cropMode && cropStart && cropEnd && <button onClick={applyCrop} style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "var(--brand)", fontSize: 11, fontWeight: 600, color: "#fff", cursor: "pointer" }}>Apply Crop</button>}
+                </div>
+              </div>
+              {cropMode && (
+                <div style={{ padding: "4px 10px", borderBottom: "1px solid var(--border)", display: "flex", gap: 4, background: "var(--bg-input)" }}>
+                  {CROP_RATIOS.map((r) => (
+                    <button key={r.value} onClick={() => setCropRatio(r.value)} style={{ padding: "3px 10px", borderRadius: 4, border: "1px solid " + (cropRatio === r.value ? "var(--brand)" : "var(--border)"), background: cropRatio === r.value ? "var(--brand-light)" : "transparent", fontSize: 10, fontWeight: 600, cursor: "pointer", color: cropRatio === r.value ? "var(--brand)" : "var(--text-muted)" }}>{r.label}</button>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 8, cursor: cropMode ? "crosshair" : "default" }} onMouseDown={handleCropMouseDown} onMouseMove={handleCropMouseMove} onMouseUp={handleCropMouseUp}>
+                <canvas ref={previewCanvasRef} style={{ maxWidth: "100%", display: "block", borderRadius: 4 }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{"\u{1F4BE}"} Download</button>
+              <button onClick={() => { saveUndo(); resetEdits(); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>Reset</button>
+              <button onClick={() => { setFile(null); setPreview(null); imgRef.current = null; if (fileRef.current) fileRef.current.value = ""; setUndoStack([]); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>New Image</button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={panelStyle}>
+              <div style={panelTitle}>Adjust</div>
+              <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Brightness</span><span>{brightness}%</span></div><input type="range" min="20" max="200" value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} style={sliderStyle} /></div>
+              <div style={{ marginBottom: 10 }}><div style={labelStyle}><span>Contrast</span><span>{contrast}%</span></div><input type="range" min="20" max="200" value={contrast} onChange={(e) => setContrast(Number(e.target.value))} style={sliderStyle} /></div>
+              <div><div style={labelStyle}><span>Saturation</span><span>{saturation}%</span></div><input type="range" min="0" max="200" value={saturation} onChange={(e) => setSaturation(Number(e.target.value))} style={sliderStyle} /></div>
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>Brand Overlay</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                <button onClick={() => setOverlayColor("")} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (!overlayColor ? "var(--brand)" : "var(--border)"), background: "repeating-conic-gradient(#80808030 0% 25%, transparent 0% 50%) 50%/8px 8px", cursor: "pointer" }}></button>
+                {EDITOR_BRAND_COLORS.map((c) => (
+                  <button key={c.color} onClick={() => setOverlayColor(c.color)} style={{ width: 28, height: 28, borderRadius: 6, border: "2px solid " + (overlayColor === c.color ? "var(--brand)" : "var(--border)"), background: c.color, cursor: "pointer" }}></button>
+                ))}
+              </div>
+              {overlayColor && <div><div style={labelStyle}><span>Opacity</span><span>{overlayOpacity}%</span></div><input type="range" min="5" max="80" value={overlayOpacity} onChange={(e) => setOverlayOpacity(Number(e.target.value))} style={sliderStyle} /></div>}
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F3F7}\uFE0F"} Watermark</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: watermark ? 10 : 0 }}>
+                <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} style={{ accentColor: "var(--brand)" }} />
+                Alps logo watermark
+              </label>
+              {watermark && <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 8 }}>
+                  {[{ key: "tl", label: "\u2196" }, { key: "tr", label: "\u2197" }, { key: "bl", label: "\u2199" }, { key: "br", label: "\u2198" }].map((p) => (
+                    <button key={p.key} onClick={() => setWatermarkPos(p.key)} style={{ padding: "5px", borderRadius: 4, border: "1px solid " + (watermarkPos === p.key ? "var(--brand)" : "var(--border)"), background: watermarkPos === p.key ? "var(--brand-light)" : "transparent", fontSize: 14, cursor: "pointer", color: watermarkPos === p.key ? "var(--brand)" : "var(--text-muted)" }}>{p.label}</button>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 6 }}><div style={labelStyle}><span>Size</span><span>{watermarkSize}%</span></div><input type="range" min="5" max="40" value={watermarkSize} onChange={(e) => setWatermarkSize(Number(e.target.value))} style={sliderStyle} /></div>
+                <div><div style={labelStyle}><span>Opacity</span><span>{watermarkOpacity}%</span></div><input type="range" min="10" max="100" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} style={sliderStyle} /></div>
+              </>}
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F4D0}"} Resize</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+                {RESIZE_PRESETS.map((p) => (
+                  <button key={p.label} onClick={() => applyResize(p.w, p.h)} title={p.w + "x" + p.h} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "var(--bg-input)", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", transition: "all 0.15s" }}>{p.label}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input type="number" value={resizeW} onChange={(e) => handleResizeW(e.target.value)} placeholder="W" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
+                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>{resizeLock ? "\u{1F517}" : "\u26D3"}</button>
+                <input type="number" value={resizeH} onChange={(e) => handleResizeH(e.target.value)} placeholder="H" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
+                <button onClick={() => { if (resizeW && resizeH) applyResize(Number(resizeW), Number(resizeH)); }} disabled={!resizeW || !resizeH} style={{ padding: "6px 10px", border: "none", borderRadius: 4, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: (!resizeW || !resizeH) ? 0.4 : 1 }}>{"\u2713"}</button>
+              </div>
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>{"\u{1F4BE}"} Export</div>
+              <div style={{ display: "flex", gap: 4, marginBottom: exportFormat !== "png" ? 8 : 0 }}>
+                {[{ k: "png", l: "PNG" }, { k: "jpeg", l: "JPEG" }, { k: "webp", l: "WEBP" }].map((f) => (
+                  <button key={f.k} onClick={() => setExportFormat(f.k)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (exportFormat === f.k ? "var(--brand)" : "var(--border)"), background: exportFormat === f.k ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: exportFormat === f.k ? "var(--brand)" : "var(--text-muted)" }}>{f.l}</button>
+                ))}
+              </div>
+              {exportFormat !== "png" && <div><div style={labelStyle}><span>Quality</span><span>{exportQuality}%</span></div><input type="range" min="10" max="100" value={exportQuality} onChange={(e) => setExportQuality(Number(e.target.value))} style={sliderStyle} /></div>}
+            </div>
+
+            <div style={panelStyle}>
+              <div style={panelTitle}>Text</div>
+              <input value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} placeholder="Add text..." style={{ ...inputStyle, marginBottom: 8 }} />
+              {textOverlay && <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Size</div><input type="number" value={textSize} onChange={(e) => setTextSize(Number(e.target.value))} style={inputStyle} /></div>
+                  <div><div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Colour</div><input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} style={{ ...inputStyle, padding: 4, height: 36, cursor: "pointer" }} /></div>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {["top", "center", "bottom"].map((p) => (
+                    <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (textPos === p ? "var(--brand)" : "var(--border)"), background: textPos === p ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: textPos === p ? "var(--brand)" : "var(--text-muted)" }}>{p}</button>
+                  ))}
+                </div>
+              </>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUser }) {
+  const [notes, setNotes] = useState("");
+  const [extracted, setExtracted] = useState([]);
+  const [created, setCreated] = useState({});
+  const [creating, setCreating] = useState(false);
+
+  const extractActions = () => {
+    if (!notes.trim()) return;
+    const lines = notes.split("\n").map((l) => l.trim()).filter(Boolean);
+    const actions = [];
+    const actionPatterns = [
+      /^[-*•]\s*(?:ACTION|TODO|TASK|FOLLOW[- ]?UP)?[:\s]*(.+)/i,
+      /^(?:\d+[.)]\s*)(.+)/,
+      /^(?:ACTION|TODO|TASK|FOLLOW[- ]?UP)[:\s]+(.+)/i,
+    ];
+    const contextKeywords = /\b(?:need(?:s|ed)? to|should|will|must|can you|please|let'?s|make sure|follow[- ]?up|action|todo|task|create|update|send|schedule|book|arrange|prepare|draft|review|check|confirm|set up|organise|organize|complete|finish|deliver|submit|upload|design|build|write|produce|contact|call|email|meet)\b/i;
+
+    lines.forEach((line) => {
+      let matched = false;
+      for (const pattern of actionPatterns) {
+        const m = line.match(pattern);
+        if (m) {
+          actions.push({ text: m[1].trim(), original: line, selected: true, priority: "medium" });
+          matched = true;
+          break;
+        }
+      }
+      if (!matched && contextKeywords.test(line) && line.length > 15 && line.length < 300) {
+        actions.push({ text: line, original: line, selected: true, priority: "medium" });
+      }
+    });
+
+    if (actions.length === 0) {
+      lines.forEach((line) => {
+        if (line.length > 10 && line.length < 200 && !line.toLowerCase().startsWith("meeting") && !line.toLowerCase().startsWith("attendee") && !line.toLowerCase().startsWith("date") && !line.toLowerCase().startsWith("present")) {
+          actions.push({ text: line, original: line, selected: false, priority: "medium" });
+        }
+      });
+    }
+    setExtracted(actions);
+    setCreated({});
+  };
+
+  const toggleItem = (idx) => setExtracted((prev) => prev.map((a, i) => i === idx ? { ...a, selected: !a.selected } : a));
+  const setPriority = (idx, p) => setExtracted((prev) => prev.map((a, i) => i === idx ? { ...a, priority: p } : a));
+  const removeItem = (idx) => setExtracted((prev) => prev.filter((_, i) => i !== idx));
+  const [manualText, setManualText] = useState("");
+  const addManual = () => { if (!manualText.trim()) return; setExtracted((prev) => [...prev, { text: manualText.trim(), original: manualText.trim(), selected: true, priority: "medium" }]); setManualText(""); };
+
+  const createTicket = async (action, idx) => {
+    if (onDirectCreate) {
+      setCreating(true);
+      await onDirectCreate({ title: action.text, description: "From meeting notes:\n\n" + action.original, priority: action.priority });
+      setCreated((prev) => ({ ...prev, [idx]: true }));
+      setCreating(false);
+    } else {
+      onCreateTicket({ title: action.text, description: "From meeting notes:\n\n" + action.original, priority: action.priority });
+      setCreated((prev) => ({ ...prev, [idx]: true }));
+    }
+  };
+
+  const createAll = async () => {
+    const items = extracted.filter((a, i) => a.selected && !created[i]);
+    if (items.length === 0) return;
+    setCreating(true);
+    for (let i = 0; i < extracted.length; i++) {
+      const a = extracted[i];
+      if (!a.selected || created[i]) continue;
+      if (onDirectCreate) {
+        await onDirectCreate({ title: a.text, description: "From meeting notes:\n\n" + a.original, priority: a.priority });
+      }
+      setCreated((prev) => ({ ...prev, [i]: true }));
+    }
+    setCreating(false);
+  };
+
+  const selectedCount = extracted.filter((a, i) => a.selected && !created[i]).length;
+  const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 700 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4DD}"} Meeting Notes to Tickets</h2>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Paste your meeting notes and extract action items as tickets. We'll detect bullet points, numbered items, and sentences that sound like tasks.</p>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste meeting notes here...\n\nExamples of what we'll pick up:\n- Create social media campaign for Q2 launch\n- Tom to update the website hero banner\n- ACTION: Send broker toolkit to new partners\n1. Schedule photography session for May\n2. Review print materials before Friday"} rows={10} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={extractActions} disabled={!notes.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !notes.trim() ? 0.5 : 1 }}>{"\u{1F50D}"} Extract Action Items</button>
+          {extracted.length > 0 && <button onClick={() => { setExtracted([]); setCreated({}); }} style={{ padding: "10px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear</button>}
+          {notes.trim() && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{notes.split("\n").filter((l) => l.trim()).length} lines</span>}
+        </div>
+      </div>
+
+      {extracted.length > 0 && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Extracted Items ({extracted.length})</h3>
+            {selectedCount > 0 && (
+              <button onClick={createAll} disabled={creating} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>{creating ? "\u23F3 Creating..." : "\u{1F680} Create " + selectedCount + " Ticket" + (selectedCount !== 1 ? "s" : "")}</button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {extracted.map((action, idx) => {
+              const done = created[idx];
+              const p = PRIORITIES[action.priority];
+              return (
+                <div key={idx} style={{ padding: "12px 16px", background: done ? "rgba(22,163,74,0.04)" : "var(--bg-input)", border: "1px solid " + (done ? "rgba(22,163,74,0.2)" : "var(--border)"), borderRadius: 10, opacity: done ? 0.6 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    {!done && (
+                      <input type="checkbox" checked={action.selected} onChange={() => toggleItem(idx)} style={{ marginTop: 3, accentColor: "var(--brand)", cursor: "pointer" }} />
+                    )}
+                    {done && <span style={{ fontSize: 16, flexShrink: 0 }}>{"\u2705"}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: done ? "#16a34a" : "var(--text-primary)", lineHeight: 1.4 }}>{action.text}</div>
+                      {!done && (
+                        <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          {Object.entries(PRIORITIES).map(([key, pr]) => (
+                            <button key={key} onClick={() => setPriority(idx, key)} style={{ padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "1px solid " + (action.priority === key ? pr.color : "var(--border)"), background: action.priority === key ? pr.bg : "transparent", color: action.priority === key ? pr.color : "var(--text-muted)" }}>
+                              {pr.icon} {pr.label}
+                            </button>
+                          ))}
+                          <button onClick={() => createTicket(action, idx)} disabled={creating} style={{ marginLeft: "auto", padding: "5px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>{"\u{1F4DD}"} Create Ticket</button>
+                          <button onClick={() => removeItem(idx)} style={{ padding: "5px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                        </div>
+                      )}
+                      {done && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>Ticket created</div>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+            <input value={manualText} onChange={(e) => setManualText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addManual(); }} placeholder="Manually add an action item..." style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none" }} />
+            <button onClick={addManual} disabled={!manualText.trim()} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: !manualText.trim() ? 0.5 : 1 }}>+ Add</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export function ContentRepurposer() {
+  const [source, setSource] = useState("");
+  const [outputs, setOutputs] = useState(null);
+  const [copied, setCopied] = useState(null);
+
+  const repurpose = () => {
+    if (!source.trim()) return;
+    const text = source.trim();
+
+    // Extract key sentences - first sentence, last sentence, and any sentence with strong keywords
+    const sentences = text.replace(/([.!?])\s+/g, "$1|SPLIT|").split("|SPLIT|").map((s) => s.trim()).filter((s) => s.length > 10);
+    const firstSentence = sentences[0] || text.slice(0, 150);
+    const keyPhrases = sentences.filter((s) => /\b(?:launch|announce|new|introducing|excited|proud|key|important|result|growth|partner|milestone|achieve)\b/i.test(s));
+    const hook = keyPhrases[0] || firstSentence;
+
+    // Strip markdown for clean output
+    const clean = text.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1").replace(/#{1,6}\s/g, "").replace(/\[(.+?)\]\(.+?\)/g, "$1").replace(/^[-*]\s/gm, "• ");
+
+    // Summarise - take first 2-3 meaningful sentences
+    const summary = sentences.slice(0, 3).join(" ");
+    const shortSummary = sentences.slice(0, 2).join(" ");
+
+    // Detect topic for hashtags
+    const topicKeywords = {
+      insurance: ["#insurance", "#insurtech", "#brokers"],
+      marketing: ["#marketing", "#digitalmarketing", "#contentmarketing"],
+      property: ["#property", "#realestate", "#lettings"],
+      technology: ["#technology", "#innovation", "#digital"],
+      team: ["#teamwork", "#culture", "#hiring"],
+      event: ["#events", "#networking", "#conference"],
+    };
+    let hashtags = ["#alps", "#business"];
+    const lowerText = text.toLowerCase();
+    for (const [topic, tags] of Object.entries(topicKeywords)) {
+      if (lowerText.includes(topic)) { hashtags = [...tags, "#alps"]; break; }
+    }
+
+    // LinkedIn post (max ~3000 chars, but aim for 1300 for engagement)
+    const linkedinLines = [];
+    linkedinLines.push(hook.replace(/[.!?]$/, "") + ".\n");
+    if (sentences.length > 3) {
+      linkedinLines.push(sentences.slice(1, 4).join(" ") + "\n");
+    }
+    if (sentences.length > 5) {
+      const bullets = sentences.slice(4, 7).map((s) => "→ " + s.replace(/[.!?]$/, ""));
+      linkedinLines.push(bullets.join("\n") + "\n");
+    }
+    linkedinLines.push(hashtags.join(" "));
+    const linkedin = linkedinLines.join("\n");
+
+    // Email snippet (subject + 2-3 sentence intro)
+    const subjectLine = hook.length > 80 ? hook.slice(0, 77) + "..." : hook.replace(/[.!?]$/, "");
+    const emailBody = "Hi,\n\n" + shortSummary + "\n\n" + (sentences.length > 3 ? sentences.slice(2, 4).join(" ") + "\n\n" : "") + "Let me know if you'd like to discuss further.\n\nBest regards";
+
+    // Social caption (short, punchy, < 280 chars)
+    let social = hook.replace(/[.!?]$/, "");
+    if (social.length > 200) social = social.slice(0, 197) + "...";
+    social += " " + hashtags.slice(0, 3).join(" ");
+
+    // Twitter/X thread format
+    const tweetThread = [];
+    if (sentences.length > 0) tweetThread.push("🧵 " + sentences[0]);
+    sentences.slice(1, 5).forEach((s, i) => { tweetThread.push((i + 2) + "/ " + s); });
+    if (sentences.length > 5) tweetThread.push((tweetThread.length + 1) + "/ " + sentences[sentences.length - 1] + "\n\n" + hashtags.join(" "));
+    else if (tweetThread.length > 0) tweetThread[tweetThread.length - 1] += "\n\n" + hashtags.join(" ");
+
+    setOutputs({
+      linkedin,
+      emailSubject: subjectLine,
+      emailBody,
+      social,
+      tweetThread: tweetThread.join("\n\n"),
+    });
+  };
+
+  const copy = (text, key) => {
+    navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(null), 2000); });
+  };
+
+  const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+
+  const OutputCard = ({ title, icon, content, copyKey, charLimit, extra }) => (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{icon} {title}</h4>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: content.length > (charLimit || 99999) ? "#dc2626" : "var(--text-muted)" }}>{content.length} chars{charLimit ? " / " + charLimit : ""}</span>
+          <button onClick={() => copy(extra ? extra + "\n\n" + content : content, copyKey)} style={{ padding: "5px 12px", background: copied === copyKey ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === copyKey ? "#fff" : "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+            {copied === copyKey ? "\u2713 Copied" : "\u{1F4CB} Copy"}
+          </button>
+        </div>
+      </div>
+      {extra && <div style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, marginBottom: 8, padding: "6px 10px", background: "var(--brand-light)", borderRadius: 6, display: "inline-block" }}>{extra}</div>}
+      <pre style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordWrap: "break-word", fontFamily: "inherit" }}>{content}</pre>
+    </div>
+  );
+
+  return (
+    <div style={{ width: "100%", maxWidth: 700 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u267B\uFE0F"} Content Repurposer</h2>
+      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Paste a blog post, article, or any long-form content and get it reformatted for LinkedIn, email, social media, and X/Twitter threads.</p>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
+        <textarea value={source} onChange={(e) => setSource(e.target.value)} placeholder="Paste your content here — blog post, article, press release, announcement..." rows={8} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={repurpose} disabled={!source.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !source.trim() ? 0.5 : 1 }}>{"\u267B\uFE0F"} Repurpose Content</button>
+          {outputs && <button onClick={() => { setOutputs(null); }} style={{ padding: "10px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear</button>}
+          {source.trim() && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{source.trim().split(/\s+/).length} words</span>}
+        </div>
+      </div>
+
+      {outputs && (
+        <div>
+          <OutputCard title="LinkedIn Post" icon={"\u{1F4BC}"} content={outputs.linkedin} copyKey="linkedin" charLimit={3000} />
+          <OutputCard title="Email" icon={"\u{1F4E7}"} content={outputs.emailBody} copyKey="email" extra={"Subject: " + outputs.emailSubject} />
+          <OutputCard title="Social Caption" icon={"\u{1F4F1}"} content={outputs.social} copyKey="social" charLimit={280} />
+          <OutputCard title="X / Twitter Thread" icon={"\u{1D54F}"} content={outputs.tweetThread} copyKey="thread" charLimit={280} />
+        </div>
+      )}
+    </div>
+  );
+}
+

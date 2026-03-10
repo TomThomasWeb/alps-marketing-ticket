@@ -1,0 +1,961 @@
+import { useState, useRef, useEffect } from "react";
+import jsPDF from "jspdf";
+import { supabase } from "../supabaseClient.js";
+import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, getDueBadge, daysUntil, formatDate, renderMarkdown } from "../constants.js";
+
+export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, onGoalSave, onGoalDelete }) {
+  const [tab, setTab] = useState("report");
+  const ts = (key) => ({ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: tab === key ? "var(--brand)" : "transparent", color: tab === key ? "#fff" : "var(--text-secondary)" });
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 };
+  const mb = { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", textAlign: "center" };
+  const mv = { fontSize: 26, fontWeight: 800, color: "var(--brand)", lineHeight: 1 };
+  const ml = { fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, marginTop: 4 };
+  const st = { fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
+  const now = new Date();
+  const sow = new Date(now); sow.setDate(now.getDate() - now.getDay()); sow.setHours(0, 0, 0, 0);
+  const slw = new Date(sow); slw.setDate(slw.getDate() - 7);
+  const fmtH = (h) => h === 0 ? "--" : h < 24 ? Math.round(h) + "h" : (h / 24).toFixed(1) + "d";
+
+  // Ticket metrics
+  const ct = tickets.filter((t) => t.completedAt && t.createdAt);
+  const at = tickets.filter((t) => t.status !== "completed");
+  const avgH = ct.length > 0 ? ct.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / ct.length : 0;
+  const cTimes = ct.map((t) => (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000);
+  const fH = cTimes.length > 0 ? Math.min(...cTimes) : 0;
+  const sH = cTimes.length > 0 ? Math.max(...cTimes) : 0;
+  const twC = tickets.filter((t) => new Date(t.createdAt) >= sow).length;
+  const lwC = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= slw && d < sow; }).length;
+  const twD = ct.filter((t) => new Date(t.completedAt) >= sow).length;
+  const lwD = ct.filter((t) => { const d = new Date(t.completedAt); return d >= slw && d < sow; }).length;
+  const od = at.filter((t) => { const d = daysUntil(t.deadline); return d !== null && d < 0; }).length;
+  const cr = tickets.length > 0 ? Math.round(ct.length / tickets.length * 100) : 0;
+  const pb = { critical: 0, high: 0, medium: 0, low: 0 }; at.forEach((t) => { if (pb[t.priority] !== undefined) pb[t.priority]++; }); const mp = Math.max(...Object.values(pb), 1);
+
+  // Month-over-month comparison
+  const som = new Date(now.getFullYear(), now.getMonth(), 1);
+  const solm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const eolm = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+  const tmCreated = tickets.filter((t) => new Date(t.createdAt) >= som).length;
+  const lmCreated = tickets.filter((t) => { const c = new Date(t.createdAt); return c >= solm && c <= eolm; }).length;
+  const tmDone = ct.filter((t) => new Date(t.completedAt) >= som).length;
+  const lmDone = ct.filter((t) => { const c = new Date(t.completedAt); return c >= solm && c <= eolm; }).length;
+
+  // Projected completions
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const projectedDone = dayOfMonth > 0 ? Math.round((tmDone / dayOfMonth) * daysInMonth) : 0;
+  const pa = {}; Object.keys(PRIORITIES).forEach((k) => { const pts = ct.filter((t) => t.priority === k); pa[k] = pts.length > 0 ? fmtH(pts.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / pts.length) : "--"; });
+  const sc = {}; tickets.forEach((t) => { sc[t.name] = (sc[t.name] || 0) + 1; }); const topS = Object.entries(sc).sort((a, b) => b[1] - a[1]).slice(0, 8); const msub = topS.length > 0 ? topS[0][1] : 1;
+  const mt = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); const lb = d.toLocaleDateString("en-GB", { month: "short" }); mt.push({ label: lb, c: tickets.filter((t) => { const x = new Date(t.createdAt); return x >= d && x <= end; }).length, done: ct.filter((t) => { const x = new Date(t.completedAt); return x >= d && x <= end; }).length }); } const mmt = Math.max(...mt.map((m) => Math.max(m.c, m.done)), 1);
+
+  // Archive metrics
+  const atw = archiveEntries.filter((e) => new Date(e.date || e.created_at) >= sow).length;
+  const alw = archiveEntries.filter((e) => { const d = new Date(e.date || e.created_at); return d >= slw && d < sow; }).length;
+  const atb = {}; Object.keys(ARCHIVE_TYPES).forEach((k) => { atb[k] = 0; }); archiveEntries.forEach((e) => { atb[e.type] = (atb[e.type] || 0) + 1; }); const mat = Math.max(...Object.values(atb), 1);
+  const ma = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); ma.push({ label: d.toLocaleDateString("en-GB", { month: "short" }), v: archiveEntries.filter((e) => { const x = new Date(e.date || e.created_at); return x >= d && x <= end; }).length }); } const mma = Math.max(...ma.map((m) => m.v), 1);
+
+  // Leads metrics
+  const ltw = leads.filter((l) => new Date(l.created_at) >= sow).length;
+  const llw = leads.filter((l) => { const d = new Date(l.created_at); return d >= slw && d < sow; }).length;
+  const lna = leads.filter((l) => l.next_steps === "needs_action").length;
+  const lpt = leads.filter((l) => l.next_steps === "passed_through").length;
+  const lsb = {}; Object.keys(LEAD_SOURCES).forEach((k) => { lsb[k] = 0; }); leads.forEach((l) => { lsb[l.source] = (lsb[l.source] || 0) + 1; }); const mls = Math.max(...Object.values(lsb), 1);
+  const mld = []; for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59); mld.push({ label: d.toLocaleDateString("en-GB", { month: "short" }), v: leads.filter((l) => { const x = new Date(l.created_at); return x >= d && x <= end; }).length }); } const mml = Math.max(...mld.map((m) => m.v), 1);
+  const ll = {}; leads.forEach((l) => { ll[l.logged_by] = (ll[l.logged_by] || 0) + 1; }); const topL = Object.entries(ll).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const barChart = (data, maxV, color, vKey) => (<div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>{data.map((m, i) => (<div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><div style={{ width: "60%", background: color, borderRadius: "3px 3px 0 0", height: (m[vKey] / maxV * 90) + "px", minHeight: m[vKey] > 0 ? 4 : 0, opacity: 0.7 }}></div><span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span></div>))}</div>);
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>{"\u{1F4CB}"} Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>{"\u{1F4DA}"} Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>{"\u{1F4C8}"} Leads</button><button onClick={() => setTab("report")} style={ts("report")}>{"\u{1F4CB}"} Report</button></div>
+      </div>
+
+      {tab === "tickets" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={mb}><div style={mv}>{tickets.length}</div><div style={ml}>Total</div></div>
+          <div style={mb}><div style={mv}>{at.length}</div><div style={ml}>Active</div></div>
+          <div style={mb}><div style={mv}>{cr}%</div><div style={ml}>Completion Rate</div></div>
+          <div style={mb}><div style={mv}>{fmtH(avgH)}</div><div style={ml}>Avg. Turnaround</div></div>
+          <div style={{ ...mb, borderColor: od > 0 ? "rgba(220,38,38,0.3)" : "var(--border)" }}><div style={{ ...mv, color: od > 0 ? "#dc2626" : "var(--brand)" }}>{od}</div><div style={ml}>Overdue</div></div>
+        </div>
+        <div className="hub-week-compare" style={{ ...card, padding: "14px 20px", marginBottom: 20, display: "flex", gap: 24, justifyContent: "center", alignItems: "center", fontSize: 13, color: "var(--text-secondary)" }}>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Last Week</div><span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{lwC}</strong> in</span><span style={{ margin: "0 6px", opacity: 0.3 }}>|</span><span><strong style={{ color: "#16a34a", fontSize: 18 }}>{lwD}</strong> out</span></div>
+          <div style={{ width: 1, height: 32, background: "var(--border)" }}></div>
+          <div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>This Week</div><span><strong style={{ color: "var(--brand)", fontSize: 18 }}>{twC}</strong> in</span><span style={{ margin: "0 6px", opacity: 0.3 }}>|</span><span><strong style={{ color: "#16a34a", fontSize: 18 }}>{twD}</strong> out</span></div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+          <div style={{ ...mb, background: "var(--bg-card)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>This Month vs Last</div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}><span style={{ color: "var(--text-secondary)" }}>Submitted</span><span style={{ fontWeight: 700, color: tmCreated >= lmCreated ? "#16a34a" : "#dc2626" }}>{tmCreated} {tmCreated >= lmCreated ? "\u2191" : "\u2193"} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>vs {lmCreated}</span></span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>Completed</span><span style={{ fontWeight: 700, color: tmDone >= lmDone ? "#16a34a" : "#dc2626" }}>{tmDone} {tmDone >= lmDone ? "\u2191" : "\u2193"} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>vs {lmDone}</span></span></div>
+          </div>
+          <div style={{ ...mb, background: "var(--bg-card)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Projected This Month</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{projectedDone}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>completions at current pace</div>
+          </div>
+          <div style={{ ...mb, background: "var(--bg-card)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Speed</div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}><span style={{ color: "var(--text-secondary)" }}>Fastest</span><span style={{ fontWeight: 700, color: "#16a34a" }}>{fmtH(fH)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>Slowest</span><span style={{ fontWeight: 700, color: "#dc2626" }}>{fmtH(sH)}</span></div>
+          </div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={card}><div style={st}>Monthly Trend</div><div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>{mt.map((m, i) => (<div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><div style={{ display: "flex", gap: 2, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}><div style={{ width: "40%", background: "var(--brand)", borderRadius: "3px 3px 0 0", height: (m.c / mmt * 90) + "px", minHeight: m.c > 0 ? 4 : 0, opacity: 0.7 }}></div><div style={{ width: "40%", background: "#16a34a", borderRadius: "3px 3px 0 0", height: (m.done / mmt * 90) + "px", minHeight: m.done > 0 ? 4 : 0, opacity: 0.7 }}></div></div><span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span></div>))}</div><div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}><span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--brand)", marginRight: 4, opacity: 0.7 }}></span>Submitted</span><span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4, opacity: 0.7 }}></span>Completed</span></div></div>
+          <div style={card}><div style={st}>Turnaround by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.icon} {p.label}</span><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{pa[key]}</span></div>))}<div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)" }}><span>Fastest: <strong style={{ color: "#16a34a" }}>{fmtH(fH)}</strong></span><span>Slowest: <strong style={{ color: "#dc2626" }}>{fmtH(sH)}</strong></span></div></div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}><div style={st}>Active by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: (pb[key] / mp * 100) + "%", height: "100%", background: p.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{pb[key]}</span></div>))}</div>
+          <div style={card}><div style={st}>Top Submitters</div>{topS.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p> : topS.map(([name, count]) => (<div key={name} style={{ marginBottom: 6 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ fontSize: 12, color: "var(--text-body)", fontWeight: 500 }}>{name}</span><span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)" }}>{count}</span></div><div style={{ height: 4, background: "var(--bar-bg)", borderRadius: 2, overflow: "hidden" }}><div style={{ width: (count / msub * 100) + "%", height: "100%", background: "var(--brand)", borderRadius: 2, opacity: 0.5 }}></div></div></div>))}</div>
+        </div>
+        <div style={{ ...card, marginTop: 16 }}>
+          <div style={st}>SLA Performance</div>
+          <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Target turnaround: Critical {SLA_TARGETS.critical.label} {"\u2022"} High {SLA_TARGETS.high.label} {"\u2022"} Medium {SLA_TARGETS.medium.label} {"\u2022"} Low {SLA_TARGETS.low.label}</p>
+          {(() => {
+            const completed = tickets.filter((t) => t.completedAt && t.createdAt);
+            const withSla = completed.map((t) => {
+              const hours = (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000;
+              const target = SLA_TARGETS[t.priority];
+              return { ...t, hours, met: target ? hours <= target.hours : true };
+            });
+            const met = withSla.filter((t) => t.met).length;
+            const missed = withSla.filter((t) => !t.met).length;
+            const pctMet = withSla.length > 0 ? Math.round(met / withSla.length * 100) : 0;
+            const activeBreached = tickets.filter((t) => t.status !== "completed" && t.createdAt).filter((t) => {
+              const elapsed = (Date.now() - new Date(t.createdAt)) / 3600000;
+              const target = SLA_TARGETS[t.priority];
+              return target && elapsed > target.hours;
+            }).length;
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                <div style={mb}><div style={{ ...mv, color: pctMet >= 80 ? "#16a34a" : pctMet >= 50 ? "#ca8a04" : "#dc2626" }}>{pctMet}%</div><div style={ml}>SLA Met</div></div>
+                <div style={mb}><div style={{ ...mv, color: "#16a34a" }}>{met}</div><div style={ml}>On Time</div></div>
+                <div style={mb}><div style={{ ...mv, color: missed > 0 ? "#dc2626" : "var(--brand)" }}>{missed}</div><div style={ml}>Missed</div></div>
+                <div style={mb}><div style={{ ...mv, color: activeBreached > 0 ? "#dc2626" : "#16a34a" }}>{activeBreached}</div><div style={ml}>Active Breached</div></div>
+              </div>
+            );
+          })()}
+        </div>
+      </>)}
+
+      {tab === "archive" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={mb}><div style={mv}>{archiveEntries.length}</div><div style={ml}>Total Entries</div></div>
+          <div style={mb}><div style={mv}>{atw}</div><div style={ml}>This Week</div></div>
+          <div style={mb}><div style={mv}>{alw}</div><div style={ml}>Last Week</div></div>
+          <div style={mb}><div style={mv}>{atw > alw ? "\u2191" : atw < alw ? "\u2193" : "\u2192"}</div><div style={ml}>Trend</div></div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}><div style={st}>Monthly Output</div>{barChart(ma, mma, "#8b5cf6", "v")}</div>
+          <div style={card}><div style={st}>By Type</div>{Object.entries(ARCHIVE_TYPES).map(([key, t]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><span style={{ fontSize: 11, fontWeight: 600, color: t.color, width: 80, flexShrink: 0 }}>{t.icon} {t.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: ((atb[key] || 0) / mat * 100) + "%", height: "100%", background: t.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{atb[key] || 0}</span></div>))}</div>
+        </div>
+      </>)}
+
+      {tab === "leads" && (<>
+        <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+          <div style={mb}><div style={mv}>{leads.length}</div><div style={ml}>Total Leads</div></div>
+          <div style={mb}><div style={mv}>{ltw}</div><div style={ml}>This Week</div></div>
+          <div style={{ ...mb, borderColor: lna > 0 ? "rgba(202,138,4,0.3)" : "var(--border)" }}><div style={{ ...mv, color: lna > 0 ? "#ca8a04" : "var(--brand)" }}>{lna}</div><div style={ml}>Needs Action</div></div>
+          <div style={mb}><div style={mv}>{lpt}</div><div style={ml}>Passed Through</div></div>
+          <div style={mb}><div style={mv}>{leads.length > 0 ? Math.round(lpt / leads.length * 100) + "%" : "--"}</div><div style={ml}>Pass-Through Rate</div></div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={card}><div style={st}>Monthly Leads</div>{barChart(mld, mml, "#0d9488", "v")}</div>
+          <div style={card}><div style={st}>By Source</div>{Object.entries(LEAD_SOURCES).map(([key, s]) => { const cnt = lsb[key] || 0; if (cnt === 0 && key === "other") return null; return (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 600, color: s.color, width: 70, flexShrink: 0 }}>{s.icon} {s.label}</span><div style={{ flex: 1, height: 10, background: "var(--bar-bg)", borderRadius: 5, overflow: "hidden" }}><div style={{ width: (cnt / mls * 100) + "%", height: "100%", background: s.color, borderRadius: 5 }}></div></div><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-body)", width: 24, textAlign: "right" }}>{cnt}</span></div>); })}</div>
+        </div>
+        <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}><div style={st}>Week Comparison</div><div style={{ display: "flex", gap: 20, justifyContent: "center", fontSize: 13, color: "var(--text-secondary)" }}><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Last Week</div><div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{llw}</div></div><div style={{ width: 1, background: "var(--border)" }}></div><div style={{ textAlign: "center" }}><div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>This Week</div><div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{ltw}</div></div></div></div>
+          <div style={card}><div style={st}>Top Loggers</div>{topL.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No leads yet</p> : topL.map(([name, count]) => (<div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, color: "var(--text-body)" }}>{name}</span><span style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 10 }}>{count}</span></div>))}</div>
+        </div>
+      </>)}
+
+      {tab === "report" && (() => {
+        // Weekly report data (previous Mon-Sun)
+        const today = new Date(now);
+        const dayOfWeek = today.getDay();
+        const lastSunday = new Date(today); lastSunday.setDate(today.getDate() - (dayOfWeek === 0 ? 7 : dayOfWeek)); lastSunday.setHours(23, 59, 59, 999);
+        const lastMonday = new Date(lastSunday); lastMonday.setDate(lastSunday.getDate() - 6); lastMonday.setHours(0, 0, 0, 0);
+        const wkLabel = lastMonday.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " \u2013 " + lastSunday.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+        const wkTC = tickets.filter((t) => { const d = new Date(t.createdAt); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkTD = ct.filter((t) => { const d = new Date(t.completedAt); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkA = archiveEntries.filter((e) => { const d = new Date(e.date || e.created_at); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkL = leads.filter((l) => { const d = new Date(l.created_at); return d >= lastMonday && d <= lastSunday; }).length;
+        const wkAvg = (() => { const m = ct.filter((t) => { const d = new Date(t.completedAt); return d >= lastMonday && d <= lastSunday; }); return m.length > 0 ? m.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / m.length : 0; })();
+        const wkReportLines = [
+          "ALPS MARKETING REPORT - WEEK OF " + wkLabel.toUpperCase(),
+          "=".repeat(50), "",
+          "TICKETS", "  Submitted: " + wkTC, "  Completed: " + wkTD, "  Avg Turnaround: " + fmtH(wkAvg), "",
+          "OUTBOUND CONTENT", "  Pieces Published: " + wkA, "",
+          "INBOUND LEADS", "  Total: " + wkL, "",
+          "Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        ].join("\n");
+        const copyWeeklyReport = () => { navigator.clipboard.writeText(wkReportLines); };
+
+        // Monthly report data
+        const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+        const som = new Date(now.getFullYear(), now.getMonth(), 1);
+        const mtTC = tickets.filter((t) => new Date(t.createdAt) >= som).length;
+        const mtTD = ct.filter((t) => new Date(t.completedAt) >= som).length;
+        const mtA = archiveEntries.filter((e) => new Date(e.date || e.created_at) >= som).length;
+        const mtL = leads.filter((l) => new Date(l.created_at) >= som).length;
+        const mtLA = leads.filter((l) => new Date(l.created_at) >= som && l.next_steps === "needs_action").length;
+        const mtLP = leads.filter((l) => new Date(l.created_at) >= som && l.next_steps === "passed_through").length;
+        const mtAT = {};
+        archiveEntries.filter((e) => new Date(e.date || e.created_at) >= som).forEach((e) => { const t = ARCHIVE_TYPES[e.type] || ARCHIVE_TYPES.other; mtAT[t.label] = (mtAT[t.label] || 0) + 1; });
+        const mtLS = {};
+        leads.filter((l) => new Date(l.created_at) >= som).forEach((l) => { const s = LEAD_SOURCES[l.source] || LEAD_SOURCES.other; mtLS[s.label] = (mtLS[s.label] || 0) + 1; });
+        const mtAvg = (() => { const m = ct.filter((t) => new Date(t.completedAt) >= som); return m.length > 0 ? m.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / m.length : 0; })();
+        const mtPri = {};
+        tickets.filter((t) => new Date(t.createdAt) >= som).forEach((t) => { mtPri[t.priority] = (mtPri[t.priority] || 0) + 1; });
+
+        const reportLines = [
+          "ALPS MARKETING REPORT - " + monthName.toUpperCase(),
+          "=".repeat(50), "",
+          "TICKETS",
+          "  Submitted: " + mtTC, "  Completed: " + mtTD,
+          "  Active Backlog: " + at.length, "  Avg Turnaround: " + fmtH(mtAvg),
+          "  Total Time Logged: " + (() => { const TIME_MINS = { "15m": 15, "30m": 30, "1h": 60, "2h": 120, "half_day": 240, "full_day": 480, "multi_day": 960 }; const total = tickets.filter((t) => t.timeSpent && new Date(t.createdAt) >= som).reduce((s, t) => s + (TIME_MINS[t.timeSpent] || 0), 0); const h = Math.floor(total / 60); const m = total % 60; return h > 0 ? h + "h " + m + "m" : m + "m"; })(),
+          ...Object.entries(mtPri).map(([k, v]) => "  " + (PRIORITIES[k] ? PRIORITIES[k].label : k) + ": " + v), "",
+          "OUTBOUND CONTENT",
+          "  Pieces Published: " + mtA,
+          ...Object.entries(mtAT).map(([k, v]) => "  " + k + ": " + v), "",
+          "INBOUND LEADS",
+          "  Total: " + mtL, "  Needs Action: " + mtLA, "  Passed Through: " + mtLP,
+          ...Object.entries(mtLS).map(([k, v]) => "  " + k + ": " + v), "",
+          "Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        ].join("\n");
+
+        const copyReport = () => { navigator.clipboard.writeText(reportLines); };
+
+        const exportPDF = () => {
+          const doc = new jsPDF("p", "mm", "a4");
+          const w = doc.internal.pageSize.getWidth();
+          const brandColor = [35, 29, 104];
+          const motorColor = [230, 69, 146];
+          const tealColor = [32, 163, 158];
+
+          // Header bar
+          doc.setFillColor(...brandColor);
+          doc.rect(0, 0, w, 32, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(18);
+          doc.setFont("helvetica", "bold");
+          doc.text("ALPS MARKETING REPORT", 16, 18);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.text(monthName, 16, 26);
+          doc.text("Generated: " + now.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }), w - 16, 26, { align: "right" });
+
+          let y = 46;
+          const section = (title, color, items) => {
+            doc.setFillColor(...color);
+            doc.rect(16, y, 4, 8, "F");
+            doc.setTextColor(...color);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(title, 24, y + 6);
+            y += 14;
+            doc.setTextColor(60, 60, 60);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            items.forEach(([label, value]) => {
+              doc.text(label, 24, y);
+              doc.setFont("helvetica", "bold");
+              doc.text(String(value), 90, y);
+              doc.setFont("helvetica", "normal");
+              y += 7;
+            });
+            y += 6;
+          };
+
+          section("Tickets", brandColor, [
+            ["Submitted", mtTC], ["Completed", mtTD], ["Active Backlog", at.length], ["Avg Turnaround", fmtH(mtAvg)],
+            ...Object.entries(mtPri).map(([k, v]) => [(PRIORITIES[k] ? PRIORITIES[k].label : k), v]),
+          ]);
+          section("Outbound Content", motorColor, [
+            ["Pieces Published", mtA],
+            ...Object.entries(mtAT).map(([k, v]) => [k, v]),
+          ]);
+          section("Inbound Leads", tealColor, [
+            ["Total", mtL], ["Needs Action", mtLA], ["Passed Through", mtLP],
+            ...Object.entries(mtLS).map(([k, v]) => [k, v]),
+          ]);
+
+          // Footer
+          doc.setDrawColor(200, 200, 200);
+          doc.line(16, 280, w - 16, 280);
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text("Alps Marketing Hub - Confidential", 16, 286);
+          doc.text("Page 1 of 1", w - 16, 286, { align: "right" });
+
+          doc.save("Alps-Marketing-Report-" + monthName.replace(/\s/g, "-") + ".pdf");
+        };
+
+        return (<>
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C5}"} Weekly Report</h3>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Previous week: {wkLabel}</p>
+              </div>
+              <button onClick={copyWeeklyReport} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy Weekly Report</button>
+            </div>
+            <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{wkTC}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Submitted</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#16a34a" }}>{wkTD}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Completed</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#E64592" }}>{wkA}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Published</div>
+              </div>
+              <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#ca8a04" }}>{wkL}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads</div>
+              </div>
+            </div>
+            {wkAvg > 0 && <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-secondary)", textAlign: "center" }}>Avg turnaround: <strong>{fmtH(wkAvg)}</strong></div>}
+          </div>
+
+          <div style={{ ...card, marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4E7}"} Weekly Email Digest</h3>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Copy a formatted summary to send to stakeholders</p>
+              </div>
+              <button onClick={() => {
+                const slaMetCount = ct.filter((t) => { const h = (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000; const tgt = SLA_TARGETS[t.priority]; return tgt && h <= tgt.hours; }).length;
+                const slaPct = ct.length > 0 ? Math.round(slaMetCount / ct.length * 100) : 0;
+                const topCompleted = ct.filter((t) => { const d = new Date(t.completedAt); return d >= sow; }).slice(0, 5);
+                const digest = [
+                  "Hi team,",
+                  "",
+                  "Here's the marketing team's weekly update for " + wkLabel + ".",
+                  "",
+                  "\u{1F4CA} KEY METRICS",
+                  "\u2022 " + wkTC + " new ticket" + (wkTC !== 1 ? "s" : "") + " submitted",
+                  "\u2022 " + wkTD + " ticket" + (wkTD !== 1 ? "s" : "") + " completed",
+                  wkAvg > 0 ? "\u2022 Average turnaround: " + fmtH(wkAvg) : "",
+                  "\u2022 " + wkA + " piece" + (wkA !== 1 ? "s" : "") + " of content published",
+                  "\u2022 " + wkL + " inbound lead" + (wkL !== 1 ? "s" : "") + " logged",
+                  "\u2022 SLA compliance: " + slaPct + "%",
+                  "",
+                  at.length > 0 ? "\u{1F4CB} ACTIVE BACKLOG: " + at.length + " ticket" + (at.length !== 1 ? "s" : "") + " (" + od + " overdue)" : "",
+                  "",
+                  topCompleted.length > 0 ? "\u2705 COMPLETED THIS WEEK" : "",
+                  ...topCompleted.map((t) => "\u2022 " + (t.ref || t.id) + ": " + t.title),
+                  "",
+                  "Best regards,",
+                  "Alps Marketing Team",
+                ].filter(Boolean).join("\n");
+                navigator.clipboard.writeText(digest);
+              }} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4E7}"} Copy Email Digest</button>
+            </div>
+            <div style={{ padding: "14px 16px", background: "var(--bg-input)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.8, fontFamily: "inherit" }}>
+              <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>Preview:</div>
+              <div>Hi team, here's the weekly update for {wkLabel}.</div>
+              <div style={{ marginTop: 6 }}>{"\u{1F4CA}"} <strong>{wkTC}</strong> submitted {"\u2022"} <strong>{wkTD}</strong> completed {"\u2022"} <strong>{wkA}</strong> published {"\u2022"} <strong>{wkL}</strong> leads {wkAvg > 0 && <>{"\u2022"} Avg turnaround: <strong>{fmtH(wkAvg)}</strong></>}</div>
+              {at.length > 0 && <div style={{ marginTop: 4 }}>{"\u{1F4CB}"} Active backlog: <strong>{at.length}</strong> tickets ({od} overdue)</div>}
+            </div>
+          </div>
+
+          <div style={{ ...card, marginBottom: 20, textAlign: "center" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CB}"} Monthly Marketing Report</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>{monthName} summary across all marketing activity</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button onClick={copyReport} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy to Clipboard</button>
+              <button onClick={exportPDF} style={{ padding: "10px 24px", background: "#dc2626", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4C4}"} Export PDF</button>
+            </div>
+          </div>
+          <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div style={card}>
+              <div style={st}>{"\u{1F4CB}"} Tickets</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={mb}><div style={mv}>{mtTC}</div><div style={ml}>Submitted</div></div>
+                <div style={mb}><div style={mv}>{mtTD}</div><div style={ml}>Completed</div></div>
+              </div>
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Avg Turnaround</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{fmtH(mtAvg)}</div>
+              </div>
+              {Object.entries(mtPri).length > 0 && <div style={{ marginTop: 10 }}>{Object.entries(mtPri).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: PRIORITIES[k] ? PRIORITIES[k].color : "var(--text-body)" }}>{PRIORITIES[k] ? PRIORITIES[k].icon + " " + PRIORITIES[k].label : k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+            <div style={card}>
+              <div style={st}>{"\u{1F4DA}"} Content Output</div>
+              <div style={mb}><div style={mv}>{mtA}</div><div style={ml}>Pieces Published</div></div>
+              {Object.entries(mtAT).length > 0 && <div style={{ marginTop: 12 }}>{Object.entries(mtAT).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>{k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+            <div style={card}>
+              <div style={st}>{"\u{1F4C8}"} Inbound Leads</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={mb}><div style={mv}>{mtL}</div><div style={ml}>Total</div></div>
+                <div style={mb}><div style={mv}>{mtLP}</div><div style={ml}>Passed</div></div>
+              </div>
+              {mtLA > 0 && <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(202,138,4,0.08)", border: "1px solid rgba(202,138,4,0.2)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#ca8a04" }}>{"\u{1F7E1}"} {mtLA} still need{mtLA !== 1 ? "" : "s"} action</div>}
+              {Object.entries(mtLS).length > 0 && <div style={{ marginTop: 10 }}>{Object.entries(mtLS).map(([k, v]) => <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--text-secondary)" }}>{k}</span><span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{v}</span></div>)}</div>}
+            </div>
+          </div>
+          <div style={card}>
+            <div style={st}>Full Report Preview</div>
+            <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 16, borderRadius: 8, border: "1px solid var(--border)" }}>{reportLines}</pre>
+          </div>
+        </>);
+      })()}
+    </div>
+  );
+}
+
+
+
+export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog }) {
+  const [adminTab, setAdminTab] = useState("overview");
+  const [returnDate, setReturnDate] = useState(oooReturnDate || "");
+  const [showSummary, setShowSummary] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaved, setPwSaved] = useState(false);
+  const [annText, setAnnText] = useState(announcement?.text || "");
+  const [annActive, setAnnActive] = useState(announcement?.active || false);
+  const [annLink, setAnnLink] = useState(announcement?.link || "");
+  const [exporting, setExporting] = useState(false);
+  const [userForm, setUserForm] = useState({ name: "", username: "", password: "", role: "user" });
+  const [editingUser, setEditingUser] = useState(null);
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [memo, setMemo] = useState("");
+  const [memoSaved, setMemoSaved] = useState(false);
+  const [memoLoaded, setMemoLoaded] = useState(false);
+
+  useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
+
+  useEffect(() => {
+    if (!memoLoaded) {
+      supabase.from("app_settings").select("*").eq("key", "admin_memo").single().then(({ data }) => {
+        if (data && data.value) { try { setMemo(typeof data.value === "string" ? JSON.parse(data.value).text || "" : data.value.text || ""); } catch {} }
+        setMemoLoaded(true);
+      });
+    }
+  }, [memoLoaded]);
+
+  const saveMemo = async () => {
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "admin_memo").single();
+    if (existing) { await supabase.from("app_settings").update({ value: { text: memo } }).eq("key", "admin_memo"); }
+    else { await supabase.from("app_settings").insert({ key: "admin_memo", value: { text: memo } }); }
+    setMemoSaved(true); setTimeout(() => setMemoSaved(false), 2000);
+  };
+
+  const getOooSummary = () => {
+    if (!oooStartDate) return null;
+    const start = new Date(oooStartDate + "T00:00:00"); const now = new Date();
+    return { ticketsAdded: tickets.filter((t) => new Date(t.createdAt) >= start && new Date(t.createdAt) <= now), leadsAdded: leads.filter((l) => new Date(l.created_at) >= start && new Date(l.created_at) <= now), ticketsCompleted: tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start && new Date(t.completedAt) <= now), startDate: start };
+  };
+  const summary = getOooSummary();
+  const shouldShowSummary = !oooActive && oooStartDate && !oooSummaryDismissed && summary && (summary.ticketsAdded.length > 0 || summary.leadsAdded.length > 0);
+
+  const handlePasswordChange = () => { if (!newPw.trim() || newPw !== pwConfirm) return; onChangePassword(newPw.trim()); setNewPw(""); setPwConfirm(""); setPwSaved(true); setTimeout(() => setPwSaved(false), 3000); };
+  const handleAnnouncementSave = () => { onUpdateAnnouncement({ text: annText, active: annActive, link: annLink }); };
+
+  const exportData = async () => {
+    setExporting(true);
+    const data = { exportDate: new Date().toISOString(), tickets: tickets.map((t) => ({ ref: t.ref, title: t.title, name: t.name, status: t.status, priority: t.priority, createdAt: t.createdAt, completedAt: t.completedAt, deadline: t.deadline, timeSpent: t.timeSpent })), leads: leads.map((l) => ({ broker: l.broker, product: l.product, source: l.source, next_steps: l.next_steps, created_at: l.created_at })), archiveEntries: (archiveEntries || []).map((e) => ({ title: e.title, type: e.type, date: e.date })), calendarEvents: (calendarEvents || []).map((e) => ({ title: e.title, type: e.type, date: e.date, status: e.status })) };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "alps-hub-export-" + new Date().toISOString().substring(0, 10) + ".json"; a.click(); setExporting(false);
+  };
+  const exportCSV = (type) => {
+    let rows = [], filename = "";
+    if (type === "tickets") { rows = [["Ref", "Title", "Submitter", "Status", "Priority", "Time Spent", "Created", "Completed", "Deadline"]]; tickets.forEach((t) => rows.push([t.ref, t.title, t.name, t.status, t.priority, t.timeSpent || "", t.createdAt, t.completedAt || "", t.deadline || ""])); filename = "alps-tickets.csv"; }
+    else if (type === "leads") { rows = [["Broker", "Product", "Source", "Status", "Created"]]; leads.forEach((l) => rows.push([l.broker, l.product, l.source, l.next_steps, l.created_at])); filename = "alps-leads.csv"; }
+    else if (type === "archive") { rows = [["Title", "Type", "Date"]]; (archiveEntries || []).forEach((e) => rows.push([e.title, e.type, e.date])); filename = "alps-archive.csv"; }
+    const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  };
+
+  // Hub health calculations
+  const overdue = tickets.filter((t) => t.deadline && t.status !== "completed" && new Date(t.deadline) < new Date()).length;
+  const unactioned = leads.filter((l) => l.next_steps === "needs_action").length;
+  const activeTickets = tickets.filter((t) => t.status !== "completed").length;
+  const goalsBehind = (teamGoals || []).filter((g) => {
+    const now = new Date(); let start;
+    if (g.period === "weekly") { start = new Date(now); start.setDate(now.getDate() - ((now.getDay() + 6) % 7)); start.setHours(0,0,0,0); }
+    else if (g.period === "monthly") { start = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else { const q = Math.floor(now.getMonth() / 3); start = new Date(now.getFullYear(), q * 3, 1); }
+    const end = new Date();
+    const elapsed = (end - start) / 86400000;
+    const totalDays = g.period === "weekly" ? 7 : g.period === "monthly" ? 30 : 90;
+    const pctThrough = Math.min(elapsed / totalDays, 1);
+    const expectedProgress = Math.round(g.target * pctThrough);
+    let current = 0;
+    if (g.metric === "tickets_completed") current = tickets.filter((t) => t.completedAt && new Date(t.completedAt) >= start).length;
+    else if (g.metric === "content_published") current = (archiveEntries || []).filter((e) => new Date(e.date || e.created_at) >= start).length;
+    else if (g.metric === "leads_generated") current = leads.filter((l) => new Date(l.created_at) >= start).length;
+    return current < expectedProgress && pctThrough > 0.25;
+  }).length;
+
+  const nextSchedule = (() => {
+    const active = (recurringSchedules || []).filter((s) => !s.paused);
+    if (active.length === 0) return null;
+    const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const next = active.map((s) => {
+      const freq = { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 90 };
+      let nd;
+      if (!s.last_created) { nd = new Date(); nd.setDate(nd.getDate() + 1); }
+      else { nd = new Date(s.last_created); nd.setDate(nd.getDate() + (freq[s.frequency] || 30)); }
+      nd.setHours(8, 0, 0, 0);
+      return { ...s, nextDue: nd };
+    }).sort((a, b) => a.nextDue - b.nextDue);
+    return next[0];
+  })();
+
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 14 };
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+  const tabBtn = (key, label) => <button onClick={() => setAdminTab(key)} style={{ padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: adminTab === key ? "var(--brand)" : "transparent", color: adminTab === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s", whiteSpace: "nowrap" }}>{label}</button>;
+  const healthDot = (count, warn) => <span style={{ width: 8, height: 8, borderRadius: 4, background: count > 0 ? (warn ? "#dc2626" : "#ca8a04") : "#16a34a", display: "inline-block" }}></span>;
+
+  return (
+    <div style={{ width: "100%", maxWidth: 800 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u2699\uFE0F"} Admin Panel</h2>
+      <p style={{ margin: "0 0 18px", fontSize: 14, color: "var(--text-secondary)" }}>Manage settings, schedules, goals, and data.</p>
+
+      {(shouldShowSummary || showSummary) && summary && (
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F44B}"} Welcome Back!</h3>
+            <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
+          </div>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}:</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{summary.ticketsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Tickets</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#ca8a04" }}>{summary.leadsAdded.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Leads</div></div>
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 700, color: "#16a34a" }}>{summary.ticketsCompleted.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Done</div></div>
+          </div>
+          {summary.ticketsAdded.length > 0 && <div style={{ marginTop: 10 }}>{summary.ticketsAdded.slice(0, 5).map((t) => <div key={t.id} style={{ fontSize: 11, color: "var(--text-secondary)", padding: "2px 0" }}><strong style={{ color: "var(--brand)" }}>{t.ref}</strong> {t.title}</div>)}</div>}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18, overflowX: "auto" }}>
+        {tabBtn("overview", "\u{1F3E0} Overview")}
+        {tabBtn("settings", "\u2699\uFE0F Settings")}
+        {tabBtn("schedules", "\u{1F501} Schedules")}
+        {tabBtn("data", "\u{1F4E5} Data")}
+        {tabBtn("users", "\u{1F465} Users")}
+        {tabBtn("audit", "\u{1F4DC} Log")}
+      </div>
+
+      {adminTab === "overview" && (<>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F3E5}"} Hub Health</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(overdue, true)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{overdue} overdue ticket{overdue !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Past deadline and not completed</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(unactioned, false)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{unactioned} unactioned lead{unactioned !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Marked as needs action</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              {healthDot(goalsBehind, false)}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{goalsBehind} goal{goalsBehind !== 1 ? "s" : ""} behind pace</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Below expected progress</div></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--brand)", display: "inline-block" }}></span>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{activeTickets} active ticket{activeTickets !== 1 ? "s" : ""}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Open, in progress, or review</div></div>
+            </div>
+          </div>
+          {nextSchedule && <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)" }}>{"\u{1F501}"} Next scheduled ticket: <strong>{nextSchedule.title}</strong> {"\u2014"} {nextSchedule.nextDue.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at 8:00 AM</div>}
+        </div>
+
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CC}"} Pinned Notes</h3>
+            {memoSaved && <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>Saved</span>}
+          </div>
+          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Reminders, to-dos, notes to self..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", marginBottom: 8 }} />
+          <button onClick={saveMemo} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save Notes</button>
+        </div>
+
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Hub Usage</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8 }}>
+            {[
+              { label: "Tickets", val: tickets.length },
+              { label: "Leads", val: leads.length },
+              { label: "Archive", val: (archiveEntries || []).length },
+              { label: "Calendar", val: (calendarEvents || []).length },
+              { label: "Gallery", val: (galleryImages || []).length },
+              { label: "KB Articles", val: (kbArticles || []).length },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <TeamGoals goals={teamGoals || []} isAdmin={true} onSave={onGoalSave} onDelete={onGoalDelete} tickets={tickets} archiveEntries={archiveEntries} leads={leads} />
+      </>)}
+
+      {adminTab === "settings" && (<>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><span style={{ fontSize: 16 }}>{oooActive ? "\u{1F334}" : "\u{1F3E2}"}</span><h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Out of Office</h3><span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: oooActive ? "rgba(202,138,4,0.1)" : "rgba(22,163,106,0.1)", color: oooActive ? "#ca8a04" : "#16a34a" }}>{oooActive ? "Active" : "Off"}</span></div>
+          {oooActive ? (
+            <div><p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Return: <strong>{oooReturnDate ? new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "Not set"}</strong></p><button onClick={() => { onToggleOoo(false, ""); setShowSummary(true); }} style={{ padding: "8px 16px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>I'm back</button></div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, alignItems: "end" }}><div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Return Date</label><input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} style={inputStyle} /></div><button onClick={() => { if (returnDate) onToggleOoo(true, returnDate); }} disabled={!returnDate} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: returnDate ? 1 : 0.5, whiteSpace: "nowrap" }}>Enable</button></div>
+          )}
+        </div>
+
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E2}"} Announcement Banner</h3>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}><input type="checkbox" checked={annActive} onChange={(e) => setAnnActive(e.target.checked)} style={{ accentColor: "var(--brand)" }} /> Show on homepage</label>
+          <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement..." style={{ ...inputStyle, marginBottom: 8 }} />
+          <input value={annLink} onChange={(e) => setAnnLink(e.target.value)} placeholder="Optional link (https://...)" style={{ ...inputStyle, marginBottom: 10 }} />
+          <button onClick={handleAnnouncementSave} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+        </div>
+
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F512}"} Dashboard Password</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyle} />
+            <input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} placeholder="Confirm" style={inputStyle} />
+          </div>
+          {newPw && pwConfirm && newPw !== pwConfirm && <div style={{ fontSize: 10, color: "#dc2626", marginBottom: 6 }}>Passwords do not match</div>}
+          {pwSaved && <div style={{ fontSize: 10, color: "#16a34a", marginBottom: 6 }}>Updated successfully</div>}
+          <button onClick={handlePasswordChange} disabled={!newPw.trim() || newPw !== pwConfirm} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!newPw.trim() || newPw !== pwConfirm) ? 0.5 : 1 }}>Update Password</button>
+        </div>
+      </>)}
+
+      {adminTab === "schedules" && (<>
+        <RecurringSchedules schedules={recurringSchedules || []} onCreate={onCreateRecurring} onUpdate={onUpdateRecurring} onDelete={onDeleteRecurring} onPause={onPauseRecurring} />
+      </>)}
+
+      {adminTab === "data" && (<>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E5}"} Export Data</h3>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Download hub data for backup or reporting.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={exportData} disabled={exporting} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>All Data (JSON)</button>
+            <button onClick={() => exportCSV("tickets")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Tickets CSV</button>
+            <button onClick={() => exportCSV("leads")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Leads CSV</button>
+            <button onClick={() => exportCSV("archive")} style={{ padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>Archive CSV</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Storage Summary</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+            {[
+              { label: "Tickets", val: tickets.length },
+              { label: "Leads", val: leads.length },
+              { label: "Archive", val: (archiveEntries || []).length },
+              { label: "Events", val: (calendarEvents || []).length },
+              { label: "Gallery", val: (galleryImages || []).length },
+              { label: "KB Articles", val: (kbArticles || []).length },
+              { label: "Schedules", val: (recurringSchedules || []).length },
+              { label: "Goals", val: (teamGoals || []).length },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "8px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>)}
+
+      {adminTab === "users" && (<>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F465}"} User Management</h3>
+            <button onClick={() => { setShowUserForm(!showUserForm); setEditingUser(null); setUserForm({ name: "", username: "", password: "", role: "user" }); }} style={{ padding: "6px 12px", background: showUserForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 6, color: showUserForm ? "var(--text-primary)" : "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{showUserForm ? "Cancel" : "\u2795 Add User"}</button>
+          </div>
+
+          {showUserForm && (
+            <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Full Name</label><input style={inputStyle} value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} placeholder="e.g. Tom Thomas" /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Username</label><input style={inputStyle} value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} placeholder="e.g. tom" /></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>{editingUser ? "New Password (leave blank to keep)" : "Password"}</label><input type="password" style={inputStyle} value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} placeholder={editingUser ? "Leave blank to keep" : "Password"} /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Role</label><select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="admin">Admin</option><option value="user">User</option></select></div>
+              </div>
+              <button onClick={() => { if (!userForm.name.trim() || !userForm.username.trim() || (!editingUser && !userForm.password.trim())) return; if (editingUser) { onUpdateUser(editingUser, userForm); } else { onAddUser(userForm); } setUserForm({ name: "", username: "", password: "", role: "user" }); setShowUserForm(false); setEditingUser(null); }} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editingUser ? "Update User" : "Add User"}</button>
+            </div>
+          )}
+
+          {(hubUsers || []).length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>No users yet. Add a user to enable login.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(hubUsers || []).map((u) => (
+                <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 16, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{u.name ? u.name.charAt(0).toUpperCase() : "?"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>@{u.username} {"\u2022"} {u.role}{u.approved === false && " (Pending)"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {u.approved === false && <button onClick={() => onUpdateUser(u.id, { name: u.name, username: u.username, role: u.role, approved: true })} style={{ padding: "4px 10px", borderRadius: 4, border: "none", background: "#16a34a", fontSize: 10, cursor: "pointer", color: "#fff", fontWeight: 600 }}>Approve</button>}
+                    <button onClick={() => { setUserForm({ name: u.name, username: u.username, password: "", role: u.role }); setEditingUser(u.id); setShowUserForm(true); }} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>
+                    <button onClick={() => { if (window.confirm("Delete user " + u.name + "?")) onDeleteUser(u.id); }} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #fecaca", background: "transparent", fontSize: 10, cursor: "pointer", color: "#dc2626" }}>{"\u2715"}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </>)}
+
+      {adminTab === "audit" && (<>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4DC}"} Activity Audit Log</h3>
+          <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Recent admin actions and system events.</p>
+          {(auditLog || []).length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>No activity recorded yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {(auditLog || []).map((entry, i) => (
+                <div key={entry.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < auditLog.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{"\u{1F4DD}"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-primary)" }}>{entry.action}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{entry.user_name} {"\u2022"} {new Date(entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </>)}
+    </div>
+  );
+}
+
+
+
+
+
+export function RecurringSchedules({ schedules, onCreate, onUpdate, onDelete, onPause }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" });
+
+  const FREQUENCIES = [
+    { key: "weekly", label: "Weekly" },
+    { key: "fortnightly", label: "Fortnightly" },
+    { key: "monthly", label: "Monthly" },
+    { key: "quarterly", label: "Quarterly" },
+  ];
+
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const startEdit = (s) => {
+    setForm({ title: s.title, description: s.description || "", priority: s.priority, frequency: s.frequency, day_of_week: s.day_of_week ?? 1, end_date: s.end_date || "" });
+    setEditing(s.id); setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    if (editing) {
+      onUpdate(editing, form);
+    } else {
+      onCreate(form);
+    }
+    setForm({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const nextDue = (s) => {
+    if (!s.last_created) {
+      if (s.frequency === "weekly" || s.frequency === "fortnightly") {
+        const d = new Date(); d.setHours(8, 0, 0, 0);
+        const target = s.day_of_week ?? 1;
+        const diff = (target - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      }
+      const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d;
+    }
+    const last = new Date(s.last_created);
+    const d = new Date(last);
+    if (s.frequency === "weekly") { d.setDate(d.getDate() + 7); }
+    else if (s.frequency === "fortnightly") { d.setDate(d.getDate() + 14); }
+    else if (s.frequency === "monthly") { d.setMonth(d.getMonth() + 1); }
+    else if (s.frequency === "quarterly") { d.setMonth(d.getMonth() + 3); }
+    d.setHours(8, 0, 0, 0);
+    return d;
+  };
+
+  const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>{"\u{1F501}"}</span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Recurring Tickets</h3>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" }}>{schedules.filter((s) => !s.paused).length} active schedule{schedules.filter((s) => !s.paused).length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+        <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", description: "", priority: "medium", frequency: "monthly", day_of_week: 1, end_date: "" }); }} style={{ padding: "7px 14px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 New Schedule"}</button>
+      </div>
+
+      {showForm && (
+        <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Ticket Title</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Monthly Newsletter" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Priority</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+          </div>
+          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What needs doing each time..." rows={2} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Frequency</label><select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{FREQUENCIES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}</select></div>
+            {(form.frequency === "weekly" || form.frequency === "fortnightly") && <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Day</label><select value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: Number(e.target.value) })} style={{ ...inputStyle, cursor: "pointer" }}>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select></div>}
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>End Date (optional)</label><input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} style={inputStyle} /></div>
+          </div>
+          <button onClick={handleSave} disabled={!form.title.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: form.title.trim() ? 1 : 0.5 }}>{editing ? "Update Schedule" : "Create Schedule"}</button>
+        </div>
+      )}
+
+      {schedules.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "24px 20px", color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 13, margin: 0 }}>No recurring tickets set up yet. Create one to automate repeating tasks.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {schedules.map((s) => {
+            const nd = nextDue(s);
+            const isExpired = s.end_date && new Date(s.end_date) < new Date();
+            const freq = FREQUENCIES.find((f) => f.key === s.frequency);
+            const dayLabel = (s.frequency === "weekly" || s.frequency === "fortnightly") ? " on " + DAYS[s.day_of_week ?? 1] + "s" : "";
+            return (
+              <div key={s.id} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: (s.paused || isExpired) ? 0.5 : 1, transition: "all 0.2s" }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{s.paused ? "\u23F8\uFE0F" : isExpired ? "\u23F9\uFE0F" : "\u{1F501}"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <span>{freq ? freq.label : s.frequency}{dayLabel} at 8:00 AM</span>
+                    <span>{"\u2022"}</span>
+                    <span>{s.paused ? "Paused" : isExpired ? "Expired" : "Next: " + fmtDate(nd)}</span>
+                    {s.end_date && <><span>{"\u2022"}</span><span>Ends: {fmtDate(s.end_date)}</span></>}
+                    {s.last_created && <><span>{"\u2022"}</span><span>Last: {fmtDate(s.last_created)}</span></>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button onClick={() => onPause(s.id, !s.paused)} title={s.paused ? "Resume" : "Pause"} style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 12, cursor: "pointer", color: "var(--text-muted)" }}>{s.paused ? "\u25B6\uFE0F" : "\u23F8\uFE0F"}</button>
+                  <button onClick={() => startEdit(s)} title="Edit" style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 12, cursor: "pointer", color: "var(--text-muted)" }}>{"\u270F\uFE0F"}</button>
+                  <button onClick={() => { if (window.confirm("Delete this recurring schedule?")) onDelete(s.id); }} title="Delete" style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #fecaca", background: "transparent", fontSize: 12, cursor: "pointer", color: "#dc2626" }}>{"\u2715"}</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export function TeamGoals({ goals, isAdmin, onSave, onDelete, tickets, archiveEntries, leads }) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", target: 10, metric: "tickets_completed", period: "monthly" });
+  const [editing, setEditing] = useState(null);
+
+  const METRICS = {
+    tickets_completed: { label: "Tickets Completed", calc: (t, a, l, start, end) => t.filter((tk) => tk.completedAt && new Date(tk.completedAt) >= start && new Date(tk.completedAt) <= end).length },
+    tickets_submitted: { label: "Tickets Submitted", calc: (t, a, l, start, end) => t.filter((tk) => new Date(tk.createdAt) >= start && new Date(tk.createdAt) <= end).length },
+    content_published: { label: "Content Published", calc: (t, a, l, start, end) => (a || []).filter((e) => { const d = new Date(e.date || e.created_at); return d >= start && d <= end; }).length },
+    leads_generated: { label: "Leads Generated", calc: (t, a, l, start, end) => l.filter((ld) => new Date(ld.created_at) >= start && new Date(ld.created_at) <= end).length },
+  };
+
+  const getPeriodDates = (period) => {
+    const now = new Date();
+    let start, end;
+    if (period === "weekly") {
+      start = new Date(now); start.setDate(now.getDate() - ((now.getDay() + 6) % 7)); start.setHours(0,0,0,0);
+      end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+    } else if (period === "monthly") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1);
+      end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59, 999);
+    }
+    return { start, end };
+  };
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave({ ...form, id: editing || undefined });
+    setForm({ title: "", target: 10, metric: "tickets_completed", period: "monthly" });
+    setShowForm(false); setEditing(null);
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>{"\u{1F3AF}"}</span>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Team Goals</h3>
+        </div>
+        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); }} style={{ padding: "6px 12px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 6, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Goal"}</button>}
+      </div>
+
+      {showForm && isAdmin && (
+        <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, alignItems: "end" }}>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Goal</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Complete 20 tickets" /></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Target</label><input type="number" style={inputStyle} value={form.target} onChange={(e) => setForm({ ...form, target: Number(e.target.value) })} /></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Metric</label><select value={form.metric} onChange={(e) => setForm({ ...form, metric: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(METRICS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
+            <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--brand)", marginBottom: 3 }}>Period</label><select value={form.period} onChange={(e) => setForm({ ...form, period: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></div>
+          </div>
+          <button onClick={handleSave} style={{ marginTop: 10, padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update" : "Add Goal"}</button>
+        </div>
+      )}
+
+      {goals.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>No goals set. {isAdmin ? "Add goals to track progress." : ""}</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {goals.map((g) => {
+            const m = METRICS[g.metric] || METRICS.tickets_completed;
+            const { start, end } = getPeriodDates(g.period);
+            const current = m.calc(tickets, archiveEntries, leads, start, end);
+            const pct = Math.min(Math.round((current / (g.target || 1)) * 100), 100);
+            const hit = current >= g.target;
+            return (
+              <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{g.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: hit ? "#16a34a" : "var(--brand)" }}>{current}/{g.target}</span>
+                  </div>
+                  <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: pct + "%", background: hit ? "#16a34a" : "var(--brand)", borderRadius: 3, transition: "width 0.3s" }}></div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3 }}>{m.label} {"\u2022"} {g.period}</div>
+                </div>
+                {hit && <span style={{ fontSize: 16 }}>{"\u2705"}</span>}
+                {isAdmin && <button onClick={() => { if (window.confirm("Delete this goal?")) onDelete(g.id); }} style={{ padding: "3px 6px", border: "1px solid var(--border)", borderRadius: 4, background: "transparent", fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{"\u2715"}</button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+

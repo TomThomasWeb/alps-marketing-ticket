@@ -263,3 +263,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public access to audit_log" ON audit_log FOR ALL USING (true) WITH CHECK (true);
+
+-- Add created_by to tickets and leads
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS created_by UUID;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_by UUID;
+
+-- Add approved and email to hub_users
+ALTER TABLE hub_users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
+ALTER TABLE hub_users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+
+-- Update existing default user to be approved
+UPDATE hub_users SET approved = TRUE WHERE approved IS NULL;
+
+-- Add for_user to notifications for personal notifications
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS for_user UUID;

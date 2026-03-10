@@ -1,70 +1,105 @@
 # Alps Marketing Hub
 
-Internal ticket management system for the Alps marketing team. Team members submit requests via a form, and tickets are managed through a password-protected dashboard. Tickets sync across all devices in real time via Supabase.
+Internal marketing management platform for the Alps team. Submit and track requests, manage content, log leads, and access a suite of marketing tools — all synced in real time via Supabase.
 
 ## Features
 
-- **Ticket submission** — name, title, description, priority, deadline, and file attachments
-- **File attachments** — uploaded to Supabase Storage, downloadable from the dashboard
+### Ticket Management
+- **Submit requests** — name, title, description, priority, deadline, and file attachments
 - **Sequential references** — M000, M001, M002 etc.
-- **Dashboard** — filterable, sortable, searchable by ticket reference
-- **List & Grid views** — toggle between detailed list and compact grid
-- **Password-protected** dashboard access
-- **Notes** — add timestamped, named notes to any ticket
-- **Due date tracking** — colour-coded badges showing days until deadline
-- **Completion dates** — automatic timestamp when a ticket is marked complete
-- **Delete tickets** — with confirmation prompt
-- **Real-time sync** — tickets shared across all devices and users via Supabase
+- **4-stage workflow** — Open → In Progress → Review → Completed
+- **Approval workflow** — submitters can approve or request changes when a ticket is in review
+- **Threaded comments** — conversation on tickets with user avatars
+- **Inline editing** — edit ticket title and description after submission
+- **Ticket cloning** — duplicate a ticket to pre-fill the form
+- **SLA tracking** — automatic tracking against priority-based targets (critical: same day, high: 2 days, medium: 5 days, low: 7 days)
+- **File attachments** — uploaded to Supabase Storage with inline image previews
+- **Due date tracking** — colour-coded badges with overdue warnings
+- **Smart notifications** — status changes, deadline reminders, comments, and review alerts
+- **Undo on actions** — undo complete or delete via toast notification
+- **Dashboard views** — list, grid, and queue views with full-text search
 
-## Setup Guide
+### User Accounts
+- **Sign up & login** — username/password with admin approval
+- **Role-based access** — admin, editor, and viewer roles
+- **Personal profile** — tickets split by status, leads, and notifications
+- **Personalised homepage** — greeting by name and personal ticket counts
 
-### 1. Create a Supabase Project (free)
+### Content & Resources
+- **Marketing Archive** — past campaigns, posts, and materials
+- **Brand Assets** — logos, backgrounds, and templates
+- **Content Calendar** — monthly view with drag-and-drop
+- **Alps Gallery** — photo library with categories and search
+- **Broker Toolkit** — broker-facing materials by product line
+- **Campaign Tracker** — group tickets, content, and leads under campaigns
+- **Knowledge Base** — searchable articles and guides
+- **Content Templates** — reusable copy blocks with one-click copy
 
-1. Go to [supabase.com](https://supabase.com) and sign up / log in
-2. Click **New Project**, give it a name (e.g. "alps-marketing-hub"), set a database password, and choose a region close to you (e.g. London)
-3. Wait for the project to finish setting up (~1 minute)
+### Analytics & Reporting
+- **Ticket metrics** — completion rates, turnaround, priority breakdown, trends
+- **SLA performance** — percentage meeting targets, active breaches
+- **Weekly email digest** — formatted summary for stakeholders
+- **Monthly PDF report** — branded export with all metrics
+- **Team goals** — KPIs across tickets, content, and leads
 
-### 2. Create the Database Table & Storage
+### Tools
+- **Meeting Notes to Tickets** — extract action items and batch-create tickets
+- **Content Repurposer** — long-form to LinkedIn, email, social, and X threads
+- **File Converter** — convert and resize images with social presets
+- **QR Code Generator** — custom colours and logo overlay
+- **Image Editor** — crop, resize, watermarks, and brand overlays
 
-1. In your Supabase dashboard, go to **SQL Editor** (left sidebar)
-2. Click **New Query**
-3. Copy and paste the entire contents of `supabase-schema.sql` from this repo
-4. Click **Run** — you should see "Success" for each statement
+### Admin
+- **Admin Panel** — health overview, data export (JSON/CSV)
+- **Out of Office** — toggle with return date and homepage banner
+- **Announcements** — publish messages visible to all users
+- **Recurring Tickets** — automated creation on schedules
+- **User Management** — add, edit, approve, remove accounts
+- **Audit Log** — track admin actions
 
-This creates the tickets table, enables real-time sync, and sets up file storage.
+### Design
+- **Dark mode** — light/dark toggle, auto-detects system preference
+- **Mobile-friendly** — responsive with bottom navigation
+- **Loading skeletons** — shimmer loading states
 
-### 3. Get Your API Keys
+## Project Structure
 
-1. In the Supabase dashboard, go to **Settings** → **API**
-2. Copy these two values:
-   - **Project URL** (looks like `https://abcdefg.supabase.co`)
-   - **anon / public key** (the long string under "Project API keys")
+```
+src/
+  constants.js            — shared constants and utility functions
+  supabaseClient.js       — Supabase connection
+  App.jsx                 — main app, state management, handlers
+  components/
+    Tickets.jsx           — TicketForm, TicketCard, Dashboard, SubmitterView
+    Admin.jsx             — AnalyticsPanel, AdminPanel, TeamGoals
+    Resources.jsx         — Archive, Leads, BrandAssets, Calendar, Gallery, more
+    Tools.jsx             — FileConverter, QR, ImageEditor, MeetingNotes, Repurposer
+    UI.jsx                — HubHome, Auth, Profile, Toast, Notifications
+```
+
+## Setup
+
+### 1. Create a Supabase Project
+Go to [supabase.com](https://supabase.com), create a project, and wait for setup.
+
+### 2. Run the Database Schema
+In Supabase SQL Editor, paste and run `supabase-schema.sql`.
+
+### 3. Get API Keys
+Settings → API → copy Project URL and anon key.
 
 ### 4. Deploy to Vercel
+Push to GitHub, import to Vercel, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables.
 
-1. Push this repo to GitHub
-2. Go to [vercel.com](https://vercel.com) and import the repository
-3. Before clicking Deploy, go to **Environment Variables** and add:
-   - `VITE_SUPABASE_URL` = your Project URL from step 3
-   - `VITE_SUPABASE_ANON_KEY` = your anon key from step 3
-4. Click **Deploy**
-
-### 5. Local Development (optional)
-
+### 5. Local Development
 ```bash
 cp .env.example .env
-# Edit .env with your Supabase credentials
 npm install
 npm run dev
 ```
 
-## Upgrading from a Previous Version
-
-If you already have a Supabase database from a previous deployment, run `supabase-migration.sql` in the SQL Editor instead of the full schema. This adds new columns and the storage bucket without touching existing data.
+## Upgrading
+Run `supabase-migration-hub.sql` to add new tables without touching existing data.
 
 ## Tech Stack
-
-- React 18
-- Vite
-- Supabase (PostgreSQL + real-time + Storage)
-- Deployed on Vercel
+React 18 · Vite · Supabase (PostgreSQL + real-time + Storage) · Vercel
