@@ -10,13 +10,11 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
   const [hasDraft, setHasDraft] = useState(() => { try { return !!localStorage.getItem("alps_ticket_draft"); } catch { return false; } });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(() => { try { const d = localStorage.getItem("alps_ticket_draft"); if (d) { const p = JSON.parse(d); return p.priority !== "medium" || !!p.deadline; } } catch {} return false; });
   const fileRef = useRef();
   useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
   useEffect(() => {
     if (duplicateData) {
       setForm((f) => ({ ...f, title: duplicateData.title || "", description: duplicateData.description || "", priority: duplicateData.priority || "medium", deadline: duplicateData.deadline || "" }));
-      setShowAdvanced(true);
       if (onClearDuplicate) onClearDuplicate();
     }
   }, [duplicateData]);
@@ -124,10 +122,6 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>Supports **bold**, *italic*, `code`, - bullet lists, and [links](url)</span>
       </div>
 
-      <button onClick={() => setShowAdvanced(!showAdvanced)} type="button" style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "0 0 12px", fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>
-        {showAdvanced ? "▼" : "▶"} {showAdvanced ? "Hide options" : "Priority, deadline & attachments"}
-      </button>
-      {showAdvanced && <>
       <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
           <label style={labelStyle}>Priority</label>
@@ -161,8 +155,6 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
           </div>
         )}
       </div>
-
-      </>}
 
       <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "13px", background: submitting ? "var(--brand)" : "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : "pointer", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: "0 4px 14px var(--brand-glow)" }} onMouseOver={(e) => { if (!submitting) { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 6px 20px var(--brand-glow)"; } }} onMouseOut={(e) => { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 4px 14px var(--brand-glow)"; }}>
         {submitting ? "Submitting\u2026" : "Submit Ticket \u2192"}

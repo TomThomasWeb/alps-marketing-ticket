@@ -7,7 +7,6 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
-  const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
   const [campaignFilter, setCampaignFilter] = useState("all");
 
   const campaigns = [...new Set(entries.map((e) => e.campaign).filter(Boolean))].sort();
@@ -186,7 +185,6 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [viewMode, setViewMode] = useState("list");
-  const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
   const [expandedLead, setExpandedLead] = useState(null);
   const [noteText, setNoteText] = useState("");
 

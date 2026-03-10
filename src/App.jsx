@@ -5,7 +5,7 @@ import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } 
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
 import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, CampaignTracker, KnowledgeBase, AlpsGallery } from "./components/Resources.jsx";
 import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, MeetingNotesToTicket, ContentRepurposer } from "./components/Tools.jsx";
-import { FileChip, FilePreview, HubHome, LoginPage, Changelog, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
+import { FileChip, FilePreview, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 export default function App() {
   const [view, setView] = useState("hub");
@@ -540,6 +540,7 @@ export default function App() {
       setView("submitted");
       toast("Ticket " + ref + " submitted", "success");
       if (currentUser) { addNotification("\u{1F4DD}", "Ticket Submitted", "Your ticket " + ref + " has been submitted. You'll be notified when it's updated.", "tracker", currentUser.id); }
+      try { localStorage.removeItem("alps_hub_draft"); } catch {}
     } else { toast("Failed to submit ticket", "error"); }
   };
 
@@ -866,7 +867,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer", transition: "all 0.15s" }}>
               {dark ? "\u2600" : "\u{1F319}"}
             </button>
-            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={dashUnlocked} />
+            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
             {currentUser ? (
               <>
                 <button onClick={() => setView("profile")} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 20, height: 20, borderRadius: 10, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span> {currentUser.name}</button>
@@ -878,23 +879,24 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             )}
           </div>
         </div>
-        {view !== "hub" && (
+        {view !== "hub" && view !== "password" && view !== "signup" && (
           <div style={{ padding: "0 32px 8px", display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
             <button onClick={() => setView("hub")} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-muted)", flexShrink: 0 }}>{"\u2190"} Home</button>
+            {currentUser && (<>
             <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>
             <nav className="hub-secondary-nav" style={{ flex: 1 }}>
               {currentSection === "tickets" && <>
                 <button className={view === "form" ? "active" : ""} onClick={() => setView("form")}>Submit</button>
-                {currentUser && <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
+                {isAdmin && <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
                   Dashboard
-                  {dashUnlocked && activeCount > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>}
+                  {activeCount > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>}
                 </button>}
-                {dashUnlocked && <button className={view === "activity" ? "active" : ""} onClick={() => setView("activity")}>Activity</button>}
+                {isAdmin && <button className={view === "activity" ? "active" : ""} onClick={() => setView("activity")}>Activity</button>}
                 <button className={view === "tracker" ? "active" : ""} onClick={() => { setLastSubmittedRef(null); setView("tracker"); }}>Track</button>
               </>}
               {currentSection === "archive" && <>
                 <button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>Browse</button>
-                {dashUnlocked && <button className={(view === "archive_add" || view === "archive_edit") ? "active" : ""} onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }}>Add Entry</button>}
+                {isAdmin && <button className={(view === "archive_add" || view === "archive_edit") ? "active" : ""} onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }}>Add Entry</button>}
               </>}
               {currentSection === "leads" && <>
                 <button className={view === "lead_form" ? "active" : ""} onClick={() => setView("lead_form")}>Log Lead</button>
@@ -923,6 +925,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
               {currentSection === "admin" && <button className="active">Admin Panel</button>}
               {currentSection === "profile" && <button className="active">My Profile</button>}
             </nav>
+            </>)}
           </div>
         )}
       </header>
@@ -946,7 +949,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { const loginRequired = ["dashboard", "leads_dashboard", "analytics", "admin", "templates", "meeting_notes", "knowledge_base"]; if (loginRequired.includes(id) && !dashUnlocked) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
+          <HubHome onNavigate={(id) => { if (id === "password" || id === "signup") { setView(id); return; } const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"]; if (adminOnly.includes(id) && !isAdmin) { setView("password"); return; } const loginRequired = ["templates", "meeting_notes", "knowledge_base", "calendar", "campaigns", "lead_form"]; if (loginRequired.includes(id) && !currentUser) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
@@ -968,9 +971,9 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         ) : view === "activity" ? (
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
-          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={isAdmin} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
         ) : view === "archive" ? (
-          <MarketingArchive entries={archiveEntries} isAdmin={dashUnlocked} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
+          <MarketingArchive entries={archiveEntries} isAdmin={isAdmin} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (
           <ArchiveForm entry={editArchiveEntry !== "new" ? archiveEntries.find((e) => e.id === editArchiveEntry) : null} onSave={handleArchiveSave} onCancel={() => setView("archive")} onDelete={handleArchiveDelete} />
         ) : view === "lead_form" ? (
@@ -978,11 +981,11 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         ) : view === "leads_dashboard" ? (
           <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
         ) : view === "brand_assets" ? (
-          <BrandAssets assets={brandAssets} isAdmin={dashUnlocked} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
+          <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
         ) : view === "templates" ? (
-          <ContentTemplates templates={contentTemplates} isAdmin={dashUnlocked} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
+          <ContentTemplates templates={contentTemplates} isAdmin={isAdmin} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
         ) : view === "guide" ? (
-          <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
+          <KnowledgeBase articles={kbArticles} isAdmin={isAdmin} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "converter" ? (
           <FileConverter />
         ) : view === "qr_generator" ? (
@@ -994,15 +997,15 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         ) : view === "repurposer" ? (
           <ContentRepurposer />
         ) : view === "calendar" ? (
-          <ContentCalendar events={calendarEvents} isAdmin={dashUnlocked} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
+          <ContentCalendar events={calendarEvents} isAdmin={isAdmin} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
         ) : view === "gallery" ? (
-          <AlpsGallery images={galleryImages} isAdmin={dashUnlocked} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
+          <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "broker_toolkit" ? (
-          <BrokerToolkit items={brokerToolkitItems} isAdmin={dashUnlocked} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
+          <BrokerToolkit items={brokerToolkitItems} isAdmin={isAdmin} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
         ) : view === "campaigns" ? (
-          <CampaignTracker campaigns={campaigns} tickets={tickets} archiveEntries={archiveEntries} leads={leads} calendarEvents={calendarEvents} isAdmin={dashUnlocked} onSave={handleCampaignSave} onDelete={handleCampaignDelete} />
+          <CampaignTracker campaigns={campaigns} tickets={tickets} archiveEntries={archiveEntries} leads={leads} calendarEvents={calendarEvents} isAdmin={isAdmin} onSave={handleCampaignSave} onDelete={handleCampaignDelete} />
         ) : view === "knowledge_base" ? (
-          <KnowledgeBase articles={kbArticles} isAdmin={dashUnlocked} onSave={handleKbSave} onDelete={handleKbDelete} />
+          <KnowledgeBase articles={kbArticles} isAdmin={isAdmin} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "profile" ? (
           <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} />
         ) : view === "admin" ? (
@@ -1019,7 +1022,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
-              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={dashUnlocked} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={isAdmin} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
             )}
           </div>
         )}
@@ -1030,8 +1033,8 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         <button onClick={() => setView("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Ticket</button>
         {currentUser ? (
           <>
-            <button onClick={() => setView("profile")} className={view === "profile" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile</button>
-            <button onClick={() => setView("dashboard")} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
+            <button onClick={() => setView("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile{notifications.filter((n) => !n.read && n.for_user === currentUser?.id).length > 0 && <span style={{ position: "absolute", top: 2, right: 8, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+            {isAdmin && <button onClick={() => setView("dashboard")} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>}
             <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
           </>
         ) : (

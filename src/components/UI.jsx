@@ -46,192 +46,252 @@ export function FilePreview({ files }) {
 }
 
 
-export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
+
+export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const greetingName = currentUser ? greeting + ", " + currentUser.name.split(" ")[0] : greeting;
   const myTickets = currentUser ? tickets.filter((t) => t.createdBy === currentUser.id || t.name === currentUser.name) : [];
-  const myActiveTickets = myTickets.filter((t) => t.status !== "completed");
-  const myReviewTickets = myTickets.filter((t) => t.status === "review");
-  const myInProgress = myTickets.filter((t) => t.status === "in_progress").length;
-  const myCompleted = myTickets.filter((t) => t.status === "completed").length;
-  const unreadNotifs = (notifications || []).filter((n) => !n.read && n.for_user === currentUser?.id).length;
-
-  const [homeTab, setHomeTab] = useState("resources");
+  const myActive = myTickets.filter((t) => t.status !== "completed");
+  const myReview = myTickets.filter((t) => t.status === "review");
+  const myNotifCount = currentUser ? (notifications || []).filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
   const [quickTitle, setQuickTitle] = useState("");
   const [quickSubmitting, setQuickSubmitting] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   const feedItems = (() => {
     const items = [];
-    tickets.slice(0, 15).forEach((t) => {
-      const isMine = currentUser && (t.createdBy === currentUser.id || t.name === currentUser.name);
-      const prefix = isMine ? "Your ticket " : "";
-      items.push({ icon: "\u{1F4DD}", text: prefix + (t.ref || "Ticket") + " submitted" + (isMine ? "" : " by " + t.name), time: t.createdAt, action: "tracker", mine: isMine });
-      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: prefix + (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard", mine: isMine });
-      if (t.status === "review") items.push({ icon: "\u{1F50D}", text: prefix + (t.ref || "Ticket") + " ready for review", time: t.updatedAt || t.createdAt, action: isMine ? "tracker" : "dashboard", mine: isMine });
-      if (t.completedAt) items.push({ icon: "\u2705", text: prefix + (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard", mine: isMine });
+    const myIds = currentUser ? new Set(myTickets.map((t) => t.id)) : new Set();
+    tickets.slice(0, 20).forEach((t) => {
+      const mine = myIds.has(t.id);
+      items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker", mine });
+      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard", mine });
+      if (t.status === "review") items.push({ icon: "\u{1F50D}", text: (t.ref || "Ticket") + (mine ? " ready for your review" : " in review"), time: t.updatedAt || t.createdAt, action: mine ? "tracker" : "dashboard", mine });
+      if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard", mine });
     });
-    leads.slice(0, 5).forEach((l) => { items.push({ icon: "\u{1F4C8}", text: "Lead from " + l.broker, time: l.created_at, action: "leads_dashboard" }); });
-    (archiveEntries || []).slice(0, 5).forEach((e) => { items.push({ icon: "\u{1F4DA}", text: (e.title || e.name || "Entry") + " published", time: e.date || e.created_at, action: "archive" }); });
     const sorted = items.sort((a, b) => new Date(b.time) - new Date(a.time));
-    if (currentUser) { const mine = sorted.filter((i) => i.mine); const others = sorted.filter((i) => !i.mine); return [...mine.slice(0, 4), ...others].slice(0, 7); }
+    if (currentUser) { const m = sorted.filter((f) => f.mine); const o = sorted.filter((f) => !f.mine); return [...m.slice(0, 4), ...o.slice(0, 3)].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 7); }
     return sorted.slice(0, 7);
   })();
+  const fmtAgo = (ts) => { const d = (Date.now() - new Date(ts)) / 60000; if (d < 1) return "Just now"; if (d < 60) return Math.floor(d) + "m ago"; if (d < 1440) return Math.floor(d / 60) + "h ago"; return Math.floor(d / 1440) + "d ago"; };
 
-  const fmtAgo = (ts) => { const diff = (Date.now() - new Date(ts)) / 60000; if (diff < 1) return "Just now"; if (diff < 60) return Math.floor(diff) + "m ago"; if (diff < 1440) return Math.floor(diff / 60) + "h ago"; return Math.floor(diff / 1440) + "d ago"; };
-  const cardBase = { padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.2s ease" };
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 16 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><span style={{ fontSize: 14 }}>{"\u{1F4E2}"}</span><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
 
-  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
-  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>) : null;
-
-  // ─── LOGGED OUT LANDING ───
+  // ── LOGGED OUT: CLEAN LANDING ──
   if (!currentUser) {
     return (
       <div style={{ width: "100%", maxWidth: 860 }}>
-        <div style={{ textAlign: "center", padding: "44px 20px 36px" }}>
-          <div style={{ fontSize: 42, marginBottom: 14 }}>{"\u{1F3AF}"}</div>
-          <h1 style={{ margin: "0 0 10px", fontSize: 32, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Alps Marketing Hub</h1>
-          <p style={{ margin: "0 auto 28px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6, maxWidth: 460 }}>Your central place for marketing requests, brand resources, and tools. Submit a ticket and we'll handle the rest.</p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => onNavigate("form")} style={{ padding: "13px 32px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px var(--brand-glow)", transition: "all 0.2s" }} className="hub-card-hover">{"\u{1F4DD}"} Submit a Request</button>
-            <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 28px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">{"\u{1F50D}"} Track a Ticket</button>
+        <div style={{ textAlign: "center", padding: "56px 20px 40px" }}>
+          <h1 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Alps Marketing Hub</h1>
+          <p style={{ margin: "0 auto 32px", fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>Submit a marketing request and we'll handle the rest.</p>
+          <button onClick={() => onNavigate("form")} style={{ padding: "14px 40px", background: "var(--brand)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px var(--brand-glow)", transition: "all 0.2s", marginBottom: 12 }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px var(--brand-glow)"; }}>Submit a Request</button>
+          <div style={{ marginTop: 8 }}>
+            <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>or track an existing ticket →</button>
           </div>
         </div>
+
         <OooBanner /><AnnBanner />
 
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 24px", marginBottom: 24 }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u23F1"} Turnaround Times</h3>
-          <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Expected response times based on the priority you set</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {Object.entries(SLA_TARGETS).map(([key, sla]) => { const p = { critical: { icon: "\u{1F534}", color: "#dc2626" }, high: { icon: "\u{1F7E0}", color: "#ea580c" }, medium: { icon: "\u{1F7E1}", color: "#ca8a04" }, low: { icon: "\u{1F7E2}", color: "#16a34a" } }[key]; return (<div key={key} style={{ textAlign: "center", padding: "10px 8px", background: "var(--bg-input)", borderRadius: 8 }}><div style={{ fontSize: 18, marginBottom: 4 }}>{p.icon}</div><div style={{ fontSize: 12, fontWeight: 700, color: p.color, textTransform: "capitalize" }}>{key}</div><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{sla.label}</div></div>); })}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Resources</h3>
-          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse past campaigns & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & brand guidelines" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }].map((r) => (
-              <button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Browse</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, background: "var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            {[
+              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Past campaigns & materials" },
+              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & guidelines" },
+              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" },
+              { id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize & convert images" },
+              { id: "qr_generator", icon: "\u{1F517}", title: "QR Generator", desc: "Create branded QR codes" },
+              { id: "image_editor", icon: "\u{1F58C}\uFE0F", title: "Image Editor", desc: "Crop, watermark & edit" },
+              { id: "repurposer", icon: "\u267B\uFE0F", title: "Content Repurposer", desc: "Reformat for social & email" },
+              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", title: "White-Labelled Assets", desc: "Download branded materials", href: "https://whitelabel.alpsltd.co.uk/" },
+            ].map((r) => (
+              <button key={r.id} onClick={() => r.href ? window.open(r.href, "_blank") : onNavigate(r.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--bg-card)", border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.1s", width: "100%" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "var(--bg-card)"}>
+                <span style={{ fontSize: 20, width: 28, textAlign: "center", flexShrink: 0 }}>{r.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{r.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.desc}</div>
+                </div>
+                <span style={{ fontSize: 14, color: "var(--text-muted)" }}>›</span>
+              </button>
             ))}
           </div>
         </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Tools</h3>
-          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {[{ id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize & convert images" }, { id: "qr_generator", icon: "\u{1F517}", title: "QR Generator", desc: "Create branded QR codes" }, { id: "image_editor", icon: "\u{1F58C}\uFE0F", title: "Image Editor", desc: "Edit, crop & watermark" }, { id: "repurposer", icon: "\u267B\uFE0F", title: "Content Repurposer", desc: "Reformat for social & email" }, { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", title: "White-Labelled Assets", desc: "Download branded materials", href: "https://whitelabel.alpsltd.co.uk/" }].map((t) => (
-              <button key={t.id} onClick={() => { if (t.href) window.open(t.href, "_blank"); else onNavigate(t.id); }} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{t.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{t.desc}</div></button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", padding: "24px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 28 }}>
-          <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-secondary)" }}>Log in for dashboards, analytics, content tools, and personalised ticket tracking</p>
+        <div style={{ textAlign: "center", padding: "20px", marginBottom: 20 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text-muted)" }}>Log in for personalised tracking, dashboards, and more tools</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button onClick={() => onNavigate("password")} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
-            <button onClick={() => onNavigate("signup")} style={{ padding: "10px 24px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+            <button onClick={() => onNavigate("password")} style={{ padding: "9px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+            <button onClick={() => onNavigate("signup")} style={{ padding: "9px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
           </div>
         </div>
-        <Changelog />
       </div>
     );
   }
 
-  // ─── LOGGED IN DASHBOARD ───
+  // ── LOGGED IN ──
+  const doQuickSubmit = () => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); };
+
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <p style={{ margin: "0 0 2px", fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>{greetingName}</p>
-            <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em" }}>Alps Marketing Hub</h2>
-          </div>
-          <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.2s", position: "relative" }} className="hub-card-hover">
-            <span style={{ width: 32, height: 32, borderRadius: 16, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>My Profile</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{myActiveTickets.length > 0 ? myActiveTickets.length + " active ticket" + (myActiveTickets.length !== 1 ? "s" : "") : "All caught up"}</div>
-            </div>
-            <span style={{ fontSize: 16, color: "var(--text-muted)", marginLeft: 4 }}>{"\u203A"}</span>
-            {unreadNotifs > 0 && <span style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
-          </button>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 2px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "No active tickets"}{myReview.length > 0 ? " · " + myReview.length + " ready for review" : ""}</p>
         </div>
-        <OooBanner /><AnnBanner />
+        <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.15s", position: "relative" }} className="hub-card-hover">
+          <span style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>My Profile</span>
+          {myNotifCount > 0 && <span style={{ position: "absolute", top: -3, right: -3, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{myNotifCount > 9 ? "9+" : myNotifCount}</span>}
+        </button>
       </div>
 
-      {myActiveTickets.length > 0 && (
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>My Tickets</h3>
-            <button onClick={() => onNavigate("profile")} style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>View all {"\u2192"}</button>
+      <OooBanner /><AnnBanner />
+
+      {/* My Tickets — hero section */}
+      {myActive.length > 0 ? (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Your Tickets</span>
+            <button onClick={() => onNavigate("profile")} style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>View all →</button>
           </div>
-          <div style={{ display: "flex", gap: 10, marginBottom: myActiveTickets.length > 0 ? 12 : 0 }}>
-            {myReviewTickets.length > 0 && (<div onClick={() => onNavigate("profile")} style={{ flex: 1, padding: "12px", background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, cursor: "pointer", textAlign: "center" }} className="hub-card-hover"><div style={{ fontSize: 22, fontWeight: 800, color: "#8b5cf6" }}>{myReviewTickets.length}</div><div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 600 }}>Review</div></div>)}
-            {myInProgress > 0 && (<div style={{ flex: 1, padding: "12px", background: "rgba(2,132,199,0.06)", border: "1px solid rgba(2,132,199,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#0284c7" }}>{myInProgress}</div><div style={{ fontSize: 11, color: "#0284c7", fontWeight: 600 }}>In Progress</div></div>)}
-            <div style={{ flex: 1, padding: "12px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#16a34a" }}>{myCompleted}</div><div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Completed</div></div>
-          </div>
-          {myActiveTickets.slice(0, 4).map((t) => {
-            const s = { open: { color: "#6366f1", label: "Open" }, in_progress: { color: "#0284c7", label: "In Progress" }, review: { color: "#8b5cf6", label: "Review" } }[t.status] || { color: "#64748b", label: t.status };
+          {myActive.slice(0, 4).map((t) => {
+            const s = { open: { color: "#6366f1", bg: "rgba(99,102,241,0.08)", label: "Open" }, in_progress: { color: "#0284c7", bg: "rgba(2,132,199,0.08)", label: "In Progress" }, review: { color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", label: "Review" } }[t.status] || { color: "#64748b", bg: "var(--bg-input)", label: t.status };
             return (
-              <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", transition: "background 0.15s", marginBottom: 2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
-                <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>{t.ref || t.id}</span>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: s.color + "14", color: s.color, flexShrink: 0 }}>{s.label}</span>
+              <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "var(--bg-card)", borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.1s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "var(--bg-card)"}>
+                <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", flexShrink: 0, width: 44 }}>{t.ref || t.id}</span>
+                <span style={{ flex: 1, fontSize: 14, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, flexShrink: 0 }}>{s.label}</span>
               </div>
             );
           })}
+          {myActive.length > 4 && <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>+ {myActive.length - 4} more</div>}
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", padding: "28px 20px", marginBottom: 20, background: "var(--bg-card)", borderRadius: 12 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>No active tickets</p>
+          <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-muted)" }}>Submit a request and it'll show up here</p>
+          <button onClick={() => onNavigate("form")} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Submit a Request</button>
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
-        <button onClick={() => onNavigate("form")} style={{ ...cardBase, background: "var(--brand)", border: "1px solid var(--brand)", boxShadow: "0 2px 8px rgba(35,29,104,0.15)" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(35,29,104,0.25)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.15)"; e.currentTarget.style.transform = "none"; }}><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F4DD}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>New Ticket</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Submit a request</div></button>
-        <button onClick={() => onNavigate("lead_form")} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F4C8}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Log a Lead</div><div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Record inbound</div></button>
-        <button onClick={() => onNavigate("tracker")} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F50D}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Track Ticket</div><div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Check status</div></button>
+      {/* Quick submit + actions */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, alignItems: "stretch" }}>
+        <div style={{ flex: 1, display: "flex", gap: 6 }}>
+          <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "10px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.4 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "..." : "→"}</button>
+        </div>
+        <button onClick={() => onNavigate("form")} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }} className="hub-card-hover">+ Full Form</button>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && quickTitle.trim() && onQuickSubmit) { setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); } }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
-          <button onClick={() => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); }} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.5 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "Sending..." : "Submit"}</button>
-        </div>
-      </div>
-
-      <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14, marginBottom: 24 }}>
-        <div>
-          {(() => {
-            const now = new Date(); const dow = now.getDay();
-            const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
-            const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
-            const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
-            const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
-            const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
-            const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
-            const ld = calc(leads, (l) => l.created_at);
-            const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
-            const cmp = (curr, prev) => { if (curr === 0 && prev === 0) return { text: "Same as last week", color: "var(--text-muted)" }; if (prev === 0 && curr > 0) return { text: "\u2191" + curr + " vs last week", color: "#16a34a" }; const diff = curr - prev; return diff > 0 ? { text: "\u2191" + diff + " vs last week", color: "#16a34a" } : diff < 0 ? { text: "\u2193" + Math.abs(diff) + " vs last week", color: "#dc2626" } : { text: "Same as last week", color: "var(--text-muted)" }; };
-            const items = [{ label: "Completed", value: comp.tw, cmp: cmp(comp.tw, comp.lw), icon: "\u2705" }, { label: "Published", value: arch.tw, cmp: cmp(arch.tw, arch.lw), icon: "\u{1F4DA}" }, { label: "Leads", value: ld.tw, cmp: cmp(ld.tw, ld.lw), icon: "\u{1F4C8}" }];
-            return (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>This Week</div><div className="hub-week-compare" style={{ display: "flex", gap: 16 }}>{items.map((item) => (<div key={item.label} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 11, marginBottom: 4 }}>{item.icon}</div><div style={{ fontSize: 22, fontWeight: 800, color: "var(--brand)", lineHeight: 1 }}>{item.value}</div><div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 2 }}>{item.label}</div><div style={{ fontSize: 10, color: item.cmp.color, marginTop: 3 }}>{item.cmp.text}</div></div>))}</div></div>);
-          })()}
-        </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span><span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span></div>
-          <div style={{ flex: 1, overflowY: "auto", maxHeight: 150 }}>
-            {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6, background: f.mine ? "var(--brand-light)" : "transparent" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = f.mine ? "var(--brand-light)" : "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: f.mine ? 600 : 400 }}>{f.text}</div></div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
+      {/* Admin: stats + activity */}
+      {isAdmin && (
+        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14, marginBottom: 24 }}>
+          <div>
+            {(() => {
+              const now = new Date(); const dow = now.getDay();
+              const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
+              const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
+              const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+              const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
+              const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
+              const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
+              const ld = calc(leads, (l) => l.created_at);
+              const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
+              const cmp = (c, p) => c > p ? { t: "+" + (c - p), c: "#16a34a" } : c < p ? { t: "" + (c - p), c: "#dc2626" } : { t: "=", c: "var(--text-muted)" };
+              return (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>This Week</div><div style={{ display: "flex", gap: 16 }}>{[{ l: "Completed", v: comp.tw, d: cmp(comp.tw, comp.lw) }, { l: "Published", v: arch.tw, d: cmp(arch.tw, arch.lw) }, { l: "Leads", v: ld.tw, d: cmp(ld.tw, ld.lw) }].map((item) => (<div key={item.l} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 800, color: "var(--brand)", lineHeight: 1 }}>{item.v}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{item.l}</div><div style={{ fontSize: 10, color: item.d.c, marginTop: 2 }}>{item.d.t} vs last week</div></div>))}</div></div>);
+            })()}
+          </div>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span><span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span></div>
+            <div style={{ flex: 1, overflowY: "auto", maxHeight: 150 }}>
+              {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No activity yet</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6, background: f.mine ? "var(--brand-light)" : "transparent" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = f.mine ? "var(--brand-light)" : "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0, fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: f.mine ? 600 : 400 }}>{f.text}</div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18 }}>
-          {[{ key: "resources", label: "Resources" }, { key: "tools", label: "Tools" }, { key: "dashboards", label: "Dashboards" }].map((tab) => (<button key={tab.key} onClick={() => setHomeTab(tab.key)} style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === tab.key ? "var(--brand)" : "transparent", color: homeTab === tab.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{tab.label}</button>))}
+      {/* Resources & Tools — compact list */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Resources & Tools</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
+          {[
+            { id: "archive", icon: "\u{1F4DA}", label: "Marketing Archive" },
+            { id: "brand_assets", icon: "\u{1F3A8}", label: "Brand Assets" },
+            { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar" },
+            { id: "gallery", icon: "\u{1F5BC}\uFE0F", label: "Alps Gallery" },
+            { id: "broker_toolkit", icon: "\u{1F4BC}", label: "Broker Toolkit" },
+            { id: "campaigns", icon: "\u{1F3AF}", label: "Campaigns" },
+            { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
+            { id: "converter", icon: "\u{1F504}", label: "File Converter" },
+            { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
+            { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
+            { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" },
+            { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" },
+            { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" },
+            ...(isAdmin ? [
+              { id: "dashboard", icon: "\u{1F4CB}", label: "Ticket Dashboard" },
+              { id: "leads_dashboard", icon: "\u{1F4C8}", label: "Leads Dashboard" },
+              { id: "analytics", icon: "\u{1F4CA}", label: "Analytics" },
+            ] : []),
+          ].map((r) => (
+            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-card)", border: "1px solid transparent", borderRadius: 8, cursor: "pointer", textAlign: "left", transition: "all 0.15s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--bg-card)"; }}>
+              <span style={{ fontSize: 16 }}>{r.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{r.label}</span>
+            </button>
+          ))}
         </div>
-
-        {homeTab === "resources" && (<div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons" }, { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }, { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" }, { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance" }].map((r) => (<button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>))}</div>)}
-        {homeTab === "tools" && (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "templates", icon: "\u{1F4C4}", label: "Content Templates" }, { id: "converter", icon: "\u{1F504}", label: "File Converter" }, { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" }, { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" }, { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" }, { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" }, { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" }, { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", href: "https://whitelabel.alpsltd.co.uk/" }, { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", soon: true }, { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", soon: true }, { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", soon: true }].map((t) => (<button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ ...cardBase, opacity: t.soon ? 0.4 : 1, cursor: t.soon ? "default" : "pointer" }} className={t.soon ? "" : "hub-card-hover"}><div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: t.soon ? 3 : 0 }}>{t.label}</div>{t.soon && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</div>}</button>))}</div>)}
-        {homeTab === "dashboards" && (<div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>{[{ id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" }, { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" }, { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" }].map((d) => (<button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}><span style={{ fontSize: 22 }}>{d.icon}</span></div><div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div></button>))}</div>)}
       </div>
-      <Changelog />
+
+      {/* Footer: What's New link */}
+      <div style={{ textAlign: "center", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+        <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: "4px 8px" }}>What's New</button>
+      </div>
+
+      {/* Changelog modal */}
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
+    </div>
+  );
+}
+
+function ChangelogModal({ onClose }) {
+  const entries = [
+    { date: "Mar 2026", title: "Approval Workflow", desc: "Submitters can approve or request changes on reviewed tickets." },
+    { date: "Mar 2026", title: "SLA Tracking", desc: "Track turnaround times against priority-based SLA targets." },
+    { date: "Mar 2026", title: "Email Digest", desc: "Generate weekly summaries to share with stakeholders." },
+    { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items from meeting notes and create tickets." },
+    { date: "Mar 2026", title: "Content Repurposer", desc: "Turn long-form content into LinkedIn, email, social & threads." },
+    { date: "Mar 2026", title: "Comments & Editing", desc: "Threaded comments, inline ticket editing, and clone." },
+    { date: "Mar 2026", title: "Review Status", desc: "New Review stage between In Progress and Complete." },
+    { date: "Mar 2026", title: "Smart Notifications", desc: "Deadline reminders and status change alerts." },
+    { date: "Mar 2026", title: "File Previews", desc: "Inline image thumbnails on tickets." },
+    { date: "Mar 2026", title: "User Accounts", desc: "Sign in, profiles, and role-based access." },
+    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns." },
+    { date: "Mar 2026", title: "Admin Panel", desc: "OOO, announcements, and data export." },
+    { date: "Feb 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails and branded templates." },
+    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with search and download." },
+    { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Tickets, calendar, brand assets, dashboards." },
+  ];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20, backdropFilter: "blur(4px)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "28px 24px", maxWidth: 520, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>What's New</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: "4px 8px" }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+          {entries.map((e, i) => (
+            <div key={i} style={{ padding: "12px 0", borderBottom: i < entries.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{e.title}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.date}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{e.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -283,44 +343,6 @@ export function LoginPage({ onLogin, hubUsers, onGoToSignUp }) {
     </div>
   );
 }
-
-
-export function Changelog() {
-  const entries = [
-    { date: "Mar 2026", title: "Approval Workflow", desc: "Submitters can approve or request changes on reviewed tickets." },
-    { date: "Mar 2026", title: "SLA Tracking", desc: "Track turnaround times against priority-based SLA targets." },
-    { date: "Mar 2026", title: "Email Digest", desc: "Generate weekly summaries to share with stakeholders." },
-    { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items from meeting notes and create tickets." },
-    { date: "Mar 2026", title: "Content Repurposer", desc: "Turn long-form content into LinkedIn, email, social & threads." },
-    { date: "Mar 2026", title: "Comments & Editing", desc: "Threaded comments, inline ticket editing, and clone." },
-    { date: "Mar 2026", title: "Review Status", desc: "New 'Review' stage between In Progress and Complete." },
-    { date: "Mar 2026", title: "Smart Notifications", desc: "Deadline reminders and status change alerts." },
-    { date: "Mar 2026", title: "File Previews", desc: "Inline image thumbnails on tickets." },
-    { date: "Mar 2026", title: "User Accounts", desc: "Sign in, profiles, and role-based access." },
-    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns." },
-    { date: "Mar 2026", title: "Admin Panel", desc: "OOO, passwords, announcements, and data export." },
-    { date: "Feb 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails and branded templates." },
-    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with search and download." },
-    { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Tickets, calendar, brand assets, dashboards." },
-  ];
-  return (
-    <div style={{ paddingTop: 20, borderTop: "1px solid var(--border)" }}>
-      <h3 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>What's New</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-        {entries.slice(0, 6).map((e, i) => (
-          <div key={i} style={{ padding: "12px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, transition: "border-color 0.15s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>{e.title}</span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 500 }}>{e.date}</span>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{e.desc}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 
 export function SignUpPage({ onSignUp, hubUsers, onGoToLogin }) {
   const [form, setForm] = useState({ name: "", email: "", username: "", password: "", confirmPw: "" });
