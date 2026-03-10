@@ -52,10 +52,11 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const greetingName = currentUser ? greeting + ", " + currentUser.name.split(" ")[0] : greeting;
   const myTickets = currentUser ? tickets.filter((t) => t.createdBy === currentUser.id || t.name === currentUser.name) : [];
-  const myActiveTickets = myTickets.filter((t) => t.status !== "completed").length;
-  const myReviewTickets = myTickets.filter((t) => t.status === "review").length;
+  const myActiveTickets = myTickets.filter((t) => t.status !== "completed");
+  const myReviewTickets = myTickets.filter((t) => t.status === "review");
   const myInProgress = myTickets.filter((t) => t.status === "in_progress").length;
   const myCompleted = myTickets.filter((t) => t.status === "completed").length;
+  const unreadNotifs = (notifications || []).filter((n) => !n.read && n.for_user === currentUser?.id).length;
 
   const [homeTab, setHomeTab] = useState("resources");
   const [quickTitle, setQuickTitle] = useState("");
@@ -64,20 +65,27 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
   const feedItems = (() => {
     const items = [];
     tickets.slice(0, 15).forEach((t) => {
-      items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker" });
-      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard" });
-      if (t.status === "review") items.push({ icon: "\u{1F50D}", text: (t.ref || "Ticket") + " ready for review", time: t.updatedAt || t.createdAt, action: "dashboard" });
-      if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard" });
+      const isMine = currentUser && (t.createdBy === currentUser.id || t.name === currentUser.name);
+      const prefix = isMine ? "Your ticket " : "";
+      items.push({ icon: "\u{1F4DD}", text: prefix + (t.ref || "Ticket") + " submitted" + (isMine ? "" : " by " + t.name), time: t.createdAt, action: "tracker", mine: isMine });
+      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: prefix + (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard", mine: isMine });
+      if (t.status === "review") items.push({ icon: "\u{1F50D}", text: prefix + (t.ref || "Ticket") + " ready for review", time: t.updatedAt || t.createdAt, action: isMine ? "tracker" : "dashboard", mine: isMine });
+      if (t.completedAt) items.push({ icon: "\u2705", text: prefix + (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard", mine: isMine });
     });
     leads.slice(0, 5).forEach((l) => { items.push({ icon: "\u{1F4C8}", text: "Lead from " + l.broker, time: l.created_at, action: "leads_dashboard" }); });
     (archiveEntries || []).slice(0, 5).forEach((e) => { items.push({ icon: "\u{1F4DA}", text: (e.title || e.name || "Entry") + " published", time: e.date || e.created_at, action: "archive" }); });
-    return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 7);
+    const sorted = items.sort((a, b) => new Date(b.time) - new Date(a.time));
+    if (currentUser) { const mine = sorted.filter((i) => i.mine); const others = sorted.filter((i) => !i.mine); return [...mine.slice(0, 4), ...others].slice(0, 7); }
+    return sorted.slice(0, 7);
   })();
 
   const fmtAgo = (ts) => { const diff = (Date.now() - new Date(ts)) / 60000; if (diff < 1) return "Just now"; if (diff < 60) return Math.floor(diff) + "m ago"; if (diff < 1440) return Math.floor(diff / 60) + "h ago"; return Math.floor(diff / 1440) + "d ago"; };
   const cardBase = { padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.2s ease" };
 
-  // LOGGED OUT LANDING
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>) : null;
+
+  // ─── LOGGED OUT LANDING ───
   if (!currentUser) {
     return (
       <div style={{ width: "100%", maxWidth: 860 }}>
@@ -90,9 +98,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
             <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 28px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">{"\u{1F50D}"} Track a Ticket</button>
           </div>
         </div>
-
-        {oooActive && oooReturnDate && (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>)}
-        {announcement && announcement.active && announcement.text && (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>)}
+        <OooBanner /><AnnBanner />
 
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 24px", marginBottom: 24 }}>
           <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u23F1"} Turnaround Times</h3>
@@ -102,11 +108,20 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
           </div>
         </div>
 
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ marginBottom: 24 }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Resources</h3>
           <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse past campaigns & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & brand guidelines" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }, { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" }, { id: "knowledge_base", icon: "\u{1F4D6}", title: "Knowledge Base", desc: "Guides & how-tos" }, { id: "guide", icon: "\u2753", title: "Help & FAQ", desc: "Common questions answered" }].map((r) => (
+            {[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse past campaigns & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & brand guidelines" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }].map((r) => (
               <button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Tools</h3>
+          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            {[{ id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize & convert images" }, { id: "qr_generator", icon: "\u{1F517}", title: "QR Generator", desc: "Create branded QR codes" }, { id: "image_editor", icon: "\u{1F58C}\uFE0F", title: "Image Editor", desc: "Edit, crop & watermark" }, { id: "repurposer", icon: "\u267B\uFE0F", title: "Content Repurposer", desc: "Reformat for social & email" }, { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", title: "White-Labelled Assets", desc: "Download branded materials", href: "https://whitelabel.alpsltd.co.uk/" }].map((t) => (
+              <button key={t.id} onClick={() => { if (t.href) window.open(t.href, "_blank"); else onNavigate(t.id); }} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{t.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{t.desc}</div></button>
             ))}
           </div>
         </div>
@@ -123,40 +138,49 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
     );
   }
 
-  // LOGGED IN DASHBOARD
+  // ─── LOGGED IN DASHBOARD ───
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
           <div>
             <p style={{ margin: "0 0 2px", fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>{greetingName}</p>
             <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em" }}>Alps Marketing Hub</h2>
           </div>
-          <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">
+          <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.2s", position: "relative" }} className="hub-card-hover">
             <span style={{ width: 32, height: 32, borderRadius: 16, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>My Profile</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{myActiveTickets > 0 ? myActiveTickets + " active ticket" + (myActiveTickets !== 1 ? "s" : "") : "All caught up"}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{myActiveTickets.length > 0 ? myActiveTickets.length + " active ticket" + (myActiveTickets.length !== 1 ? "s" : "") : "All caught up"}</div>
             </div>
             <span style={{ fontSize: 16, color: "var(--text-muted)", marginLeft: 4 }}>{"\u203A"}</span>
+            {unreadNotifs > 0 && <span style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
           </button>
         </div>
-
-        {oooActive && oooReturnDate && (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>)}
-        {announcement && announcement.active && announcement.text && (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>)}
+        <OooBanner /><AnnBanner />
       </div>
 
-      {myActiveTickets > 0 && (
+      {myActiveTickets.length > 0 && (
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>My Tickets</h3>
             <button onClick={() => onNavigate("profile")} style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>View all {"\u2192"}</button>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {myReviewTickets > 0 && (<div onClick={() => onNavigate("profile")} style={{ flex: 1, padding: "12px", background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.15s" }} className="hub-card-hover"><div style={{ fontSize: 22, fontWeight: 800, color: "#8b5cf6" }}>{myReviewTickets}</div><div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 600 }}>Ready for Review</div></div>)}
+          <div style={{ display: "flex", gap: 10, marginBottom: myActiveTickets.length > 0 ? 12 : 0 }}>
+            {myReviewTickets.length > 0 && (<div onClick={() => onNavigate("profile")} style={{ flex: 1, padding: "12px", background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, cursor: "pointer", textAlign: "center" }} className="hub-card-hover"><div style={{ fontSize: 22, fontWeight: 800, color: "#8b5cf6" }}>{myReviewTickets.length}</div><div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 600 }}>Review</div></div>)}
             {myInProgress > 0 && (<div style={{ flex: 1, padding: "12px", background: "rgba(2,132,199,0.06)", border: "1px solid rgba(2,132,199,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#0284c7" }}>{myInProgress}</div><div style={{ fontSize: 11, color: "#0284c7", fontWeight: 600 }}>In Progress</div></div>)}
             <div style={{ flex: 1, padding: "12px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#16a34a" }}>{myCompleted}</div><div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Completed</div></div>
           </div>
+          {myActiveTickets.slice(0, 4).map((t) => {
+            const s = { open: { color: "#6366f1", label: "Open" }, in_progress: { color: "#0284c7", label: "In Progress" }, review: { color: "#8b5cf6", label: "Review" } }[t.status] || { color: "#64748b", label: t.status };
+            return (
+              <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", transition: "background 0.15s", marginBottom: 2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>{t.ref || t.id}</span>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: s.color + "14", color: s.color, flexShrink: 0 }}>{s.label}</span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -193,7 +217,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span><span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span></div>
           <div style={{ flex: 1, overflowY: "auto", maxHeight: 150 }}>
-            {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div></div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
+            {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6, background: f.mine ? "var(--brand-light)" : "transparent" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = f.mine ? "var(--brand-light)" : "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: f.mine ? 600 : 400 }}>{f.text}</div></div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
           </div>
         </div>
       </div>
@@ -204,16 +228,13 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
         </div>
 
         {homeTab === "resources" && (<div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons" }, { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }, { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" }, { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance" }].map((r) => (<button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>))}</div>)}
-
         {homeTab === "tools" && (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "templates", icon: "\u{1F4C4}", label: "Content Templates" }, { id: "converter", icon: "\u{1F504}", label: "File Converter" }, { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" }, { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" }, { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" }, { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" }, { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" }, { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", href: "https://whitelabel.alpsltd.co.uk/" }, { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", soon: true }, { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", soon: true }, { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", soon: true }].map((t) => (<button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ ...cardBase, opacity: t.soon ? 0.4 : 1, cursor: t.soon ? "default" : "pointer" }} className={t.soon ? "" : "hub-card-hover"}><div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: t.soon ? 3 : 0 }}>{t.label}</div>{t.soon && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</div>}</button>))}</div>)}
-
         {homeTab === "dashboards" && (<div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>{[{ id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" }, { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" }, { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" }].map((d) => (<button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}><span style={{ fontSize: 22 }}>{d.icon}</span></div><div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div></button>))}</div>)}
       </div>
       <Changelog />
     </div>
   );
 }
-
 
 export function LoginPage({ onLogin, hubUsers, onGoToSignUp }) {
   const [username, setUsername] = useState("");
@@ -323,6 +344,7 @@ export function SignUpPage({ onSignUp, hubUsers, onGoToLogin }) {
         <div style={{ fontSize: 48, marginBottom: 12 }}>{"\u2705"}</div>
         <h2 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Account Created!</h2>
         <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Your account is pending admin approval. You'll be able to log in once approved.</p>
+        <button onClick={onGoToLogin} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2190"} Back to Login</button>
       </div>
     </div>
   );
@@ -343,7 +365,7 @@ export function SignUpPage({ onSignUp, hubUsers, onGoToLogin }) {
         {error && <div style={{ fontSize: 13, color: "#ef4444", margin: "12px 0 0", textAlign: "center" }}>{error}</div>}
         <button onClick={handleSignUp} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: 16 }}>Create Account</button>
       </div>
-      <p style={{ margin: "16px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Already have an account? <button onClick={onGoToSignUp} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 600, fontSize: 12, padding: 0 }}>Log In</button></p>
+      <p style={{ margin: "16px 0 0", fontSize: 12, color: "var(--text-muted)" }}>Already have an account? <button onClick={onGoToLogin} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 600, fontSize: 12, padding: 0 }}>Log In</button></p>
     </div>
   );
 }

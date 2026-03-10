@@ -3,10 +3,14 @@ import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadg
 import { FileChip, FilePreview } from "./UI.jsx";
 
 export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
-  const [form, setForm] = useState({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
+  const [form, setForm] = useState(() => {
+    try { const d = localStorage.getItem("alps_ticket_draft"); if (d) { const parsed = JSON.parse(d); return { ...parsed, files: [] }; } } catch {}
+    return { name: "", title: "", description: "", priority: "medium", deadline: "", files: [] };
+  });
+  const [hasDraft, setHasDraft] = useState(() => { try { return !!localStorage.getItem("alps_ticket_draft"); } catch { return false; } });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => { try { const d = localStorage.getItem("alps_ticket_draft"); if (d) { const p = JSON.parse(d); return p.priority !== "medium" || !!p.deadline; } } catch {} return false; });
   const fileRef = useRef();
   useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
   useEffect(() => {
@@ -16,6 +20,18 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
       if (onClearDuplicate) onClearDuplicate();
     }
   }, [duplicateData]);
+
+  // Auto-save draft
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (form.title.trim() || form.description.trim()) {
+        try { localStorage.setItem("alps_ticket_draft", JSON.stringify({ name: form.name, title: form.title, description: form.description, priority: form.priority, deadline: form.deadline })); setHasDraft(true); } catch {}
+      }
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [form.title, form.description, form.priority, form.deadline]);
+
+  const clearDraft = () => { try { localStorage.removeItem("alps_ticket_draft"); } catch {} setHasDraft(false); };
 
   const update = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -44,6 +60,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
     setSubmitting(true);
     await onSubmit({ ...form, actualFiles: form.files });
     setForm({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
+    clearDraft();
     setSubmitting(false);
   };
 
@@ -55,6 +72,14 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
     <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, maxWidth: 560, width: "100%" }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>Submit a Request</h2>
       <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Please fill in the form to submit a ticket, and I'll get right on it. Once your ticket is complete, I will notify you.</p>
+
+      {hasDraft && form.title.trim() && !duplicateData && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
+          <span style={{ fontSize: 14 }}>{"\u{1F4BE}"}</span>
+          <span style={{ color: "var(--text-primary)", flex: 1 }}>Draft saved</span>
+          <button onClick={() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); clearDraft(); }} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Discard</button>
+        </div>
+      )}
 
       <div style={{ marginBottom: 20 }}>
         <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
@@ -451,8 +476,13 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
+  const [selected, setSelected] = useState({});
   const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
   const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  const selectedIds = Object.keys(selected).filter((k) => selected[k]);
+  const toggleSelect = (id) => setSelected((p) => ({ ...p, [id]: !p[id] }));
+  const clearSelection = () => setSelected({});
+  const batchAction = (action) => { selectedIds.forEach((id) => { if (action === "complete") onComplete(id); else if (action === "in_progress") onStatusChange(id, "in_progress"); else if (action === "review") onStatusChange(id, "review"); }); clearSelection(); };
 
   const filtered = tickets.filter((t) => {
     if (search.trim()) {
@@ -532,6 +562,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
             <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
+            <button onClick={() => setViewMode("kanban")} title="Kanban view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "kanban" ? "var(--brand)" : "transparent", color: viewMode === "kanban" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}>{"\u25A8"}</button>
             <button onClick={() => setViewMode("queue")} title="Queue view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "queue" ? "var(--brand)" : "transparent", color: viewMode === "queue" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}>{"\u{1F4CB}"}</button>
             <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
           </div>
@@ -542,6 +573,18 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
           </select>
         </div>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>{selectedIds.length} selected</span>
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            <button onClick={() => batchAction("in_progress")} style={{ padding: "5px 12px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 6, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"} Start All</button>
+            <button onClick={() => batchAction("review")} style={{ padding: "5px 12px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u{1F50D}"} Review All</button>
+            <button onClick={() => batchAction("complete")} style={{ padding: "5px 12px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 6, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"} Complete All</button>
+            <button onClick={clearSelection} style={{ padding: "5px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+          </div>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
@@ -565,6 +608,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
             const s = STATUS[t.status] || STATUS_FALLBACK;
             return (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, transition: "all 0.15s" }} className="hub-card-hover">
+                <input type="checkbox" checked={!!selected[t.id]} onChange={() => toggleSelect(t.id)} style={{ accentColor: "var(--brand)", cursor: "pointer", flexShrink: 0 }} />
                 <span style={{ fontSize: 14 }}>{p?.icon}</span>
                 <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 7px", borderRadius: 4, flexShrink: 0 }}>{t.ref || t.id}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -576,6 +620,46 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
                   {t.status === "open" && <button onClick={() => onStatusChange(t.id, "in_progress")} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(2,132,199,0.3)", background: "rgba(2,132,199,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#0284c7" }}>Start</button>}
                   {t.status === "in_progress" && <button onClick={() => onStatusChange(t.id, "review")} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#8b5cf6" }}>Review</button>}
                   {(t.status === "in_progress" || t.status === "review") && <button onClick={() => onComplete(t.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#16a34a" }}>Done</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : viewMode === "kanban" ? (
+        <div className="hub-kanban" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, overflowX: "auto" }}>
+          {[{ key: "open", label: "Open", color: "#6366f1", icon: "\u{1F4E5}" }, { key: "in_progress", label: "In Progress", color: "#0284c7", icon: "\u{1F528}" }, { key: "review", label: "Review", color: "#8b5cf6", icon: "\u{1F50D}" }, { key: "completed", label: "Completed", color: "#16a34a", icon: "\u2705" }].map((col) => {
+            const colTickets = tickets.filter((t) => t.status === col.key).sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+            return (
+              <div key={col.key} style={{ minWidth: 200 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "0 4px" }}>
+                  <span style={{ fontSize: 12 }}>{col.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: col.color }}>{col.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-input)", padding: "1px 6px", borderRadius: 8, marginLeft: "auto" }}>{colTickets.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 100, padding: 4, background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
+                  {colTickets.length === 0 ? (
+                    <div style={{ padding: "20px 8px", textAlign: "center", fontSize: 11, color: "var(--text-muted)" }}>No tickets</div>
+                  ) : colTickets.map((t) => {
+                    const p = PRIORITIES[t.priority];
+                    const dueBadge = getDueBadge(t.deadline, t.status);
+                    return (
+                      <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", cursor: "default", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                          <span style={{ fontSize: 9, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 3 }}>{t.id}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: p?.color, background: p?.bg, padding: "1px 5px", borderRadius: 8 }}>{p?.icon}</span>
+                          {dueBadge && <span style={{ fontSize: 9, fontWeight: 600, color: dueBadge.color, marginLeft: "auto" }}>{dueBadge.text}</span>}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{t.name}</div>
+                        <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                          {col.key === "open" && <button onClick={() => onStatusChange(t.id, "in_progress")} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(2,132,199,0.2)", background: "rgba(2,132,199,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#0284c7" }}>Start</button>}
+                          {col.key === "in_progress" && <button onClick={() => onStatusChange(t.id, "review")} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#8b5cf6" }}>Review</button>}
+                          {col.key === "review" && <button onClick={() => onComplete(t.id)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(22,163,74,0.2)", background: "rgba(22,163,74,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#16a34a" }}>Done</button>}
+                          {col.key !== "completed" && <button onClick={() => onComplete(t.id)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 9, cursor: "pointer", color: "var(--text-muted)" }}>{"\u2713"}</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

@@ -539,6 +539,7 @@ export default function App() {
       setLastSubmittedRef(ref);
       setView("submitted");
       toast("Ticket " + ref + " submitted", "success");
+      if (currentUser) { addNotification("\u{1F4DD}", "Ticket Submitted", "Your ticket " + ref + " has been submitted. You'll be notified when it's updated.", "tracker", currentUser.id); }
     } else { toast("Failed to submit ticket", "error"); }
   };
 
@@ -842,6 +843,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-profile-stats { grid-template-columns: repeat(3, 1fr) !important; }
+          .hub-kanban { grid-template-columns: 1fr 1fr !important; }
           .hub-week-compare { flex-direction: column; gap: 4px !important; }
           .hub-secondary-nav { overflow-x: auto; flex-wrap: nowrap; }
           .hub-mobile-nav { display: flex !important; }
@@ -883,10 +885,10 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             <nav className="hub-secondary-nav" style={{ flex: 1 }}>
               {currentSection === "tickets" && <>
                 <button className={view === "form" ? "active" : ""} onClick={() => setView("form")}>Submit</button>
-                <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
-                  {dashUnlocked ? "" : "\u{1F512} "}Dashboard
+                {currentUser && <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
+                  Dashboard
                   {dashUnlocked && activeCount > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>}
-                </button>
+                </button>}
                 {dashUnlocked && <button className={view === "activity" ? "active" : ""} onClick={() => setView("activity")}>Activity</button>}
                 <button className={view === "tracker" ? "active" : ""} onClick={() => { setLastSubmittedRef(null); setView("tracker"); }}>Track</button>
               </>}
@@ -896,17 +898,19 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
               </>}
               {currentSection === "leads" && <>
                 <button className={view === "lead_form" ? "active" : ""} onClick={() => setView("lead_form")}>Log Lead</button>
-                <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => { if (currentUser) setView("leads_dashboard"); else setView("password"); }}>Dashboard</button>
+                {currentUser && <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => setView("leads_dashboard")}>Dashboard</button>}
               </>}
               {currentSection === "tools" && <>
                 {[
-                  { id: "templates", label: "Templates" },
                   { id: "converter", label: "Converter" },
                   { id: "qr_generator", label: "QR Code" },
                   { id: "image_editor", label: "Image Editor" },
-                  { id: "meeting_notes", label: "Notes to Tickets" },
                   { id: "repurposer", label: "Repurposer" },
-                  { id: "guide", label: "Self-Service Guide" },
+                  ...(currentUser ? [
+                    { id: "templates", label: "Templates" },
+                    { id: "meeting_notes", label: "Notes to Tickets" },
+                    { id: "guide", label: "Self-Service Guide" },
+                  ] : []),
                 ].map((t) => <button key={t.id} className={view === t.id ? "active" : ""} onClick={() => setView(t.id)}>{t.label}</button>)}
               </>}
               {currentSection === "analytics" && <button className="active">Analytics</button>}
@@ -942,7 +946,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if ((id === "dashboard" || id === "leads_dashboard" || id === "analytics" || id === "admin") && !dashUnlocked) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
+          <HubHome onNavigate={(id) => { const loginRequired = ["dashboard", "leads_dashboard", "analytics", "admin", "templates", "meeting_notes", "knowledge_base"]; if (loginRequired.includes(id) && !dashUnlocked) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
@@ -1024,9 +1028,18 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
       <div className="hub-mobile-nav">
         <button onClick={() => setView("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
         <button onClick={() => setView("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Ticket</button>
-        <button onClick={() => setView("profile")} className={view === "profile" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Profile</button>
-        <button onClick={() => { if (currentUser) setView("dashboard"); else setView("password"); }} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
-        <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
+        {currentUser ? (
+          <>
+            <button onClick={() => setView("profile")} className={view === "profile" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile</button>
+            <button onClick={() => setView("dashboard")} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>
+            <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
+            <button onClick={() => setView("archive")} className={view === "archive" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DA}"}</span>Resources</button>
+          </>
+        )}
       </div>
 
       <Toast toasts={toasts} onDismiss={dismissToast} />
