@@ -837,3 +837,5 @@ export function ActivityLog({ tickets }) {
         </div>
       )}
     </div>
+  );
+}
