@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { renderMarkdown } from "../constants.js";
+import { renderMarkdown, SLA_TARGETS } from "../constants.js";
 
 
 export function FileChip({ name, url, onRemove }) {
@@ -48,13 +48,14 @@ export function FilePreview({ files }) {
 
 export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const leadsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const greetingName = currentUser ? greeting + ", " + currentUser.name.split(" ")[0] : greeting;
   const myTickets = currentUser ? tickets.filter((t) => t.createdBy === currentUser.id || t.name === currentUser.name) : [];
   const myActiveTickets = myTickets.filter((t) => t.status !== "completed").length;
   const myReviewTickets = myTickets.filter((t) => t.status === "review").length;
+  const myInProgress = myTickets.filter((t) => t.status === "in_progress").length;
+  const myCompleted = myTickets.filter((t) => t.status === "completed").length;
 
   const [homeTab, setHomeTab] = useState("resources");
   const [quickTitle, setQuickTitle] = useState("");
@@ -73,225 +74,145 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, leads, notification
     return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 7);
   })();
 
-  const fmtAgo = (ts) => {
-    const diff = (Date.now() - new Date(ts)) / 60000;
-    if (diff < 1) return "Just now";
-    if (diff < 60) return Math.floor(diff) + "m ago";
-    if (diff < 1440) return Math.floor(diff / 60) + "h ago";
-    return Math.floor(diff / 1440) + "d ago";
-  };
-
+  const fmtAgo = (ts) => { const diff = (Date.now() - new Date(ts)) / 60000; if (diff < 1) return "Just now"; if (diff < 60) return Math.floor(diff) + "m ago"; if (diff < 1440) return Math.floor(diff / 60) + "h ago"; return Math.floor(diff / 1440) + "d ago"; };
   const cardBase = { padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", textAlign: "left", transition: "all 0.2s ease" };
 
+  // LOGGED OUT LANDING
+  if (!currentUser) {
+    return (
+      <div style={{ width: "100%", maxWidth: 860 }}>
+        <div style={{ textAlign: "center", padding: "44px 20px 36px" }}>
+          <div style={{ fontSize: 42, marginBottom: 14 }}>{"\u{1F3AF}"}</div>
+          <h1 style={{ margin: "0 0 10px", fontSize: 32, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Alps Marketing Hub</h1>
+          <p style={{ margin: "0 auto 28px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6, maxWidth: 460 }}>Your central place for marketing requests, brand resources, and tools. Submit a ticket and we'll handle the rest.</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => onNavigate("form")} style={{ padding: "13px 32px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px var(--brand-glow)", transition: "all 0.2s" }} className="hub-card-hover">{"\u{1F4DD}"} Submit a Request</button>
+            <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 28px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">{"\u{1F50D}"} Track a Ticket</button>
+          </div>
+        </div>
+
+        {oooActive && oooReturnDate && (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>)}
+        {announcement && announcement.active && announcement.text && (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>)}
+
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 24px", marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u23F1"} Turnaround Times</h3>
+          <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Expected response times based on the priority you set</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {Object.entries(SLA_TARGETS).map(([key, sla]) => { const p = { critical: { icon: "\u{1F534}", color: "#dc2626" }, high: { icon: "\u{1F7E0}", color: "#ea580c" }, medium: { icon: "\u{1F7E1}", color: "#ca8a04" }, low: { icon: "\u{1F7E2}", color: "#16a34a" } }[key]; return (<div key={key} style={{ textAlign: "center", padding: "10px 8px", background: "var(--bg-input)", borderRadius: 8 }}><div style={{ fontSize: 18, marginBottom: 4 }}>{p.icon}</div><div style={{ fontSize: 12, fontWeight: 700, color: p.color, textTransform: "capitalize" }}>{key}</div><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{sla.label}</div></div>); })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Resources</h3>
+          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            {[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Browse past campaigns & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & brand guidelines" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }, { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" }, { id: "knowledge_base", icon: "\u{1F4D6}", title: "Knowledge Base", desc: "Guides & how-tos" }, { id: "guide", icon: "\u2753", title: "Help & FAQ", desc: "Common questions answered" }].map((r) => (
+              <button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "24px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 28 }}>
+          <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-secondary)" }}>Log in for dashboards, analytics, content tools, and personalised ticket tracking</p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => onNavigate("password")} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+            <button onClick={() => onNavigate("signup")} style={{ padding: "10px 24px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+          </div>
+        </div>
+        <Changelog />
+      </div>
+    );
+  }
+
+  // LOGGED IN DASHBOARD
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-
-      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>{greetingName}</p>
-          <h2 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.2 }}>Alps Marketing Hub</h2>
-        </div>
-
-        {oooActive && oooReturnDate && (
-          <div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-            <span style={{ fontSize: 18 }}>{"\u{1F334}"}</span>
-            <span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span>
-          </div>
-        )}
-
-        {announcement && announcement.active && announcement.text && (
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>
-              {announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}
-            </div>
-          </div>
-        )}
-
-        {currentUser && myActiveTickets > 0 && (
-          <div style={{ background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 10, padding: "11px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-            <span style={{ fontSize: 16 }}>{"\u{1F4CB}"}</span>
-            <span style={{ color: "var(--text-primary)" }}>You have <strong style={{ color: "var(--brand)" }}>{myActiveTickets} active ticket{myActiveTickets !== 1 ? "s" : ""}</strong>{myReviewTickets > 0 && <> ({myReviewTickets} ready for review)</>}</span>
-            <button onClick={() => onNavigate("profile")} style={{ marginLeft: "auto", padding: "4px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View</button>
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-          <button onClick={() => onNavigate("form")} style={{ ...cardBase, background: "var(--brand)", border: "1px solid var(--brand)", boxShadow: "0 2px 8px rgba(35,29,104,0.15)" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(35,29,104,0.25)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.15)"; e.currentTarget.style.transform = "none"; }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{"\u{1F4DD}"} Submit a Ticket</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>Request marketing support</div>
-          </button>
-          <button onClick={() => onNavigate("lead_form")} style={cardBase} className="hub-card-hover">
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{"\u{1F4C8}"} Log a Lead</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Record an inbound lead</div>
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-          <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--brand)", padding: 0 }}>{"\u{1F50D}"} Track a Ticket</button>
-          {currentUser && myActiveTickets > 0 ? (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{myActiveTickets} of yours active</span>
-          ) : activeCount > 0 ? (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{activeCount} active</span>
-          ) : null}
-          {leadsAction > 0 && <span style={{ fontSize: 12, color: "#ca8a04" }}>{leadsAction} need action</span>}
-        </div>
-
-
-        {currentUser && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && quickTitle.trim() && onQuickSubmit) { setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); } }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
-              <button onClick={() => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); }} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.5 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "Sending..." : "Submit"}</button>
-            </div>
-          </div>
-        )}
-
-        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 14 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
           <div>
-            {(() => {
-              const now = new Date(); const dow = now.getDay();
-              const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
-              const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
-              const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
-              const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
-              const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
-              const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
-              const ld = calc(leads, (l) => l.created_at);
-              const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
-              const cmp = (curr, prev) => {
-                if (curr === 0 && prev === 0) return { text: "Same as last week", color: "var(--text-muted)" };
-                if (prev === 0 && curr > 0) return { text: "\u2191" + curr + " vs last week", color: "#16a34a" };
-                const diff = curr - prev;
-                if (diff > 0) return { text: "\u2191" + diff + " more", color: "#16a34a" };
-                if (diff < 0) return { text: "\u2193" + Math.abs(diff) + " fewer", color: "#dc2626" };
-                return { text: "Same as last week", color: "var(--text-muted)" };
-              };
-              return (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                  {[
-                    { label: "Outbound Marketing", val: arch.tw, prev: arch.lw, color: "#8b5cf6" },
-                    { label: "Leads Added", val: ld.tw, prev: ld.lw, color: "#ca8a04" },
-                    { label: "Tickets Completed", val: comp.tw, prev: comp.lw, color: "#16a34a" },
-                  ].map((s) => {
-                    const c = cmp(s.val, s.prev);
-                    return (
-                      <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px" }}>
-                        <div style={{ fontSize: 26, fontWeight: 800, color: s.color, letterSpacing: "-0.02em", lineHeight: 1 }}>{s.val}</div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", margin: "4px 0 2px" }}>{s.label}</div>
-                        <div style={{ fontSize: 10, color: c.color }}>{c.text}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+            <p style={{ margin: "0 0 2px", fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>{greetingName}</p>
+            <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em" }}>Alps Marketing Hub</h2>
           </div>
+          <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">
+            <span style={{ width: 32, height: 32, borderRadius: 16, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>My Profile</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{myActiveTickets > 0 ? myActiveTickets + " active ticket" + (myActiveTickets !== 1 ? "s" : "") : "All caught up"}</div>
+            </div>
+            <span style={{ fontSize: 16, color: "var(--text-muted)", marginLeft: 4 }}>{"\u203A"}</span>
+          </button>
+        </div>
 
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span>
-              <span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", maxHeight: 140 }}>
-              {feedItems.length === 0 ? (
-                <div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>
-              ) : feedItems.map((f, i) => (
-                <div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
-                  <span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div>
-                  </div>
-                  <span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span>
-                </div>
-              ))}
-            </div>
+        {oooActive && oooReturnDate && (<div style={{ background: "rgba(202,138,4,0.06)", border: "1px solid rgba(202,138,4,0.15)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 18 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> {"\u2014"} back on {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>)}
+        {announcement && announcement.active && announcement.text && (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "11px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}><span style={{ fontSize: 16 }}>{"\u{1F4E2}"}</span><div style={{ flex: 1 }}><span style={{ fontSize: 13, color: "var(--text-primary)" }}>{announcement.text}</span>{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 8 }}>Learn more {"\u2192"}</a>}</div></div>)}
+      </div>
+
+      {myActiveTickets > 0 && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>My Tickets</h3>
+            <button onClick={() => onNavigate("profile")} style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>View all {"\u2192"}</button>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {myReviewTickets > 0 && (<div onClick={() => onNavigate("profile")} style={{ flex: 1, padding: "12px", background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.15s" }} className="hub-card-hover"><div style={{ fontSize: 22, fontWeight: 800, color: "#8b5cf6" }}>{myReviewTickets}</div><div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 600 }}>Ready for Review</div></div>)}
+            {myInProgress > 0 && (<div style={{ flex: 1, padding: "12px", background: "rgba(2,132,199,0.06)", border: "1px solid rgba(2,132,199,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#0284c7" }}>{myInProgress}</div><div style={{ fontSize: 11, color: "#0284c7", fontWeight: 600 }}>In Progress</div></div>)}
+            <div style={{ flex: 1, padding: "12px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#16a34a" }}>{myCompleted}</div><div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Completed</div></div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <button onClick={() => onNavigate("form")} style={{ ...cardBase, background: "var(--brand)", border: "1px solid var(--brand)", boxShadow: "0 2px 8px rgba(35,29,104,0.15)" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(35,29,104,0.25)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(35,29,104,0.15)"; e.currentTarget.style.transform = "none"; }}><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F4DD}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>New Ticket</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>Submit a request</div></button>
+        <button onClick={() => onNavigate("lead_form")} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F4C8}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Log a Lead</div><div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Record inbound</div></button>
+        <button onClick={() => onNavigate("tracker")} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 20, marginBottom: 4 }}>{"\u{1F50D}"}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Track Ticket</div><div style={{ fontSize: 10, color: "var(--text-secondary)" }}>Check status</div></button>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && quickTitle.trim() && onQuickSubmit) { setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); } }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          <button onClick={() => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); }} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.5 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "Sending..." : "Submit"}</button>
+        </div>
+      </div>
+
+      <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14, marginBottom: 24 }}>
+        <div>
+          {(() => {
+            const now = new Date(); const dow = now.getDay();
+            const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
+            const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
+            const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+            const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
+            const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
+            const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
+            const ld = calc(leads, (l) => l.created_at);
+            const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
+            const cmp = (curr, prev) => { if (curr === 0 && prev === 0) return { text: "Same as last week", color: "var(--text-muted)" }; if (prev === 0 && curr > 0) return { text: "\u2191" + curr + " vs last week", color: "#16a34a" }; const diff = curr - prev; return diff > 0 ? { text: "\u2191" + diff + " vs last week", color: "#16a34a" } : diff < 0 ? { text: "\u2193" + Math.abs(diff) + " vs last week", color: "#dc2626" } : { text: "Same as last week", color: "var(--text-muted)" }; };
+            const items = [{ label: "Completed", value: comp.tw, cmp: cmp(comp.tw, comp.lw), icon: "\u2705" }, { label: "Published", value: arch.tw, cmp: cmp(arch.tw, arch.lw), icon: "\u{1F4DA}" }, { label: "Leads", value: ld.tw, cmp: cmp(ld.tw, ld.lw), icon: "\u{1F4C8}" }];
+            return (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>This Week</div><div className="hub-week-compare" style={{ display: "flex", gap: 16 }}>{items.map((item) => (<div key={item.label} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 11, marginBottom: 4 }}>{item.icon}</div><div style={{ fontSize: 22, fontWeight: 800, color: "var(--brand)", lineHeight: 1 }}>{item.value}</div><div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", marginTop: 2 }}>{item.label}</div><div style={{ fontSize: 10, color: item.cmp.color, marginTop: 3 }}>{item.cmp.text}</div></div>))}</div></div>);
+          })()}
+        </div>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span><span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span></div>
+          <div style={{ flex: 1, overflowY: "auto", maxHeight: 150 }}>
+            {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No recent activity</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.text}</div></div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
           </div>
         </div>
       </div>
 
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18 }}>
-          {[
-            { key: "resources", label: "Resources", count: 6 },
-            { key: "tools", label: "Tools", count: 11 },
-            { key: "dashboards", label: "Dashboards", count: 4 },
-          ].map((tab) => (
-            <button key={tab.key} onClick={() => setHomeTab(tab.key)} style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === tab.key ? "var(--brand)" : "transparent", color: homeTab === tab.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>
-              {tab.label}
-            </button>
-          ))}
+          {[{ key: "resources", label: "Resources" }, { key: "tools", label: "Tools" }, { key: "dashboards", label: "Dashboards" }].map((tab) => (<button key={tab.key} onClick={() => setHomeTab(tab.key)} style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: homeTab === tab.key ? "var(--brand)" : "transparent", color: homeTab === tab.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{tab.label}</button>))}
         </div>
 
-        {homeTab === "resources" && (
-          <div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {[
-              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials" },
-              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons" },
-              { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content" },
-              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" },
-              { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" },
-              { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance" },
-            ].map((r) => (
-              <button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover">
-                <div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div>
-              </button>
-            ))}
-          </div>
-        )}
+        {homeTab === "resources" && (<div className="hub-resource-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Campaigns, posts & materials" }, { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Colours, fonts, logos & icons" }, { id: "calendar", icon: "\u{1F4C5}", title: "Content Calendar", desc: "Plan & track content" }, { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" }, { id: "broker_toolkit", icon: "\u{1F4BC}", title: "Broker Toolkit", desc: "Broker-facing materials" }, { id: "campaigns", icon: "\u{1F3AF}", title: "Campaigns", desc: "Track campaign performance" }].map((r) => (<button key={r.id} onClick={() => onNavigate(r.id)} style={cardBase} className="hub-card-hover"><div style={{ fontSize: 22, marginBottom: 8 }}>{r.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{r.title}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.4 }}>{r.desc}</div></button>))}</div>)}
 
-        {homeTab === "tools" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {[
-              { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
-              { id: "converter", icon: "\u{1F504}", label: "File Converter" },
-              { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
-              { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
-              { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" },
-              { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" },
-              { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" },
-              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", href: "https://whitelabel.alpsltd.co.uk/" },
-              { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", soon: true },
-              { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", soon: true },
-              { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", soon: true },
-            ].map((t) => (
-              <button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ ...cardBase, opacity: t.soon ? 0.4 : 1, cursor: t.soon ? "default" : "pointer" }} className={t.soon ? "" : "hub-card-hover"}>
-                <div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: t.soon ? 3 : 0 }}>{t.label}</div>
-                {t.soon && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</div>}
-              </button>
-            ))}
-          </div>
-        )}
+        {homeTab === "tools" && (<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>{[{ id: "templates", icon: "\u{1F4C4}", label: "Content Templates" }, { id: "converter", icon: "\u{1F504}", label: "File Converter" }, { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" }, { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" }, { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" }, { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" }, { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" }, { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", label: "White-Labelled Assets", href: "https://whitelabel.alpsltd.co.uk/" }, { id: "footer", icon: "\u2709\uFE0F", label: "Email Footer", soon: true }, { id: "writing_assistant", icon: "\u270D\uFE0F", label: "Writing Assistant", soon: true }, { id: "linkedin_gen", icon: "\u{1F4DD}", label: "LinkedIn Generator", soon: true }].map((t) => (<button key={t.id} onClick={() => { if (t.href) { window.open(t.href, "_blank"); } else if (!t.soon) { onNavigate(t.id); } }} disabled={t.soon} style={{ ...cardBase, opacity: t.soon ? 0.4 : 1, cursor: t.soon ? "default" : "pointer" }} className={t.soon ? "" : "hub-card-hover"}><div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: t.soon ? 3 : 0 }}>{t.label}</div>{t.soon && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Soon</div>}</button>))}</div>)}
 
-        {homeTab === "dashboards" && (
-          <div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {[
-              { id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" },
-              { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" },
-              { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" },
-            ].map((d) => (
-              <button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 22 }}>{d.icon}</span>
-                  {!dashUnlocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{"\u{1F512}"}</span>}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div>
-              </button>
-            ))}
-          </div>
-        )}
+        {homeTab === "dashboards" && (<div className="hub-dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>{[{ id: "dashboard", icon: "\u{1F4CB}", title: "Tickets", stat: activeCount > 0 ? activeCount + " active" : "View all" }, { id: "leads_dashboard", icon: "\u{1F4C8}", title: "Leads", stat: leads.length > 0 ? leads.length + " logged" : "View all" }, { id: "analytics", icon: "\u{1F4CA}", title: "Analytics", stat: "Reports & KPIs" }].map((d) => (<button key={d.id} onClick={() => onNavigate(d.id)} style={cardBase} className="hub-card-hover"><div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}><span style={{ fontSize: 22 }}>{d.icon}</span></div><div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{d.title}</div><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{d.stat}</div></button>))}</div>)}
       </div>
-
       <Changelog />
     </div>
   );
 }
-
 
 
 export function LoginPage({ onLogin, hubUsers, onGoToSignUp }) {

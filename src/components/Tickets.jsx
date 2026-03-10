@@ -114,6 +114,9 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
               </button>
             ))}
           </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            {"\u23F1"} Expected turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color || "var(--text-primary)" }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong>
+          </div>
         </div>
         <div>
           <label style={labelStyle}>Deadline</label>
