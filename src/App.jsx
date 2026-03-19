@@ -750,7 +750,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
   const parentView = BREADCRUMB_PARENT[view];
   const parentTitle = parentView ? PAGE_TITLES[parentView] : null;
 
-  // Cmd+K shortcut to focus sidebar search
+  // Ctrl+K shortcut to focus sidebar search
   const searchRef = useRef(null);
   useEffect(() => {
     const handler = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); if (sideCollapsed) setSideCollapsed(false); } };
@@ -856,7 +856,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
       <div style={{ padding: "6px 10px 8px" }}>
         <div style={{ position: "relative" }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-          <input ref={searchRef} value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search...  ⌘K" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          <input ref={searchRef} value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search...  Ctrl+K" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
         </div>
       </div>
     )}

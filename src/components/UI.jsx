@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { renderMarkdown, SLA_TARGETS } from "../constants.js";
-import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles, Lock, User, ClipboardList, Inbox } from "lucide-react";
+import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles, Lock, User, ClipboardList, Inbox, Palette } from "lucide-react";
 
 
 export function FileChip({ name, url, onRemove }) {
@@ -55,42 +55,59 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
   const myTickets = currentUser ? tickets.filter((t) => t.createdBy === currentUser.id || t.name === currentUser.name) : [];
   const myActive = myTickets.filter((t) => t.status !== "completed");
   const myReview = myTickets.filter((t) => t.status === "review");
+  const myOpen = myTickets.filter((t) => t.status === "open");
+  const myInProg = myTickets.filter((t) => t.status === "in_progress");
   const myCompleted = myTickets.filter((t) => t.status === "completed");
   const [quickTitle, setQuickTitle] = useState("");
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
-  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ color: "#ca8a04" }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
-  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><Sparkles size={14} style={{ color: "var(--brand)", flexShrink: 0 }} /><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
+  const tips = [
+    "Press Ctrl+K to search anywhere in the sidebar.",
+    "You can clone any ticket to quickly submit a similar request.",
+    "Set priority on tickets to get accurate SLA turnaround estimates.",
+    "Use the Content Repurposer to turn blog posts into social content.",
+    "Track your ticket status in real time from the Track Ticket page.",
+    "The QR Generator supports custom colours and logo overlays.",
+  ];
+  const [tip] = useState(() => tips[Math.floor(Math.random() * tips.length)]);
 
   const socials = [
-    { href: "https://alpsltd.co.uk/", icon: <Globe size={15} />, label: "Website" },
-    { href: "https://linkedin.com/company/alps-ltd/", icon: <Linkedin size={15} />, label: "LinkedIn" },
-    { href: "https://www.facebook.com/alpsltdinsurance/", icon: <Facebook size={15} />, label: "Facebook" },
-    { href: "https://www.youtube.com/channel/UCJ72w2WOUqDyzGw3q3UmuqA", icon: <Youtube size={15} />, label: "YouTube" },
-    { href: "https://www.instagram.com/alpsltd/", icon: <Instagram size={15} />, label: "Instagram" },
+    { href: "https://alpsltd.co.uk/", icon: <Globe size={14} />, label: "Website" },
+    { href: "https://linkedin.com/company/alps-ltd/", icon: <Linkedin size={14} />, label: "LinkedIn" },
+    { href: "https://www.facebook.com/alpsltdinsurance/", icon: <Facebook size={14} />, label: "Facebook" },
+    { href: "https://www.youtube.com/channel/UCJ72w2WOUqDyzGw3q3UmuqA", icon: <Youtube size={14} />, label: "YouTube" },
+    { href: "https://www.instagram.com/alpsltd/", icon: <Instagram size={14} />, label: "Instagram" },
   ];
 
-  // LOGGED OUT
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.06)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ color: "#ca8a04" }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><Sparkles size={14} style={{ color: "var(--brand)", flexShrink: 0 }} /><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
+
+  // ── LOGGED OUT ──
   if (!currentUser) {
     return (
       <div style={{ width: "100%", maxWidth: 680 }}>
-        <div style={{ padding: "48px 0 32px" }}>
-          <h1 style={{ margin: "0 0 14px", fontSize: 30, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Welcome to the Alps Marketing Hub</h1>
-          <p style={{ margin: "0 0 8px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 520 }}>The central platform for all marketing requests at Alps. Need a social post, a brochure update, event materials, or anything else? Submit a ticket and the marketing team will handle it.</p>
-          <p style={{ margin: "0 0 28px", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>You can also browse our brand assets, use our design tools, and track the progress of your requests — all in one place.</p>
+        <div style={{ background: "linear-gradient(135deg, var(--brand) 0%, #3730a3 100%)", borderRadius: 16, padding: "40px 36px", marginBottom: 24, color: "#fff" }}>
+          <h1 style={{ margin: "0 0 12px", fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2 }}>Alps Marketing Hub</h1>
+          <p style={{ margin: "0 0 8px", fontSize: 15, lineHeight: 1.7, opacity: 0.85, maxWidth: 480 }}>The central platform for all marketing requests at Alps. Need a social post, a brochure update, event materials, or anything else? Submit a ticket and the marketing team will handle it.</p>
+          <p style={{ margin: "0 0 24px", fontSize: 13, opacity: 0.65, lineHeight: 1.6 }}>Browse brand assets, use design tools, and track progress — all in one place.</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={() => onNavigate("form")} style={{ padding: "13px 32px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px var(--brand-glow)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px var(--brand-glow)"; }}>Submit a Request</button>
-            <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 24px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Track a Ticket</button>
+            <button onClick={() => onNavigate("form")} style={{ padding: "12px 28px", background: "#fff", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.2)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>Submit a Request</button>
+            <button onClick={() => onNavigate("tracker")} style={{ padding: "12px 24px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", backdropFilter: "blur(4px)" }}>Track a Ticket</button>
           </div>
         </div>
         <OooBanner /><AnnBanner />
-        <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-          {socials.map((s) => (
-            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>{s.icon}<span>{s.label}</span></a>
-          ))}
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Follow Alps</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {socials.map((s) => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", background: "var(--bg-input)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", transition: "all 0.15s", border: "1px solid transparent" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}>{s.icon}<span>{s.label}</span></a>
+            ))}
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
           <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
         </div>
         {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
@@ -98,55 +115,55 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
     );
   }
 
-  // LOGGED IN
+  // ── LOGGED IN ──
   const doQuickSubmit = () => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); };
-
-  // Deadlines
   const upcoming = myActive.filter((t) => t.deadline).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 3);
-  const today = new Date().toISOString().split("T")[0];
   const daysUntilDl = (dl) => { if (!dl) return null; const d = new Date(dl + "T00:00:00"); const n = new Date(); n.setHours(0,0,0,0); return Math.ceil((d - n) / 86400000); };
-
-  // Progress
   const totalMy = myTickets.length;
   const donePct = totalMy > 0 ? Math.round(myCompleted.length / totalMy * 100) : 0;
-  const progressRadius = 28;
-  const progressCirc = 2 * Math.PI * progressRadius;
-  const progressOffset = progressCirc - (donePct / 100) * progressCirc;
-
-  // Personal activity
+  const pR = 26; const pC = 2 * Math.PI * pR; const pO = pC - (donePct / 100) * pC;
+  const continueTicket = myActive.find((t) => t.status === "review") || myActive.find((t) => t.status === "in_progress");
+  const recentlyDone = myCompleted.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt)).slice(0, 3);
   const myActivity = (() => {
-    const items = [];
-    const myIds = new Set(myTickets.map((t) => t.id || t.ref));
+    const items = []; const myIds = new Set(myTickets.map((t) => t.id || t.ref));
     tickets.slice(0, 30).forEach((t) => {
       if (!myIds.has(t.id) && !myIds.has(t.ref)) return;
       if (t.status === "in_progress") items.push({ text: (t.ref || t.id) + " moved to In Progress", time: t.updatedAt || t.createdAt });
-      if (t.status === "review") items.push({ text: (t.ref || t.id) + " ready for your review", time: t.updatedAt || t.createdAt });
+      if (t.status === "review") items.push({ text: (t.ref || t.id) + " ready for review", time: t.updatedAt || t.createdAt });
       if (t.completedAt) items.push({ text: (t.ref || t.id) + " completed", time: t.completedAt });
     });
     return items.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 4);
   })();
   const fmtAgo = (ts) => { const d = (Date.now() - new Date(ts)) / 60000; if (d < 1) return "Just now"; if (d < 60) return Math.floor(d) + "m ago"; if (d < 1440) return Math.floor(d / 60) + "h ago"; return Math.floor(d / 1440) + "d ago"; };
-
-  // Continue where you left off
-  const continueTicket = myActive.find((t) => t.status === "in_progress") || myActive.find((t) => t.status === "review");
+  const statusTotal = myOpen.length + myInProg.length + myReview.length + myCompleted.length;
+  const barPct = (n) => statusTotal > 0 ? (n / statusTotal * 100) + "%" : "0%";
 
   return (
     <div style={{ width: "100%", maxWidth: 900 }}>
-      {/* Greeting bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
-        <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Here's what's happening with your marketing requests.</p>
+      {/* Hero banner */}
+      <div style={{ background: "linear-gradient(135deg, var(--brand) 0%, #3730a3 100%)", borderRadius: 16, padding: "28px 32px", marginBottom: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
+          <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.7 }}>Here's what's happening with your marketing requests.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "9px 14px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, fontSize: 13, color: "#fff", outline: "none", boxSizing: "border-box", backdropFilter: "blur(4px)" }} />
+            <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "9px 16px", background: "#fff", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.5 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "..." : "Submit →"}</button>
+          </div>
         </div>
         {totalMy > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <svg width={68} height={68} style={{ transform: "rotate(-90deg)" }}>
-              <circle cx={34} cy={34} r={progressRadius} fill="none" stroke="var(--bar-bg)" strokeWidth={5} />
-              <circle cx={34} cy={34} r={progressRadius} fill="none" stroke="var(--brand)" strokeWidth={5} strokeDasharray={progressCirc} strokeDashoffset={progressOffset} strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.5s ease" }} />
-            </svg>
-            <div style={{ position: "relative", marginLeft: -80, width: 68, textAlign: "center" }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--brand)" }}>{donePct}%</div>
-              <div style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>complete</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 64, height: 64 }}>
+              <svg width={64} height={64} style={{ transform: "rotate(-90deg)" }}>
+                <circle cx={32} cy={32} r={pR} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={5} />
+                <circle cx={32} cy={32} r={pR} fill="none" stroke="#fff" strokeWidth={5} strokeDasharray={pC} strokeDashoffset={pO} strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 15, fontWeight: 800 }}>{donePct}%</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.6 }}>Completion</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{myCompleted.length}/{totalMy} done</div>
             </div>
           </div>
         )}
@@ -154,27 +171,58 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
 
       <OooBanner /><AnnBanner />
 
-      {/* Quick submit */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
-        <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "11px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.4 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "Sending..." : "Submit →"}</button>
-      </div>
-
-      {/* Continue where you left off */}
-      {continueTicket && (
-        <div onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 10, marginBottom: 20, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.boxShadow = "var(--shadow-hover)"} onMouseOut={(e) => e.currentTarget.style.boxShadow = "none"}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>{continueTicket.status === "review" ? <ExtLink size={18} /> : <Sparkles size={18} />}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{continueTicket.status === "review" ? "Ready for your review" : "In progress"}</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueTicket.ref} — {continueTicket.title}</div>
+      {/* Status bar */}
+      {statusTotal > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ height: 6, borderRadius: 3, overflow: "hidden", display: "flex", background: "var(--bar-bg)" }}>
+            {myOpen.length > 0 && <div style={{ width: barPct(myOpen.length), background: "#6366f1", transition: "width 0.4s" }} title={myOpen.length + " Open"}></div>}
+            {myInProg.length > 0 && <div style={{ width: barPct(myInProg.length), background: "#0284c7", transition: "width 0.4s" }} title={myInProg.length + " In Progress"}></div>}
+            {myReview.length > 0 && <div style={{ width: barPct(myReview.length), background: "#8b5cf6", transition: "width 0.4s" }} title={myReview.length + " Review"}></div>}
+            {myCompleted.length > 0 && <div style={{ width: barPct(myCompleted.length), background: "#16a34a", transition: "width 0.4s" }} title={myCompleted.length + " Completed"}></div>}
           </div>
-          <span style={{ color: "var(--brand)", fontSize: 18 }}>→</span>
+          <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
+            {myOpen.length > 0 && <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#6366f1", marginRight: 4 }}></span>{myOpen.length} Open</span>}
+            {myInProg.length > 0 && <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#0284c7", marginRight: 4 }}></span>{myInProg.length} In Progress</span>}
+            {myReview.length > 0 && <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", marginRight: 4 }}></span>{myReview.length} Review</span>}
+            {myCompleted.length > 0 && <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4 }}></span>{myCompleted.length} Done</span>}
+          </div>
         </div>
       )}
 
-      {/* Two-column: tickets + sidebar */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20, marginBottom: 24 }} className="hub-hero-split">
-        {/* My tickets */}
+      {/* Continue where you left off */}
+      {continueTicket && (
+        <div onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: continueTicket.status === "review" ? "rgba(139,92,246,0.06)" : "rgba(2,132,199,0.06)", border: "1px solid " + (continueTicket.status === "review" ? "rgba(139,92,246,0.15)" : "rgba(2,132,199,0.15)"), borderRadius: 10, marginBottom: 20, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.boxShadow = "var(--shadow-hover)"} onMouseOut={(e) => e.currentTarget.style.boxShadow = "none"}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: continueTicket.status === "review" ? "#8b5cf6" : "#0284c7", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>{continueTicket.status === "review" ? <ExtLink size={18} /> : <Sparkles size={18} />}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: continueTicket.status === "review" ? "#8b5cf6" : "#0284c7", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{continueTicket.status === "review" ? "Ready for your review" : "In progress"}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{continueTicket.ref} — {continueTicket.title}</div>
+          </div>
+          <span style={{ color: "var(--text-muted)", fontSize: 18 }}>→</span>
+        </div>
+      )}
+
+      {/* Quick action cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }} className="hub-stats-grid">
+        <button onClick={() => onNavigate("form")} style={{ padding: "16px", background: "var(--brand)", border: "none", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "#fff", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 16px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>
+          <Sparkles size={20} style={{ marginBottom: 8, opacity: 0.7 }} />
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Submit a Ticket</div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>Request marketing support</div>
+        </button>
+        <button onClick={() => onNavigate("tracker")} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "var(--text-primary)", transition: "all 0.15s" }} className="hub-card-hover">
+          <ExtLink size={20} style={{ marginBottom: 8, color: "#0284c7" }} />
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Track a Ticket</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Check ticket status</div>
+        </button>
+        <button onClick={() => onNavigate("brand_assets")} style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "var(--text-primary)", transition: "all 0.15s" }} className="hub-card-hover">
+          <Palette size={20} style={{ marginBottom: 8, color: "#20A39E" }} />
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Brand Assets</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Logos, colours & guidelines</div>
+        </button>
+      </div>
+
+      {/* Two-column: tickets + right sidebar */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, marginBottom: 24 }} className="hub-hero-split">
+        {/* Left: Tickets */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Your Tickets</span>
@@ -201,25 +249,41 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
               <button onClick={() => onNavigate("form")} style={{ padding: "8px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Submit a Request</button>
             </div>
           )}
+
+          {/* Recently completed */}
+          {recentlyDone.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recently Completed</span>
+              <div style={{ marginTop: 8 }}>
+                {recentlyDone.map((t) => (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 9, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ color: "#16a34a", fontSize: 11 }}>✓</span></div>
+                    <span style={{ fontSize: 12, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.ref} — {t.title}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(t.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right column: deadlines + activity */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Right column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Upcoming deadlines */}
           {upcoming.length > 0 && (
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Upcoming Deadlines</div>
-              {upcoming.map((t) => {
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Deadlines</div>
+              {upcoming.map((t, i) => {
                 const dl = daysUntilDl(t.deadline);
                 const isOverdue = dl !== null && dl < 0;
                 const isDueToday = dl === 0;
                 const isSoon = dl !== null && dl > 0 && dl <= 2;
                 const color = isOverdue ? "#dc2626" : isDueToday ? "#d97706" : isSoon ? "#ea580c" : "var(--text-secondary)";
                 return (
-                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < upcoming.length - 1 ? "1px solid var(--border)" : "none" }}>
                     <div style={{ width: 6, height: 6, borderRadius: 3, background: color, flexShrink: 0 }}></div>
                     <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.ref}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color }}>{isOverdue ? Math.abs(dl) + "d overdue" : isDueToday ? "Today" : dl + "d"}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color }}>{isOverdue ? Math.abs(dl) + "d overdue" : isDueToday ? "Today" : dl + "d left"}</span>
                   </div>
                 );
               })}
@@ -231,19 +295,18 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Recent Updates</div>
               {myActivity.map((a, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: i < myActivity.length - 1 ? "1px solid var(--border)" : "none" }}>
-                  <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{a.text}</span>
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0, marginLeft: 8 }}>{fmtAgo(a.time)}</span>
+                <div key={i} style={{ padding: "5px 0", borderBottom: i < myActivity.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-primary)" }}>{a.text}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{fmtAgo(a.time)}</div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Socials */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {socials.map((s) => (
-              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-muted)", textDecoration: "none", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }} title={s.label}>{s.icon}</a>
-            ))}
+          {/* Tip */}
+          <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--brand)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Did you know?</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{tip}</div>
           </div>
         </div>
       </div>
@@ -252,22 +315,22 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
       {isAdmin && (() => {
         const now = new Date(); const dow = now.getDay();
         const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
-        const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
         const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
         const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
-        const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
+        const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
+        const calc = (arr, dk) => ({ tw: arr.filter((e) => { const d = new Date(dk(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dk(e)); return d >= lastMon && d <= lastSun; }).length });
         const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
         const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
         const ld = calc(leads, (l) => l.created_at);
         const act = tickets.filter((t) => t.status !== "completed").length;
         const cmp = (c, p) => c > p ? { t: "+" + (c - p), c: "#16a34a" } : c < p ? { t: "" + (c - p), c: "#dc2626" } : { t: "—", c: "var(--text-muted)" };
         return (
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 20 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Team Overview</span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 10 }} className="hub-stats-grid">
               {[{ v: act, l: "Active", c: "var(--brand)" }, { v: comp.tw, l: "Completed", c: "#16a34a", d: cmp(comp.tw, comp.lw) }, { v: arch.tw, l: "Published", c: "#E64592", d: cmp(arch.tw, arch.lw) }, { v: ld.tw, l: "Leads", c: "#ca8a04", d: cmp(ld.tw, ld.lw) }].map((s) => (
                 <div key={s.l} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: s.c }}>{s.v}</div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.l}</div>
                   {s.d && <div style={{ fontSize: 10, color: s.d.c, marginTop: 2 }}>{s.d.t} vs last week</div>}
                 </div>
@@ -277,13 +340,18 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         );
       })()}
 
-      {/* About + What's New */}
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "18px 20px", marginBottom: 20 }}>
-        <h3 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>About the Marketing Hub</h3>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>Your central platform for all marketing activity at Alps. Submit requests, track progress, browse brand assets, use design tools, and access campaign archives.</p>
+      {/* About + socials */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
+        <h3 style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>About the Marketing Hub</h3>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>Your central platform for marketing at Alps. Submit requests, track progress, browse brand assets, use design tools, and access campaign archives.</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {socials.map((s) => (
+            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", background: "var(--bg-input)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, fontWeight: 500, textDecoration: "none", transition: "all 0.12s", border: "1px solid transparent" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>{s.icon}<span>{s.label}</span></a>
+          ))}
+        </div>
       </div>
 
-      <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
         <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
       </div>
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
@@ -293,12 +361,12 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
 
 function ChangelogModal({ onClose }) {
   const entries = [
-    { date: "Mar 2026", title: "Sidebar Navigation", desc: "New sidebar layout with proper URL routing and browser history." },
-    { date: "Mar 2026", title: "Lucide Icons", desc: "Replaced emojis with consistent icon set throughout the app." },
-    { date: "Mar 2026", title: "Approval Workflow", desc: "Submitters can approve or request changes on reviewed tickets." },
-    { date: "Mar 2026", title: "SLA Tracking", desc: "Track turnaround times against priority-based SLA targets." },
-    { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items from meeting notes and create tickets." },
-    { date: "Mar 2026", title: "Content Repurposer", desc: "Turn long-form content into LinkedIn, email, social & threads." },
+    { date: "Mar 2026", title: "Sidebar Navigation", desc: "New sidebar layout with URL routing and browser history." },
+    { date: "Mar 2026", title: "Lucide Icons", desc: "Consistent icon set replacing emojis throughout." },
+    { date: "Mar 2026", title: "Approval Workflow", desc: "Approve or request changes on reviewed tickets." },
+    { date: "Mar 2026", title: "SLA Tracking", desc: "Turnaround tracking against priority-based targets." },
+    { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items and create tickets." },
+    { date: "Mar 2026", title: "Content Repurposer", desc: "Reformat content for LinkedIn, email, social & threads." },
     { date: "Mar 2026", title: "User Accounts", desc: "Sign in, profiles, and role-based access." },
     { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Tickets, calendar, brand assets, dashboards." },
   ];
