@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadge, getSlaStatus, formatDate, renderMarkdown } from "../constants.js";
 import { FileChip, FilePreview } from "./UI.jsx";
+import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, List, Columns3, AlertCircle } from "lucide-react";
 
 export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
   const [form, setForm] = useState(() => {
@@ -580,7 +581,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
 
       {sorted.length === 0 ? (
         <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>{search.trim() ? "\u{1F50D}" : "\u{1F4CB}"}</div>
+          <div style={{ marginBottom: 12, opacity: 0.4 }}>{search.trim() ? <Search size={40} /> : <ClipboardList size={40} />}</div>
           <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
           <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>{search.trim() ? "Try different keywords or clear your search" : filter !== "all" ? "Try a different filter or check All tickets" : "Tickets will appear here once submitted"}</p>
         </div>

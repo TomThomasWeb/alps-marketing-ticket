@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PRIORITIES, BRAND_COLORS } from "../constants.js";
+import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2 } from "lucide-react";
 
 export function SelfServiceGuide() {
   const [open, setOpen] = useState(null);
@@ -37,7 +38,7 @@ export function SelfServiceGuide() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4D6}"} Self-Service Guide</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><FileText size={20} style={{ display: "inline" }} /> Self-Service Guide</h2>
       <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Everything you need to know about working with the marketing team. Click a section to expand.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {sections.map((section) => (
@@ -173,7 +174,7 @@ export function FileConverter() {
 
   return (
     <div style={{ width: "100%", maxWidth: 600 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F504}"} File Converter</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><ArrowLeftRight size={20} style={{ display: "inline" }} /> File Converter</h2>
       <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Resize, convert, and batch-process images for social media and web.</p>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
@@ -352,7 +353,7 @@ export function QRCodeGenerator() {
 
   return (
     <div style={{ width: "100%", maxWidth: 560 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F517}"} QR Code Generator</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><QrCode size={20} style={{ display: "inline" }} /> QR Code Generator</h2>
       <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Generate QR codes with optional logo overlay for print materials and campaigns.</p>
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
@@ -683,13 +684,13 @@ export function ImageEditor() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F58C}\uFE0F"} Image Editor</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Crop size={20} style={{ display: "inline" }} /> Image Editor</h2>
       <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text, brand overlays, and watermarks. Works entirely in your browser.</p>
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {!file ? (
         <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 20px", border: "2px dashed var(--border)", borderRadius: 14, cursor: "pointer", background: "var(--bg-card)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = "none"; }}>
-          <div style={{ fontSize: 40, opacity: 0.4 }}>{"\u{1F5BC}\uFE0F"}</div>
+          <div style={{ opacity: 0.3 }}><Image size={40} /></div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Click to upload an image</div>
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
@@ -889,7 +890,7 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
 
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4DD}"} Meeting Notes to Tickets</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><ClipboardList size={20} style={{ display: "inline" }} /> Meeting Notes to Tickets</h2>
       <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Paste your meeting notes and extract action items as tickets. We'll detect bullet points, numbered items, and sentences that sound like tasks.</p>
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
 import { supabase } from "../supabaseClient.js";
 import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, getDueBadge, daysUntil, formatDate, renderMarkdown } from "../constants.js";
+import { BarChart3, PieChart, CalendarDays, FileText, ClipboardList, TrendingUp, Mail, Download, Database, Users, Shield, Clock, Megaphone, Pin, Activity, Lock, ChevronDown, Repeat, Pause, Play, Trash2, Edit, Plus, Target, CheckCircle2 } from "lucide-react";
 
 export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, onGoalSave, onGoalDelete }) {
   const [tab, setTab] = useState("report");
@@ -68,7 +69,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
-        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CA}"} Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
+        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><PieChart size={20} style={{ display: "inline" }} /> Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
         <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>{"\u{1F4CB}"} Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>{"\u{1F4DA}"} Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>{"\u{1F4C8}"} Leads</button><button onClick={() => setTab("report")} style={ts("report")}>{"\u{1F4CB}"} Report</button></div>
       </div>
 
@@ -298,7 +299,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
           <div style={{ ...card, marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
               <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4C5}"} Weekly Report</h3>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}><CalendarDays size={18} style={{ display: "inline" }} /> Weekly Report</h3>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Previous week: {wkLabel}</p>
               </div>
               <button onClick={copyWeeklyReport} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy Weekly Report</button>
@@ -327,7 +328,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
           <div style={{ ...card, marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
               <div>
-                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4E7}"} Weekly Email Digest</h3>
+                <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}><Mail size={18} style={{ display: "inline" }} /> Weekly Email Digest</h3>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Copy a formatted summary to send to stakeholders</p>
               </div>
               <button onClick={() => {
@@ -367,7 +368,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
           </div>
 
           <div style={{ ...card, marginBottom: 20, textAlign: "center" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F4CB}"} Monthly Marketing Report</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "var(--brand)" }}><ClipboardList size={20} style={{ display: "inline" }} /> Monthly Marketing Report</h3>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>{monthName} summary across all marketing activity</p>
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               <button onClick={copyReport} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy to Clipboard</button>
@@ -525,7 +526,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)" }}>{"\u{1F44B}"} Welcome Back!</h3>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)" }}><Activity size={18} style={{ display: "inline" }} /> Welcome Back!</h3>
             <button onClick={() => { onDismissSummary(); setShowSummary(false); }} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 10, cursor: "pointer", color: "var(--text-muted)" }}>Dismiss</button>
           </div>
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)" }}>Since {summary.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}:</p>
@@ -549,7 +550,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
       {adminTab === "overview" && (<>
         <div style={card}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F3E5}"} Hub Health</h3>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Activity size={16} style={{ display: "inline" }} /> Hub Health</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 8 }}>
               {healthDot(overdue, true)}
@@ -573,7 +574,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CC}"} Pinned Notes</h3>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Pin size={16} style={{ display: "inline" }} /> Pinned Notes</h3>
             {memoSaved && <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>Saved</span>}
           </div>
           <textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Reminders, to-dos, notes to self..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", marginBottom: 8 }} />
@@ -581,7 +582,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         </div>
 
         <div style={card}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Hub Usage</h3>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><BarChart3 size={16} style={{ display: "inline" }} /> Hub Usage</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8 }}>
             {[
               { label: "Tickets", val: tickets.length },
@@ -613,7 +614,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         </div>
 
         <div style={card}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E2}"} Announcement Banner</h3>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Megaphone size={16} style={{ display: "inline" }} /> Announcement Banner</h3>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}><input type="checkbox" checked={annActive} onChange={(e) => setAnnActive(e.target.checked)} style={{ accentColor: "var(--brand)" }} /> Show on homepage</label>
           <input value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="Your announcement..." style={{ ...inputStyle, marginBottom: 8 }} />
           <input value={annLink} onChange={(e) => setAnnLink(e.target.value)} placeholder="Optional link (https://...)" style={{ ...inputStyle, marginBottom: 10 }} />
@@ -621,7 +622,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         </div>
 
         <div style={card}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F512}"} Dashboard Password</h3>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Lock size={16} style={{ display: "inline" }} /> Dashboard Password</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
             <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyle} />
             <input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} placeholder="Confirm" style={inputStyle} />
@@ -638,7 +639,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
       {adminTab === "data" && (<>
         <div style={card}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4E5}"} Export Data</h3>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Download size={16} style={{ display: "inline" }} /> Export Data</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Download hub data for backup or reporting.</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={exportData} disabled={exporting} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>All Data (JSON)</button>
@@ -649,7 +650,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         </div>
 
         <div style={card}>
-          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4CA}"} Storage Summary</h3>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Database size={16} style={{ display: "inline" }} /> Storage Summary</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
             {[
               { label: "Tickets", val: tickets.length },
@@ -673,7 +674,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
       {adminTab === "users" && (<>
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F465}"} User Management</h3>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Users size={16} style={{ display: "inline" }} /> User Management</h3>
             <button onClick={() => { setShowUserForm(!showUserForm); setEditingUser(null); setUserForm({ name: "", username: "", password: "", role: "user" }); }} style={{ padding: "6px 12px", background: showUserForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 6, color: showUserForm ? "var(--text-primary)" : "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{showUserForm ? "Cancel" : "\u2795 Add User"}</button>
           </div>
 
@@ -716,7 +717,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
       {adminTab === "audit" && (<>
         <div style={card}>
-          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F4DC}"} Activity Audit Log</h3>
+          <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Clock size={16} style={{ display: "inline" }} /> Activity Audit Log</h3>
           <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--text-muted)" }}>Recent admin actions and system events.</p>
           {(auditLog || []).length === 0 ? (
             <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>No activity recorded yet.</p>
