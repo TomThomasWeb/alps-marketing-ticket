@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, MoreHorizontal, X } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
@@ -727,85 +728,199 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
   };
   const handleCalendarDelete = async (id) => { await supabase.from("calendar_events").delete().eq("id", id); };
 
-  const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
 
+  const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
   const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const myTicketCount = currentUser ? tickets.filter((t) => (t.createdBy === currentUser.id || t.name === currentUser.name) && t.status !== "completed").length : 0;
   const unreadNotifs = currentUser ? notifications.filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
   const [mobileNav, setMobileNav] = useState(false);
-  const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [mobileMore, setMobileMore] = useState(false);
+  const [sideCollapsed, setSideCollapsed] = useState(() => { try { return localStorage.getItem("alps_sidebar_collapsed") === "1"; } catch { return false; } });
+  const [sideSearch, setSideSearch] = useState("");
+  const [openGroups, setOpenGroups] = useState(() => { try { const s = localStorage.getItem("alps_sidebar_groups"); return s ? JSON.parse(s) : { resources: true, tools: true, admin: true }; } catch { return { resources: true, tools: true, admin: true }; } });
 
-  const nav = (v) => { setView(v); setMobileNav(false); };
+  const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
+  const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
+  const nav = (v) => { setView(v); setMobileNav(false); setMobileMore(false); };
 
-  const SidebarLink = ({ id, icon, label, badge, admin }) => {
-    if (admin && !isAdmin) return null;
+  // Page titles for top bar
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
+  const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
+
+  // All sidebar items for search
+  const allNavItems = [
+    { id: "hub", label: "Home", group: "" },
+    { id: "form", label: "Submit Ticket", group: "" },
+    { id: "tracker", label: "Track Ticket", group: "" },
+    ...(currentUser ? [{ id: "profile", label: "My Tickets", group: "" }, { id: "lead_form", label: "Log a Lead", group: "" }] : []),
+    { id: "archive", label: "Marketing Archive", group: "resources" },
+    { id: "brand_assets", label: "Brand Assets", group: "resources" },
+    { id: "gallery", label: "Alps Gallery", group: "resources" },
+    ...(currentUser ? [
+      { id: "calendar", label: "Content Calendar", group: "resources" },
+      { id: "broker_toolkit", label: "Broker Toolkit", group: "resources" },
+      { id: "campaigns", label: "Campaigns", group: "resources" },
+    ] : []),
+    { id: "converter", label: "File Converter", group: "tools" },
+    { id: "qr_generator", label: "QR Generator", group: "tools" },
+    { id: "image_editor", label: "Image Editor", group: "tools" },
+    { id: "repurposer", label: "Content Repurposer", group: "tools" },
+    ...(currentUser ? [
+      { id: "templates", label: "Content Templates", group: "tools" },
+      { id: "meeting_notes", label: "Notes to Tickets", group: "tools" },
+      { id: "knowledge_base", label: "Knowledge Base", group: "tools" },
+    ] : []),
+    ...(isAdmin ? [
+      { id: "dashboard", label: "Ticket Dashboard", group: "admin" },
+      { id: "leads_dashboard", label: "Leads Dashboard", group: "admin" },
+      { id: "analytics", label: "Analytics", group: "admin" },
+      { id: "activity", label: "Activity Log", group: "admin" },
+      { id: "admin", label: "Admin Panel", group: "admin" },
+    ] : []),
+  ];
+  const filteredNav = sideSearch.trim() ? allNavItems.filter((i) => i.label.toLowerCase().includes(sideSearch.toLowerCase())) : null;
+
+  // Icon map using lucide-react
+  const I = {
+    hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
+    profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
+    archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
+    calendar: <CalendarDays size={17} />, broker_toolkit: <Briefcase size={17} />, campaigns: <Target size={17} />,
+    converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
+    repurposer: <Repeat size={17} />, templates: <FileText size={17} />, meeting_notes: <ClipboardList size={17} />,
+    knowledge_base: <BookOpen size={17} />, dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
+    analytics: <PieChart size={17} />, activity: <Clock size={17} />, admin: <Settings size={17} />,
+  };
+
+  const SidebarLink = ({ id, label, badge }) => {
     const active = view === id;
-    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", position: "relative" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
-      <span style={{ fontSize: 15, width: 20, textAlign: "center", flexShrink: 0 }}>{icon}</span>
-      {!sideCollapsed && <span style={{ flex: 1 }}>{label}</span>}
+    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+      <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
+      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
       {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
     </button>);
   };
 
-  const SidebarGroup = ({ label, children }) => (
-    <div style={{ marginBottom: 8 }}>
-      {!sideCollapsed && label && <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "12px 14px 4px", userSelect: "none" }}>{label}</div>}
-      {sideCollapsed && label && <div style={{ height: 1, background: "var(--border)", margin: "8px 10px" }}></div>}
-      {children}
-    </div>
-  );
+  const SidebarGroup = ({ id, label, children }) => {
+    const isOpen = openGroups[id] !== false;
+    return (
+      <div style={{ marginBottom: 4 }}>
+        {!sideCollapsed && label && (
+          <button onClick={() => toggleGroup(id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: "10px 14px 4px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span>{label}</span>
+            <ChevronDown size={12} style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }} />
+          </button>
+        )}
+        {sideCollapsed && label && <div style={{ height: 1, background: "var(--border)", margin: "6px 10px" }}></div>}
+        {(isOpen || sideCollapsed) && <div style={{ padding: "0 6px" }}>{children}</div>}
+      </div>
+    );
+  };
 
   const sidebarContent = (mobile) => (<>
     {!mobile && (
-      <div style={{ padding: "16px 14px 8px", display: "flex", alignItems: "center", gap: 10, justifyContent: sideCollapsed ? "center" : "space-between" }}>
-        {!sideCollapsed && <img src={ALPS_LOGO} alt="Alps" style={{ height: 28, objectFit: "contain", cursor: "pointer" }} onClick={() => nav("hub")} />}
-        <button onClick={() => setSideCollapsed(!sideCollapsed)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, padding: "4px", lineHeight: 1 }}>{sideCollapsed ? "\u{1F82A}" : "\u{1F828}"}</button>
+      <div style={{ padding: "14px 14px 6px", display: "flex", alignItems: "center", gap: 10, justifyContent: sideCollapsed ? "center" : "space-between" }}>
+        {!sideCollapsed ? (
+          <div onClick={() => nav("hub")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={ALPS_LOGO} alt="Alps" style={{ height: 26, objectFit: "contain" }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", letterSpacing: "-0.02em" }}>Marketing Hub</span>
+          </div>
+        ) : (
+          <img src={ALPS_LOGO} alt="Alps" style={{ height: 24, objectFit: "contain", cursor: "pointer" }} onClick={() => nav("hub")} />
+        )}
+        <button onClick={toggleCollapsed} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}>
+          {sideCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
       </div>
     )}
-    <div style={{ padding: "8px 8px 4px" }}>
-      <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 4 }}>{sideCollapsed && !mobile ? "\u{1F4DD}" : "\u{1F4DD} Submit Ticket"}</button>
-      <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{sideCollapsed && !mobile ? "\u{1F50D}" : "\u{1F50D} Track Ticket"}</button>
-    </div>
-    {currentUser && <SidebarGroup label=""><SidebarLink id="profile" icon={"\u{1F464}"} label="My Tickets" badge={myTicketCount} /><SidebarLink id="lead_form" icon={"\u{1F4C8}"} label="Log a Lead" /></SidebarGroup>}
-    <SidebarGroup label="Resources">
-      <SidebarLink id="archive" icon={"\u{1F4DA}"} label="Marketing Archive" />
-      <SidebarLink id="brand_assets" icon={"\u{1F3A8}"} label="Brand Assets" />
-      <SidebarLink id="gallery" icon={"\u{1F5BC}\uFE0F"} label="Alps Gallery" />
-      {currentUser && <SidebarLink id="calendar" icon={"\u{1F4C5}"} label="Content Calendar" />}
-      {currentUser && <SidebarLink id="broker_toolkit" icon={"\u{1F4BC}"} label="Broker Toolkit" />}
-      {currentUser && <SidebarLink id="campaigns" icon={"\u{1F3AF}"} label="Campaigns" />}
-    </SidebarGroup>
-    <SidebarGroup label="Tools">
-      <SidebarLink id="converter" icon={"\u{1F504}"} label="File Converter" />
-      <SidebarLink id="qr_generator" icon={"\u{1F517}"} label="QR Generator" />
-      <SidebarLink id="image_editor" icon={"\u{1F58C}\uFE0F"} label="Image Editor" />
-      <SidebarLink id="repurposer" icon={"\u267B\uFE0F"} label="Content Repurposer" />
-      {currentUser && <SidebarLink id="templates" icon={"\u{1F4C4}"} label="Content Templates" />}
-      {currentUser && <SidebarLink id="meeting_notes" icon={"\u{1F4DD}"} label="Notes to Tickets" />}
-      {currentUser && <SidebarLink id="knowledge_base" icon={"\u{1F4D6}"} label="Knowledge Base" />}
-    </SidebarGroup>
-    <SidebarGroup label="Admin">
-      <SidebarLink id="dashboard" icon={"\u{1F4CB}"} label="Ticket Dashboard" badge={isAdmin ? activeCount : 0} admin />
-      <SidebarLink id="leads_dashboard" icon={"\u{1F4C8}"} label="Leads" admin />
-      <SidebarLink id="analytics" icon={"\u{1F4CA}"} label="Analytics" admin />
-      <SidebarLink id="activity" icon={"\u{1F4DD}"} label="Activity Log" admin />
-      <SidebarLink id="admin" icon={"\u2699\uFE0F"} label="Admin Panel" admin />
-    </SidebarGroup>
-    <div style={{ marginTop: "auto", padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
-      {currentUser ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px", flexWrap: "wrap" }}>
-          <span style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-          {(!sideCollapsed || mobile) && <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.name}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentUser.role}</div></div>}
-          <div style={{ display: "flex", gap: 4 }}>
-            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "5px 7px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }}>{dark ? "\u2600" : "\u{1F319}"}</button>
-            <button onClick={handleLogout} title="Log out" style={{ padding: "5px 7px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}>{"\u23FB"}</button>
-          </div>
+    {mobile && (
+      <div style={{ padding: "14px", display: "flex", alignItems: "center", gap: 10 }}>
+        <img src={ALPS_LOGO} alt="Alps" style={{ height: 26 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Marketing Hub</span>
+      </div>
+    )}
+
+    {/* Search */}
+    {!sideCollapsed && (
+      <div style={{ padding: "6px 10px 8px" }}>
+        <div style={{ position: "relative" }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
+          <input value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search..." style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px" }}>
-          <button onClick={() => nav("password")} style={{ padding: "8px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
-          <button onClick={() => nav("signup")} style={{ padding: "8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
-          <button onClick={() => setDark(!dark)} style={{ padding: "5px", background: "none", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginTop: 4 }}>{dark ? "\u2600 Light" : "\u{1F319} Dark"}</button>
+      </div>
+    )}
+
+    {/* Search results */}
+    {filteredNav ? (
+      <div style={{ padding: "0 6px", flex: 1, overflowY: "auto" }}>
+        {filteredNav.length === 0 ? (
+          <div style={{ padding: "16px 10px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No results</div>
+        ) : filteredNav.map((item) => (
+          <SidebarLink key={item.id} id={item.id} label={item.label} />
+        ))}
+      </div>
+    ) : (<>
+      {/* Quick actions */}
+      <div style={{ padding: "6px 10px 4px" }}>
+        <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "9px" : "9px 12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 4 }}>
+          <Plus size={16} />
+          {(!sideCollapsed || mobile) && <span>Submit Ticket</span>}
+        </button>
+        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "7px" : "7px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <Search size={14} />
+          {(!sideCollapsed || mobile) && <span>Track Ticket</span>}
+        </button>
+      </div>
+
+      {/* Personal */}
+      {currentUser && (
+        <div style={{ padding: "4px 6px" }}>
+          <SidebarLink id="profile" label="My Tickets" badge={myTicketCount} />
+          <SidebarLink id="lead_form" label="Log a Lead" />
+        </div>
+      )}
+
+      {/* Groups */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <SidebarGroup id="resources" label="Resources">
+          <SidebarLink id="archive" label="Marketing Archive" />
+          <SidebarLink id="brand_assets" label="Brand Assets" />
+          <SidebarLink id="gallery" label="Alps Gallery" />
+          {currentUser && <SidebarLink id="calendar" label="Content Calendar" />}
+          {currentUser && <SidebarLink id="broker_toolkit" label="Broker Toolkit" />}
+          {currentUser && <SidebarLink id="campaigns" label="Campaigns" />}
+        </SidebarGroup>
+        <SidebarGroup id="tools" label="Tools">
+          <SidebarLink id="converter" label="File Converter" />
+          <SidebarLink id="qr_generator" label="QR Generator" />
+          <SidebarLink id="image_editor" label="Image Editor" />
+          <SidebarLink id="repurposer" label="Content Repurposer" />
+          {currentUser && <SidebarLink id="templates" label="Content Templates" />}
+          {currentUser && <SidebarLink id="meeting_notes" label="Notes to Tickets" />}
+          {currentUser && <SidebarLink id="knowledge_base" label="Knowledge Base" />}
+        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup id="admin" label="Admin">
+            <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
+            <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
+            <SidebarLink id="analytics" label="Analytics" />
+            <SidebarLink id="activity" label="Activity Log" />
+            <SidebarLink id="admin" label="Admin Panel" />
+          </SidebarGroup>
+        )}
+      </div>
+    </>)}
+
+    {/* Bottom: dark mode */}
+    <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border)" }}>
+      <button onClick={() => setDark(!dark)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 10px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-muted)", fontSize: 12, justifyContent: sideCollapsed && !mobile ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+        {dark ? <Sun size={15} /> : <Moon size={15} />}
+        {(!sideCollapsed || mobile) && <span>{dark ? "Light mode" : "Dark mode"}</span>}
+      </button>
+      {!currentUser && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px 0" }}>
+          <button onClick={() => nav("password")} style={{ padding: "8px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+          <button onClick={() => nav("signup")} style={{ padding: "7px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
         </div>
       )}
     </div>
@@ -818,15 +933,14 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         ::selection { background: #231d68; color: white; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.15); border-radius: 3px; }
-        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.12); border-radius: 3px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
         [data-theme="light"] {
           --bg-page: #f8f9fb; --bg-card: #ffffff; --bg-input: #f4f5f7; --bg-header: #ffffff;
@@ -836,8 +950,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           --brand: #231d68; --brand-light: rgba(35,29,104,0.06); --brand-glow: rgba(35,29,104,0.1);
           --shadow: 0 1px 3px rgba(0,0,0,0.04); --shadow-hover: 0 4px 16px rgba(35,29,104,0.1);
           --nav-bg: #ffffff; --nav-inactive: #6b7190;
-          --bar-bg: #e8ebf0;
-          --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --bar-bg: #e8ebf0; --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
           --sidebar-bg: #ffffff;
         }
         [data-theme="dark"] {
@@ -848,8 +961,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           --brand: #818cf8; --brand-light: rgba(129,140,248,0.12); --brand-glow: rgba(129,140,248,0.15);
           --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-hover: 0 4px 16px rgba(0,0,0,0.4);
           --nav-bg: #0c1021; --nav-inactive: #8892b0;
-          --bar-bg: #252d45;
-          --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --bar-bg: #252d45; --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
           --sidebar-bg: #131729;
         }
         [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.2); }
@@ -865,60 +977,43 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
         .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
         .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; border-radius: 6px; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* Sidebar */
-        .hub-sidebar { width: 240px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; }
+        .hub-sidebar { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; }
         .hub-sidebar.collapsed { width: 60px; }
-        .hub-sidebar.collapsed button span:last-child, .hub-sidebar.collapsed .hub-sidebar-label { display: none; }
 
-        /* Mobile header */
         .hub-mobile-header { display: none; position: sticky; top: 0; z-index: 50; background: var(--bg-header); border-bottom: 1px solid var(--border); padding: 10px 16px; align-items: center; justify-content: space-between; }
-
-        /* Mobile bottom nav */
-        .hub-mobile-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); }
-        .hub-mobile-bottom button { background: none; border: none; padding: 6px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; transition: color 0.15s; }
+        .hub-mobile-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; }
+        .hub-mobile-bottom button { background: none; border: none; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; }
         .hub-mobile-bottom button.active { color: var(--brand); }
-
-        /* Mobile nav overlay */
         .hub-mobile-overlay { display: none; position: fixed; inset: 0; z-index: 200; }
+        .hub-mobile-more { display: none; position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; padding: 16px; background: var(--bg-card); border-top: 1px solid var(--border); box-shadow: 0 -4px 20px rgba(0,0,0,0.1); border-radius: 16px 16px 0 0; max-height: 60vh; overflow-y: auto; }
 
         @media (max-width: 768px) {
           .hub-sidebar { display: none !important; }
           .hub-mobile-header { display: flex !important; }
           .hub-mobile-bottom { display: flex !important; }
           .hub-mobile-overlay.open { display: block !important; }
+          .hub-mobile-more.open { display: block !important; }
           .hub-desktop-topbar { display: none !important; }
-          .hub-main { padding: 20px 14px 80px 14px !important; }
+          .hub-main { padding: 16px 14px 76px 14px !important; }
         }
-
         @media (max-width: 900px) {
           .hub-layout-main { grid-template-columns: 1fr !important; }
-          .hub-dash-grid { grid-template-columns: 1fr 1fr !important; }
-          .hub-resource-grid { grid-template-columns: 1fr 1fr !important; }
-          .hub-hero-split { grid-template-columns: 1fr !important; }
-          .hub-editor-grid { grid-template-columns: 1fr !important; }
+          .hub-dash-grid, .hub-resource-grid { grid-template-columns: 1fr 1fr !important; }
+          .hub-hero-split, .hub-editor-grid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
-          .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hub-hero-grid { grid-template-columns: 1fr !important; }
-          .hub-hero-split { grid-template-columns: 1fr !important; }
-          .hub-editor-grid { grid-template-columns: 1fr !important; }
-          .hub-resource-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hub-tickets-grid { grid-template-columns: 1fr !important; }
-          .hub-layout-main { grid-template-columns: 1fr !important; }
+          .hub-home-grid, .hub-resource-grid, .hub-template-grid, .hub-gallery-grid, .hub-priority-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-hero-grid, .hub-hero-split, .hub-editor-grid, .hub-layout-main, .hub-tickets-grid { grid-template-columns: 1fr !important; }
           .hub-dash-grid { grid-template-columns: 1fr !important; }
-          .hub-type-filter { display: none !important; }
           .hub-color-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
-          .hub-template-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hub-gallery-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .hub-priority-grid { grid-template-columns: 1fr 1fr !important; }
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-profile-stats { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-week-compare { flex-direction: column; gap: 10px !important; }
+          .hub-type-filter { display: none !important; }
         }
       `}</style>
 
@@ -931,20 +1026,43 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         {/* Mobile header */}
         <div className="hub-mobile-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-primary)", padding: "4px" }}>{"\u2630"}</button>
-            <img src={ALPS_LOGO} alt="Alps" style={{ height: 28, objectFit: "contain" }} onClick={() => nav("hub")} />
+            <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", padding: "4px", display: "flex" }}><Menu size={22} /></button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>{pageTitle}</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); nav(v); }} isAdmin={isAdmin} />
-            {currentUser && <button onClick={() => nav("profile")} style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>}
+            {currentUser ? (
+              <button onClick={() => nav("profile")} style={{ width: 30, height: 30, borderRadius: 15, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+            ) : (
+              <button onClick={() => nav("password")} style={{ padding: "6px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+            )}
           </div>
         </div>
 
-        {/* Main content */}
+        {/* Main column */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-          {/* Desktop top bar with notifications */}
-          <div className="hub-desktop-topbar" style={{ padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderBottom: "1px solid var(--border)" }}>
-            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
+          {/* Desktop top bar: page title + profile */}
+          <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 40 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {view !== "hub" && <button onClick={() => nav("hub")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}><Home size={16} /></button>}
+              {view !== "hub" && <span style={{ color: "var(--border)" }}>/</span>}
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{pageTitle}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
+              {currentUser ? (
+                <button onClick={() => nav("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 5px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 20, cursor: "pointer", transition: "all 0.15s", position: "relative" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+                  <span style={{ width: 26, height: 26, borderRadius: 13, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{currentUser.name.split(" ")[0]}</span>
+                  {unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => nav("password")} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+                  <button onClick={() => nav("signup")} style={{ padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                </div>
+              )}
+            </div>
           </div>
 
           <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: 1000, width: "100%", margin: "0 auto", padding: "28px 32px", flex: 1 }}>
@@ -1030,7 +1148,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
-              {[{ key: "tickets", label: "\u{1F4CB} Tickets" }, { key: "leads", label: "\u{1F4C8} Leads" }, { key: "analytics", label: "\u{1F4CA} Analytics" }].map((tab) => (
+              {[{ key: "tickets", label: "Tickets" }, { key: "leads", label: "Leads" }, { key: "analytics", label: "Analytics" }].map((tab) => (
                 <button key={tab.key} onClick={() => setDashboardTab(tab.key)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: dashboardTab === tab.key ? "var(--brand)" : "transparent", color: dashboardTab === tab.key ? "#fff" : "var(--nav-inactive)" }}>{tab.label}</button>
               ))}
             </div>
@@ -1049,14 +1167,51 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
 
       {/* Mobile bottom nav */}
       <div className="hub-mobile-bottom">
-        <button onClick={() => nav("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
-        <button onClick={() => nav("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Submit</button>
-        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
+        <button onClick={() => nav("hub")} className={view === "hub" ? "active" : ""}><Home size={20} /><span>Home</span></button>
+        <button onClick={() => nav("form")} className={view === "form" ? "active" : ""}><PenSquare size={20} /><span>Submit</span></button>
+        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} className={view === "tracker" ? "active" : ""}><Search size={20} /><span>Track</span></button>
         {currentUser ? (
-          <button onClick={() => nav("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile{unreadNotifs > 0 && <span style={{ position: "absolute", top: 2, right: 8, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+          <button onClick={() => nav("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><User size={20} /><span>Profile</span>{unreadNotifs > 0 && <span style={{ position: "absolute", top: 2, right: "calc(50% - 14px)", width: 7, height: 7, borderRadius: 4, background: "#dc2626" }}></span>}</button>
         ) : (
-          <button onClick={() => nav("password")} className={view === "password" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F511}"}</span>Login</button>
+          <button onClick={() => nav("password")} className={view === "password" ? "active" : ""}><LogIn size={20} /><span>Login</span></button>
         )}
+        <button onClick={() => setMobileMore(!mobileMore)} className={mobileMore ? "active" : ""}><MoreHorizontal size={20} /><span>More</span></button>
+      </div>
+
+      {/* Mobile "More" sheet */}
+      <div className={"hub-mobile-more" + (mobileMore ? " open" : "")}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Quick Access</span>
+          <button onClick={() => setMobileMore(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}><X size={18} /></button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {[
+            { id: "archive", icon: <Library size={20} />, label: "Archive" },
+            { id: "brand_assets", icon: <Palette size={20} />, label: "Brand" },
+            { id: "gallery", icon: <Image size={20} />, label: "Gallery" },
+            { id: "converter", icon: <ArrowLeftRight size={20} />, label: "Convert" },
+            { id: "qr_generator", icon: <QrCode size={20} />, label: "QR" },
+            { id: "image_editor", icon: <Crop size={20} />, label: "Edit" },
+            { id: "repurposer", icon: <Repeat size={20} />, label: "Repurpose" },
+            ...(currentUser ? [
+              { id: "calendar", icon: <CalendarDays size={20} />, label: "Calendar" },
+              { id: "templates", icon: <FileText size={20} />, label: "Templates" },
+              { id: "knowledge_base", icon: <BookOpen size={20} />, label: "KB" },
+              { id: "campaigns", icon: <Target size={20} />, label: "Campaigns" },
+              { id: "broker_toolkit", icon: <Briefcase size={20} />, label: "Broker" },
+            ] : []),
+            ...(isAdmin ? [
+              { id: "dashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+              { id: "analytics", icon: <PieChart size={20} />, label: "Analytics" },
+              { id: "admin", icon: <Settings size={20} />, label: "Admin" },
+            ] : []),
+          ].map((item) => (
+            <button key={item.id} onClick={() => nav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 4px", background: view === item.id ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (view === item.id ? "var(--brand)" : "transparent"), borderRadius: 10, cursor: "pointer", color: view === item.id ? "var(--brand)" : "var(--text-secondary)", fontSize: 10, fontWeight: 600 }}>
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Mobile nav overlay */}
@@ -1064,12 +1219,18 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         <div onClick={() => setMobileNav(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}></div>
         <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 280, background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflowY: "auto", animation: "fadeIn 0.15s ease" }}>
           <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
-            <img src={ALPS_LOGO} alt="Alps" style={{ height: 28 }} />
-            <button onClick={() => setMobileNav(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)" }}>{"\u2715"}</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <img src={ALPS_LOGO} alt="Alps" style={{ height: 24 }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Marketing Hub</span>
+            </div>
+            <button onClick={() => setMobileNav(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}><X size={18} /></button>
           </div>
           {sidebarContent(true)}
         </div>
       </div>
+
+      {/* Close more sheet when clicking outside */}
+      {mobileMore && <div onClick={() => setMobileMore(false)} style={{ position: "fixed", inset: 0, zIndex: 140 }}></div>}
 
       {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
       <Toast toasts={toasts} onDismiss={dismissToast} />
