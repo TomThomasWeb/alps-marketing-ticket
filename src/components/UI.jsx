@@ -97,6 +97,38 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
           </div>
         </div>
         <OooBanner /><AnnBanner />
+
+        {/* Sign up benefits */}
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "22px 24px", marginBottom: 16, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -20, right: -20, width: 120, height: 120, borderRadius: "50%", background: "var(--brand-light)", opacity: 0.5 }}></div>
+          <div style={{ position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <User size={18} style={{ color: "var(--brand)" }} />
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Create a free account</h3>
+            </div>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>Sign up to get more out of the Marketing Hub. It takes 30 seconds and gives you access to:</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+              {[
+                { text: "Your name auto-filled on tickets", icon: <Sparkles size={14} /> },
+                { text: "Track all your tickets in one place", icon: <ClipboardList size={14} /> },
+                { text: "Get notified when tickets update", icon: <Inbox size={14} /> },
+                { text: "Approve or request changes on work", icon: <ExtLink size={14} /> },
+                { text: "Access content calendar & campaigns", icon: <Globe size={14} /> },
+                { text: "Use templates & meeting notes tools", icon: <Palette size={14} /> },
+              ].map((b, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0" }}>
+                  <span style={{ color: "var(--brand)", flexShrink: 0, marginTop: 1 }}>{b.icon}</span>
+                  <span style={{ fontSize: 13, color: "var(--text-body)", lineHeight: 1.4 }}>{b.text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button onClick={() => onNavigate("signup")} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 12px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}>Sign Up</button>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Already have an account? <button onClick={() => onNavigate("password")} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontWeight: 600, fontSize: 12, padding: 0 }}>Log in</button></span>
+            </div>
+          </div>
+        </div>
+
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Follow Alps</span>

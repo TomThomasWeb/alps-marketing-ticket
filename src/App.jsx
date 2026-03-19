@@ -909,6 +909,11 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           {currentUser && <SidebarLink id="templates" label="Content Templates" />}
           {currentUser && <SidebarLink id="meeting_notes" label="Notes to Tickets" />}
           {currentUser && <SidebarLink id="knowledge_base" label="Knowledge Base" />}
+          <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+            <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
+            {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
+            {!sideCollapsed && <ExternalLink size={11} style={{ opacity: 0.3 }} />}
+          </button>
         </SidebarGroup>
         {isAdmin && (
           <SidebarGroup id="admin" label="Admin">
@@ -943,6 +948,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
         ::selection { background: #231d68; color: white; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -1006,7 +1012,8 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           .hub-mobile-overlay.open { display: block !important; }
           .hub-mobile-more.open { display: block !important; }
           .hub-desktop-topbar { display: none !important; }
-          .hub-main { padding: 16px 14px 76px 14px !important; }
+          .hub-app-shell { min-height: auto !important; }
+          .hub-main { padding: 16px 14px 76px 14px !important; max-width: 100% !important; }
         }
         @media (max-width: 900px) {
           .hub-layout-main { grid-template-columns: 1fr !important; }
@@ -1028,27 +1035,27 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         }
       `}</style>
 
-      <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Mobile header - outside flex container */}
+      <div className="hub-mobile-header">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", padding: "4px", display: "flex" }}><Menu size={22} /></button>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>{pageTitle}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); nav(v); }} isAdmin={isAdmin} />
+          {currentUser ? (
+            <button onClick={() => nav("profile")} style={{ width: 30, height: 30, borderRadius: 15, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+          ) : (
+            <button onClick={() => nav("password")} style={{ padding: "6px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", minHeight: "100vh" }} className="hub-app-shell">
         {/* Desktop sidebar */}
         <aside className={"hub-sidebar" + (sideCollapsed ? " collapsed" : "")}>
           {sidebarContent(false)}
         </aside>
-
-        {/* Mobile header */}
-        <div className="hub-mobile-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", padding: "4px", display: "flex" }}><Menu size={22} /></button>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>{pageTitle}</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); nav(v); }} isAdmin={isAdmin} />
-            {currentUser ? (
-              <button onClick={() => nav("profile")} style={{ width: 30, height: 30, borderRadius: 15, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
-            ) : (
-              <button onClick={() => nav("password")} style={{ padding: "6px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Log In</button>
-            )}
-          </div>
-        </div>
 
         {/* Main column */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -1208,6 +1215,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             { id: "qr_generator", icon: <QrCode size={20} />, label: "QR" },
             { id: "image_editor", icon: <Crop size={20} />, label: "Edit" },
             { id: "repurposer", icon: <Repeat size={20} />, label: "Repurpose" },
+            { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
               { id: "calendar", icon: <CalendarDays size={20} />, label: "Calendar" },
               { id: "templates", icon: <FileText size={20} />, label: "Templates" },
@@ -1221,7 +1229,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
               { id: "admin", icon: <Settings size={20} />, label: "Admin" },
             ] : []),
           ].map((item) => (
-            <button key={item.id} onClick={() => nav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 4px", background: view === item.id ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (view === item.id ? "var(--brand)" : "transparent"), borderRadius: 10, cursor: "pointer", color: view === item.id ? "var(--brand)" : "var(--text-secondary)", fontSize: 10, fontWeight: 600 }}>
+            <button key={item.id} onClick={() => item.href ? window.open(item.href, "_blank") : nav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 4px", background: view === item.id ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (view === item.id ? "var(--brand)" : "transparent"), borderRadius: 10, cursor: "pointer", color: view === item.id ? "var(--brand)" : "var(--text-secondary)", fontSize: 10, fontWeight: 600 }}>
               {item.icon}
               <span>{item.label}</span>
             </button>
