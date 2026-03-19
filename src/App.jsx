@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, MoreHorizontal, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
@@ -745,7 +745,18 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
 
   // Page titles for top bar
   const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
+  const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
+  const parentView = BREADCRUMB_PARENT[view];
+  const parentTitle = parentView ? PAGE_TITLES[parentView] : null;
+
+  // Cmd+K shortcut to focus sidebar search
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); if (sideCollapsed) setSideCollapsed(false); } };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [sideCollapsed]);
 
   // All sidebar items for search
   const allNavItems = [
@@ -845,7 +856,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
       <div style={{ padding: "6px 10px 8px" }}>
         <div style={{ position: "relative" }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-          <input value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search..." style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          <input ref={searchRef} value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search...  ⌘K" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
         </div>
       </div>
     )}
@@ -1043,19 +1054,23 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 40 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {view !== "hub" && <button onClick={() => nav("hub")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}><Home size={16} /></button>}
-              {view !== "hub" && <span style={{ color: "var(--border)" }}>/</span>}
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{pageTitle}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+              {view !== "hub" && <button onClick={() => nav("hub")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}><Home size={15} /></button>}
+              {view !== "hub" && parentView && <><span style={{ color: "var(--border)", fontSize: 12 }}>/</span><button onClick={() => nav(parentView)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 13, fontWeight: 500, padding: 0 }}>{parentTitle}</button></>}
+              {view !== "hub" && <span style={{ color: "var(--border)", fontSize: 12 }}>/</span>}
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{pageTitle}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
               {currentUser ? (
-                <button onClick={() => nav("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 5px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 20, cursor: "pointer", transition: "all 0.15s", position: "relative" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
-                  <span style={{ width: 26, height: 26, borderRadius: 13, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{currentUser.name.split(" ")[0]}</span>
-                  {unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
-                </button>
+                <>
+                  <button onClick={() => nav("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 5px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 20, cursor: "pointer", transition: "all 0.15s", position: "relative" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+                    <span style={{ width: 26, height: 26, borderRadius: 13, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{currentUser.name.split(" ")[0]}</span>
+                    {unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
+                  </button>
+                  <button onClick={handleLogout} title="Log out" style={{ padding: "6px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><LogOut size={15} /></button>
+                </>
               ) : (
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => nav("password")} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Log In</button>

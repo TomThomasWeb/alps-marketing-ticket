@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { renderMarkdown, SLA_TARGETS } from "../constants.js";
+import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles } from "lucide-react";
 
 
 export function FileChip({ name, url, onRemove }) {
@@ -47,6 +48,7 @@ export function FilePreview({ files }) {
 
 
 
+
 export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -57,23 +59,41 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
-  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 16 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
-  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><span style={{ fontSize: 14 }}>{"\u{1F4E2}"}</span><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ color: "#ca8a04" }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><Sparkles size={14} style={{ color: "var(--brand)", flexShrink: 0 }} /><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
+
+  const socials = [
+    { href: "https://alpsltd.co.uk/", icon: <Globe size={16} />, label: "Website" },
+    { href: "https://linkedin.com/company/alps-ltd/", icon: <Linkedin size={16} />, label: "LinkedIn" },
+    { href: "https://www.facebook.com/alpsltdinsurance/", icon: <Facebook size={16} />, label: "Facebook" },
+    { href: "https://www.youtube.com/channel/UCJ72w2WOUqDyzGw3q3UmuqA", icon: <Youtube size={16} />, label: "YouTube" },
+    { href: "https://www.instagram.com/alpsltd/", icon: <Instagram size={16} />, label: "Instagram" },
+  ];
 
   // LOGGED OUT
   if (!currentUser) {
     return (
-      <div style={{ width: "100%", maxWidth: 640 }}>
-        <div style={{ padding: "48px 0 36px" }}>
-          <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Welcome to the Alps Marketing Hub</h1>
-          <p style={{ margin: "0 0 28px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 480 }}>Need marketing support? Submit a request below and we'll get it sorted. You can track progress at any time using your ticket reference.</p>
+      <div style={{ width: "100%", maxWidth: 680 }}>
+        <div style={{ padding: "48px 0 32px" }}>
+          <h1 style={{ margin: "0 0 14px", fontSize: 30, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Welcome to the Alps Marketing Hub</h1>
+          <p style={{ margin: "0 0 8px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 520 }}>The central platform for all marketing requests at Alps. Need a social post, a brochure update, event materials, or anything else? Submit a ticket and the marketing team will handle it.</p>
+          <p style={{ margin: "0 0 28px", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>You can also browse our brand assets, use our design tools, and track the progress of your requests — all in one place.</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={() => onNavigate("form")} style={{ padding: "13px 32px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px var(--brand-glow)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px var(--brand-glow)"; }}>Submit a Request</button>
             <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 24px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Track a Ticket</button>
           </div>
         </div>
         <OooBanner /><AnnBanner />
-        <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
+          {socials.map((s) => (
+            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>
+              {s.icon}<span>{s.label}</span>
+            </a>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
           <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
         </div>
         {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
@@ -86,7 +106,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
 
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
           {myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "No active tickets"}
@@ -141,34 +161,38 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
         const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
         const ld = calc(leads, (l) => l.created_at);
-        const activeTickets = tickets.filter((t) => t.status !== "completed").length;
+        const act = tickets.filter((t) => t.status !== "completed").length;
         const cmp = (c, p) => c > p ? "+" + (c - p) : c < p ? "" + (c - p) : "=";
         return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{activeTickets}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Active</div>
-            </div>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#16a34a" }}>{comp.tw}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Done this week</div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(comp.tw, comp.lw)} vs last</div>
-            </div>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#E64592" }}>{arch.tw}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Published</div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(arch.tw, arch.lw)} vs last</div>
-            </div>
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "#ca8a04" }}>{ld.tw}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Leads</div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(ld.tw, ld.lw)} vs last</div>
+          <div style={{ marginBottom: 24 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>This Week</span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 10 }}>
+              {[{ v: act, l: "Active", c: "var(--brand)" }, { v: comp.tw, l: "Completed", c: "#16a34a", d: cmp(comp.tw, comp.lw) }, { v: arch.tw, l: "Published", c: "#E64592", d: cmp(arch.tw, arch.lw) }, { v: ld.tw, l: "Leads", c: "#ca8a04", d: cmp(ld.tw, ld.lw) }].map((s) => (
+                <div key={s.l} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.l}</div>
+                  {s.d && <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.d} vs last</div>}
+                </div>
+              ))}
             </div>
           </div>
         );
       })()}
 
-      <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+      {/* About + socials */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px", marginBottom: 24 }}>
+        <h3 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>About the Marketing Hub</h3>
+        <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>This is your central platform for all marketing activity at Alps. Submit requests, track progress, browse brand assets, use design tools, and access campaign archives. Everything the team produces lives here.</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {socials.map((s) => (
+            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>
+              {s.icon}<span>{s.label}</span><ExtLink size={10} style={{ opacity: 0.4 }} />
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
         <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
       </div>
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
@@ -181,7 +205,6 @@ function ChangelogModal({ onClose }) {
     { date: "Mar 2026", title: "Sidebar Navigation", desc: "New sidebar layout with proper URL routing and browser history." },
     { date: "Mar 2026", title: "Approval Workflow", desc: "Submitters can approve or request changes on reviewed tickets." },
     { date: "Mar 2026", title: "SLA Tracking", desc: "Track turnaround times against priority-based SLA targets." },
-    { date: "Mar 2026", title: "Email Digest", desc: "Generate weekly summaries to share with stakeholders." },
     { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items from meeting notes and create tickets." },
     { date: "Mar 2026", title: "Content Repurposer", desc: "Turn long-form content into LinkedIn, email, social & threads." },
     { date: "Mar 2026", title: "User Accounts", desc: "Sign in, profiles, and role-based access." },
@@ -502,7 +525,7 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
 
 export function Toast({ toasts, onDismiss }) {
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column-reverse", gap: 8, pointerEvents: "none" }}>
+    <div style={{ position: "fixed", top: 16, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
       {toasts.map((t) => (
         <div key={t.id} style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: t.type === "error" ? "#fef2f2" : t.type === "success" ? "#f0fdf4" : "var(--bg-card)", border: "1px solid " + (t.type === "error" ? "#fecaca" : t.type === "success" ? "#bbf7d0" : "var(--border)"), borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", maxWidth: 420, animation: "fadeIn 0.2s ease", minWidth: 260 }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>{t.type === "error" ? "\u274C" : t.type === "success" ? "\u2705" : "\u2139\uFE0F"}</span>
