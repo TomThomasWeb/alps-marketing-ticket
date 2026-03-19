@@ -49,6 +49,18 @@ export function FilePreview({ files }) {
 
 
 
+export function PageHeader({ title, subtitle, action }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8 }}>{title}</h2>
+        {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{subtitle}</p>}
+      </div>
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+    </div>
+  );
+}
+
 export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -646,12 +658,6 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads</div>
         </div>
       </div>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        <button onClick={() => onNavigate("form")} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4DD}"} New Ticket</button>
-        <button onClick={() => onNavigate("lead_form")} style={{ padding: "10px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4C8}"} Log Lead</button>
-      </div>
-
 
       {(() => {
         const myNotifs = (notifications || []).filter((n) => n.for_user === currentUser?.id).slice(0, 5);

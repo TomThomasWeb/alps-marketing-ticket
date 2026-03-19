@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PRIORITIES, BRAND_COLORS } from "../constants.js";
 import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "./UI.jsx";
 
 export function SelfServiceGuide() {
   const [open, setOpen] = useState(null);
@@ -38,8 +39,7 @@ export function SelfServiceGuide() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><FileText size={20} style={{ display: "inline" }} /> Self-Service Guide</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Everything you need to know about working with the marketing team. Click a section to expand.</p>
+      <PageHeader title="Self-Service Guide" subtitle="Image sizes, file formats, and frequently asked questions" />
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {sections.map((section) => (
           <div key={section.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
@@ -174,8 +174,7 @@ export function FileConverter() {
 
   return (
     <div style={{ width: "100%", maxWidth: 600 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><ArrowLeftRight size={20} style={{ display: "inline" }} /> File Converter</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Resize, convert, and batch-process images for social media and web.</p>
+      <PageHeader title="File Converter" subtitle="Resize and convert images with social media presets" />
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
@@ -353,8 +352,7 @@ export function QRCodeGenerator() {
 
   return (
     <div style={{ width: "100%", maxWidth: 560 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><QrCode size={20} style={{ display: "inline" }} /> QR Code Generator</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Generate QR codes with optional logo overlay for print materials and campaigns.</p>
+      <PageHeader title="QR Code Generator" subtitle="Create branded QR codes with custom colours" />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
         <div style={{ marginBottom: 16 }}>
@@ -684,8 +682,7 @@ export function ImageEditor() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Crop size={20} style={{ display: "inline" }} /> Image Editor</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "var(--text-secondary)" }}>Crop, adjust, add text, brand overlays, and watermarks. Works entirely in your browser.</p>
+      <PageHeader title="Image Editor" subtitle="Crop, resize, watermark, and add text overlays" />
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {!file ? (
@@ -890,8 +887,7 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
 
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><ClipboardList size={20} style={{ display: "inline" }} /> Meeting Notes to Tickets</h2>
-      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Paste your meeting notes and extract action items as tickets. We'll detect bullet points, numbered items, and sentences that sound like tasks.</p>
+      <PageHeader title="Meeting Notes to Tickets" subtitle="Paste meeting notes and extract action items" />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste meeting notes here...\n\nExamples of what we'll pick up:\n- Create social media campaign for Q2 launch\n- Tom to update the website hero banner\n- ACTION: Send broker toolkit to new partners\n1. Schedule photography session for May\n2. Review print materials before Friday"} rows={10} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
@@ -1053,8 +1049,7 @@ export function ContentRepurposer() {
 
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u267B\uFE0F"} Content Repurposer</h2>
-      <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>Paste a blog post, article, or any long-form content and get it reformatted for LinkedIn, email, social media, and X/Twitter threads.</p>
+      <PageHeader title="Content Repurposer" subtitle="Reformat long-form content for different platforms" />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
         <textarea value={source} onChange={(e) => setSource(e.target.value)} placeholder="Paste your content here — blog post, article, press release, announcement..." rows={8} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />

@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient.js";
 import jsPDF from "jspdf";
 import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, BRAND_COLORS, formatDate, renderMarkdown, daysUntil } from "../constants.js";
 import { Library, TrendingUp, Palette, Image, CalendarDays, Briefcase, Target, FileText, BookOpen, Search, FolderOpen, Video, Upload, Plus, Pencil, Trash2, Copy, Download, ChevronDown, ExternalLink, Filter, Grid3X3, List, Tag, Star } from "lucide-react";
+import { PageHeader } from "./UI.jsx";
 
 export function MarketingArchive({ entries, isAdmin, onManage }) {
   const [filter, setFilter] = useState("all");
@@ -53,10 +54,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Library size={20} style={{ display: "inline" }} /> Marketing Archive</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{entries.length} pieces catalogued</p></div>
-        {isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2795"} Add Entry</button>}
-      </div>
+      <PageHeader title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} action={isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>} />
       <div className="hub-filter-row" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14 }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 14px 9px 36px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
         <div className="hub-type-filter" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
@@ -167,7 +165,7 @@ export function LeadForm({ onSave, onBackToHub, currentUser }) {
   const valid = form.broker.trim() && form.enquiry.trim() && form.logged_by.trim();
   return (
     <div style={{ maxWidth: 560, width: "100%" }}><div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><TrendingUp size={20} style={{ display: "inline" }} /> Log an Inbound Lead</h2>
+      <PageHeader title="Log an Inbound Lead" subtitle="Record details of an inbound marketing lead" />
       <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Record an inbound marketing lead for tracking and follow-up.</p>
       <div style={{ marginBottom: 16 }}><label style={labelStyle}>Broker *</label><input style={inputStyle} value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })} placeholder="e.g. Acme Insurance" /></div>
       <div style={{ marginBottom: 16 }}><label style={labelStyle}>Enquiry *</label><textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.enquiry} onChange={(e) => setForm({ ...form, enquiry: e.target.value })} placeholder="What is the lead about?" /></div>
@@ -248,10 +246,7 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><TrendingUp size={20} style={{ display: "inline" }} /> Leads Dashboard</h2>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>{leads.length} total lead{leads.length !== 1 ? "s" : ""} logged</p>
-      </div>
+      <PageHeader title="Leads Dashboard" subtitle={leads.length + " total lead" + (leads.length !== 1 ? "s" : "") + " logged"} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }} className="hub-analytics-cols">
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, textAlign: "center" }}>
@@ -514,7 +509,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Palette size={20} style={{ display: "inline" }} /> Brand Assets</h2>
+      <PageHeader title="Brand Assets" subtitle="Logos, colours, fonts, and brand guidelines" />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
         <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>{"\u{1F4E6}"} Download Brand Pack</button>
@@ -774,10 +769,7 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><FileText size={20} style={{ display: "inline" }} /> Content Templates</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Reusable copy snippets, emails, and social captions. Use [BROKER], [PRODUCT], [NAME] as placeholders.</p></div>
-        {isAdmin && <button onClick={() => startEdit(null)} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New Template</button>}
-      </div>
+      <PageHeader title="Content Templates" subtitle="Reusable copy snippets, emails, and social captions. Use [BROKER], [PRODUCT], [NAME] as placeholders." action={isAdmin && <button onClick={() => startEdit(null)} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />New Template</button>} />
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
@@ -917,7 +909,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedul
     <div style={{ width: "100%", maxWidth: 900 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><CalendarDays size={20} style={{ display: "inline" }} /> Content Calendar</h2>
+          <PageHeader title="Content Calendar" />
           <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Plan and track marketing output. {isAdmin ? "Drag events to reschedule." : ""}</p>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1059,7 +1051,7 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
     <div style={{ width: "100%", maxWidth: 960 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Briefcase size={20} style={{ display: "inline" }} /> Broker Toolkit</h2>
+          <PageHeader title="Broker Toolkit" subtitle="Materials and resources for broker partners" />
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Product sheets, email copy, social packs, and broker-facing materials.</p>
         </div>
         {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Asset"}</button>}
@@ -1170,7 +1162,7 @@ export function CampaignTracker({ campaigns, tickets, archiveEntries, leads, cal
     <div style={{ width: "100%", maxWidth: 960 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Target size={20} style={{ display: "inline" }} /> Campaign Tracker</h2>
+          <PageHeader title="Campaign Tracker" subtitle="Group tickets, content, and leads by campaign" />
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Group tickets, content, and leads under campaigns.</p>
         </div>
         {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ name: "", description: "", status: "active", start_date: "", end_date: "" }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 New Campaign"}</button>}
@@ -1282,7 +1274,7 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
     <div style={{ width: "100%", maxWidth: 800 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><BookOpen size={20} style={{ display: "inline" }} /> Knowledge Base</h2>
+          <PageHeader title="Knowledge Base" subtitle="Articles and guides for the team" />
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Guides, FAQs, and how-to articles.</p>
         </div>
         {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", category: "general", content: "", order: 0 }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Article"}</button>}
@@ -1409,7 +1401,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
     <div style={{ width: "100%", maxWidth: 960 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><Image size={20} style={{ display: "inline" }} /> Alps Gallery</h2>
+          <PageHeader title="Alps Gallery" subtitle="Browse and download team photos" />
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Browse and download photos. Click any image to save it.</p>
         </div>
         <div style={{ position: "relative", minWidth: 200 }}>

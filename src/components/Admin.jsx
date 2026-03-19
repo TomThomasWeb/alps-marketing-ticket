@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import { supabase } from "../supabaseClient.js";
 import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, getDueBadge, daysUntil, formatDate, renderMarkdown } from "../constants.js";
 import { BarChart3, PieChart, CalendarDays, FileText, ClipboardList, TrendingUp, Mail, Download, Database, Users, Shield, Clock, Megaphone, Pin, Activity, Lock, ChevronDown, Repeat, Pause, Play, Trash2, Edit, Plus, Target, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "./UI.jsx";
 
 export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAdmin, onGoalSave, onGoalDelete }) {
   const [tab, setTab] = useState("report");
@@ -68,10 +69,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 10 }}>
-        <div><h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--brand)" }}><PieChart size={20} style={{ display: "inline" }} /> Analytics Dashboard</h2><p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>Performance metrics across all areas</p></div>
-        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>{"\u{1F4CB}"} Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>{"\u{1F4DA}"} Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>{"\u{1F4C8}"} Leads</button><button onClick={() => setTab("report")} style={ts("report")}>{"\u{1F4CB}"} Report</button></div>
-      </div>
+      <PageHeader title="Analytics Dashboard" subtitle="Performance metrics across all areas" action={<div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>Leads</button><button onClick={() => setTab("report")} style={ts("report")}>Report</button></div>} />
 
       {tab === "tickets" && (<>
         <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
@@ -520,8 +518,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
   return (
     <div style={{ width: "100%", maxWidth: 800 }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "var(--brand)" }}>{"\u2699\uFE0F"} Admin Panel</h2>
-      <p style={{ margin: "0 0 18px", fontSize: 14, color: "var(--text-secondary)" }}>Manage settings, schedules, goals, and data.</p>
+      <PageHeader title="Admin Panel" subtitle="Manage settings, schedules, goals, and data" />
 
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>
