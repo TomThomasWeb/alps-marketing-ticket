@@ -993,6 +993,31 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         .hub-card-hover { transition: all 0.18s ease; }
         .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
         .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
+
+        /* Polished inputs */
+        .hub-input { width: 100%; padding: 11px 14px; background: var(--bg-input); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; outline: none; transition: border 0.2s, box-shadow 0.2s; box-sizing: border-box; font-family: inherit; }
+        .hub-input:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
+        .hub-input::placeholder { color: var(--text-muted); }
+        .hub-input.error { border-color: #ef4444; }
+        .hub-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
+        .hub-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .hub-label .required { color: var(--brand); font-weight: 700; }
+        textarea.hub-input { resize: vertical; min-height: 100px; line-height: 1.5; }
+        select.hub-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%239399b2' stroke-width='2' stroke-linecap='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+        /* Consistent empty states */
+        .hub-empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+        .hub-empty .hub-empty-icon { margin-bottom: 14px; opacity: 0.25; }
+        .hub-empty .hub-empty-title { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+        .hub-empty .hub-empty-desc { margin: 0; font-size: 13px; line-height: 1.5; }
+
+        /* Priority left border on ticket cards */
+        .hub-ticket-card { position: relative; overflow: hidden; }
+        .hub-ticket-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; }
+        .hub-ticket-card.priority-critical::before { background: #dc2626; }
+        .hub-ticket-card.priority-high::before { background: #ea580c; }
+        .hub-ticket-card.priority-medium::before { background: #ca8a04; }
+        .hub-ticket-card.priority-low::before { background: #6366f1; }
         .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; border-radius: 6px; }
 
         .hub-sidebar { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; }

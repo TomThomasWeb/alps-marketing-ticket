@@ -64,8 +64,8 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const inputStyle = (field) => ({ width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box" });
-  const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6, letterSpacing: "0.02em" };
+  const inputStyle = (field) => ({ width: "100%", padding: "12px 14px", background: "var(--bg-input)", border: "1.5px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 10, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box", fontFamily: "inherit" });
+  const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, letterSpacing: "0.02em" };
 
   return (
     <div style={{ maxWidth: 560, width: "100%" }}>
@@ -211,7 +211,7 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
   };
 
   return (
-    <div onClick={() => setExpanded(!expanded)} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+    <div className={"hub-ticket-card priority-" + ticket.priority} onClick={() => setExpanded(!expanded)} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px 16px 22px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
@@ -397,7 +397,7 @@ export function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReope
   const isOverdue = dueBadge && dueBadge.color === "#dc2626";
 
   return (
-    <div style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: isOverdue ? "2px solid rgba(220,38,38,0.5)" : "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : "var(--border)"), borderRadius: 10, padding: 14, opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140, boxShadow: isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 2px 14px rgba(220,38,38,0.2)" : "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none"; e.currentTarget.style.transform = "none"; }}>
+    <div className={"hub-ticket-card priority-" + ticket.priority} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: isOverdue ? "2px solid rgba(220,38,38,0.5)" : "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : "var(--border)"), borderRadius: 10, padding: "14px 14px 14px 18px", opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.2s", minHeight: 140, boxShadow: isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 2px 14px rgba(220,38,38,0.2)" : "0 2px 12px rgba(35,29,104,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 8px rgba(220,38,38,0.12)" : "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, background: "var(--brand-light)", padding: "1px 6px", borderRadius: 3 }}>{ticket.id}</span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 12, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
@@ -575,10 +575,10 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
       )}
 
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: 12, opacity: 0.4 }}>{search.trim() ? <Search size={40} /> : <ClipboardList size={40} />}</div>
-          <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>{search.trim() ? "Try different keywords or clear your search" : filter !== "all" ? "Try a different filter or check All tickets" : "Tickets will appear here once submitted"}</p>
+        <div className="hub-empty">
+          <div className="hub-empty-icon">{search.trim() ? <Search size={40} /> : <ClipboardList size={40} />}</div>
+          <p className="hub-empty-title">{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
+          <p className="hub-empty-desc">{search.trim() ? "Try different keywords or clear your search" : filter !== "all" ? "Try a different filter or check All tickets" : "Tickets will appear here once submitted"}</p>
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -587,9 +587,10 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
       ) : viewMode === "queue" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {queueTickets.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>{"\u2705"}</div>
-              <p style={{ fontSize: 14, margin: 0 }}>Queue clear — no active tickets</p>
+            <div className="hub-empty" style={{ padding: "40px 20px" }}>
+              <div className="hub-empty-icon"><CheckCircle2 size={32} /></div>
+              <p className="hub-empty-title">Queue clear</p>
+              <p className="hub-empty-desc">No active tickets — nice work!</p>
             </div>
           ) : queueTickets.map((t) => {
             const p = PRIORITIES[t.priority];

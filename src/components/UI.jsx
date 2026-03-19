@@ -905,9 +905,10 @@ export function ActivityLog({ tickets }) {
       </div>
 
       {activities.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: 12, opacity: 0.4 }}><Inbox size={40} /></div>
-          <p style={{ fontSize: 15, margin: 0 }}>No activity yet</p>
+        <div className="hub-empty">
+          <div className="hub-empty-icon"><Inbox size={40} /></div>
+          <p className="hub-empty-title">No activity yet</p>
+          <p className="hub-empty-desc">Ticket updates will appear here as they happen</p>
         </div>
       ) : (
         <div style={{ position: "relative", paddingLeft: 28 }}>

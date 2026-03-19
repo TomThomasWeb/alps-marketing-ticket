@@ -73,7 +73,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
         </div>
       </div>
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ marginBottom: 12, opacity: 0.4 }}>{search.trim() ? <Search size={40} /> : <Library size={40} />}</div><p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600 }}>{search.trim() ? "No entries match your search" : "No archive entries yet"}</p><p style={{ margin: 0, fontSize: 12 }}>{search.trim() ? "Try different keywords" : "Add completed campaigns, posts, and materials to build your archive"}</p></div>
+        <div className="hub-empty"><div className="hub-empty-icon">{search.trim() ? <Search size={40} /> : <Library size={40} />}</div><p className="hub-empty-title">{search.trim() ? "No entries match your search" : "No archive entries yet"}</p><p className="hub-empty-desc">{search.trim() ? "Try different keywords" : "Add completed campaigns, posts, and materials to build your archive"}</p></div>
       ) : viewMode === "list" ? (
         groupedByCampaign ? (
           <div>
@@ -292,9 +292,10 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
       </div>
 
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: 12, opacity: 0.4 }}><TrendingUp size={40} /></div>
-          <p style={{ margin: 0, fontSize: 14 }}>{search.trim() ? "No leads match your search" : "No leads logged yet"}</p>
+        <div className="hub-empty">
+          <div className="hub-empty-icon"><TrendingUp size={40} /></div>
+          <p className="hub-empty-title">{search.trim() ? "No leads match your search" : "No leads logged yet"}</p>
+          <p className="hub-empty-desc">{search.trim() ? "Try different keywords" : "Log your first lead using the form"}</p>
         </div>
       ) : viewMode === "timeline" ? (
         <div style={{ position: "relative", paddingLeft: 24 }}>
@@ -573,7 +574,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
         )}
 
         {sortedCatKeys.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 10, opacity: 0.4 }}>{"\u{1F3A8}"}</div><p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>No brand assets yet</p><p style={{ margin: 0, fontSize: 12 }}>{isAdmin ? "Upload logos, fonts, and brand materials to get started" : "Brand assets will appear here once uploaded by the team"}</p></div>
+          <div className="hub-empty"><div className="hub-empty-icon"><Palette size={40} /></div><p className="hub-empty-title">No brand assets yet</p><p className="hub-empty-desc">{isAdmin ? "Upload logos, fonts, and brand materials to get started" : "Brand assets will appear here once uploaded by the team"}</p></div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {sortedCatKeys.map((catKey) => {
@@ -634,7 +635,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           const bgGrouped = {};
           bgAssets.forEach((a) => { const n = a.asset_name || "Background"; if (!bgGrouped[n]) bgGrouped[n] = []; bgGrouped[n].push(a); });
           return Object.keys(bgGrouped).length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 8, opacity: 0.3 }}>{"\u{1F3AC}"}</div><p style={{ fontSize: 13, margin: 0 }}>No video backgrounds uploaded yet.</p></div>
+            <div className="hub-empty" style={{ padding: "32px 20px" }}><div className="hub-empty-icon"><Video size={36} /></div><p className="hub-empty-desc">No video backgrounds uploaded yet.</p></div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
               {Object.entries(bgGrouped).map(([name, files]) => {
@@ -692,7 +693,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
             return "\u{1F4CE}";
           };
           return Object.keys(tplGrouped).length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 36, marginBottom: 8, opacity: 0.3 }}>{"\u{1F4C1}"}</div><p style={{ fontSize: 13, margin: 0 }}>No templates uploaded yet.</p></div>
+            <div className="hub-empty" style={{ padding: "32px 20px" }}><div className="hub-empty-icon"><FolderOpen size={36} /></div><p className="hub-empty-desc">No templates uploaded yet.</p></div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {Object.entries(tplGrouped).map(([name, files]) => (
@@ -778,7 +779,7 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
         </div>
       </div>
       {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ marginBottom: 12, opacity: 0.4 }}><FileText size={40} /></div><p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{search.trim() ? "No matching templates" : "No templates yet"}</p><p style={{ margin: 0, fontSize: 12 }}>{search.trim() ? "Try a different search" : "Create reusable copy templates for emails, social posts, and more"}</p></div>
+        <div className="hub-empty"><div className="hub-empty-icon"><FileText size={40} /></div><p className="hub-empty-title">{search.trim() ? "No matching templates" : "No templates yet"}</p><p className="hub-empty-desc">{search.trim() ? "Try a different search" : "Create reusable copy templates for emails, social posts, and more"}</p></div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {filtered.map((t) => { const c = CATS[t.category] || CATS.other; return (
@@ -1302,10 +1303,10 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
       )}
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: 12, opacity: 0.3 }}><BookOpen size={40} /></div>
-          <p style={{ fontSize: 14, margin: "0 0 4px", fontWeight: 600 }}>{search.trim() ? "No articles matching your search" : "No articles yet"}</p>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>{search.trim() ? "Try different search terms" : "Publish guides and how-tos for your team"}</p>
+        <div className="hub-empty">
+          <div className="hub-empty-icon"><BookOpen size={40} /></div>
+          <p className="hub-empty-title">{search.trim() ? "No articles matching your search" : "No articles yet"}</p>
+          <p className="hub-empty-desc">{search.trim() ? "Try different search terms" : "Publish guides and how-tos for your team"}</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1441,7 +1442,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
 
       {filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
-          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.3 }}>{"\u{1F5BC}\uFE0F"}</div>
+          <div className="hub-empty-icon"><Image size={44} /></div>
           <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{images.length === 0 ? "Your gallery is empty" : "No images match your search"}</p><p style={{ fontSize: 12, margin: 0, color: "var(--text-muted)" }}>{images.length === 0 ? "Upload photos to build your team's visual library" : "Try a different search term"}</p>
           <p style={{ fontSize: 13, margin: 0 }}>{images.length === 0 && isAdmin ? "Upload some photos to get started." : "Try a different filter or search term."}</p>
         </div>
