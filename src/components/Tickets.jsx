@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadge, getSlaStatus, formatDate, renderMarkdown } from "../constants.js";
 import { FileChip, FilePreview, PageHeader } from "./UI.jsx";
-import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, List, Columns3, AlertCircle } from "lucide-react";
+import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, LayoutDashboard, List, Columns3, AlertCircle } from "lucide-react";
 
 export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
   const [form, setForm] = useState(() => {
@@ -69,7 +69,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
 
   return (
     <div style={{ maxWidth: 560, width: "100%" }}>
-      <PageHeader title="Submit a Request" subtitle="Fill in the form below and the marketing team will get right on it." />
+      <PageHeader icon={<PenSquare size={22} color="#6366f1" />} title="Submit a Request" subtitle="Fill in the form below and the marketing team will get right on it." />
 
       {hasDraft && form.title.trim() && !duplicateData && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
@@ -503,7 +503,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader title="Ticket Dashboard" subtitle="Manage and track all marketing requests" action={
+      <PageHeader icon={<LayoutDashboard size={22} color="#6366f1" />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" action={
         <div style={{ position: "relative", minWidth: 200 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}><Search size={14} /></span>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
@@ -701,7 +701,7 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
         </div>
       )}
 
-      {!submittedRef && <PageHeader title="Track a Ticket" subtitle="Enter your ticket reference to check its status" />}
+      {!submittedRef && <PageHeader icon={<Search size={22} color="#6366f1" />} title="Track a Ticket" subtitle="Enter your ticket reference to check its status" />}
 
       <div style={{ marginBottom: 16 }}>
         {!submittedRef && (

@@ -69,7 +69,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader title="Analytics Dashboard" subtitle="Performance metrics across all areas" action={<div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>Leads</button><button onClick={() => setTab("report")} style={ts("report")}>Report</button></div>} />
+      <PageHeader icon={<PieChart size={22} color="#8b5cf6" />} title="Analytics Dashboard" subtitle="Performance metrics across all areas" action={<div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}><button onClick={() => setTab("tickets")} style={ts("tickets")}>Tickets</button><button onClick={() => setTab("archive")} style={ts("archive")}>Archive</button><button onClick={() => setTab("leads")} style={ts("leads")}>Leads</button><button onClick={() => setTab("report")} style={ts("report")}>Report</button></div>} />
 
       {tab === "tickets" && (<>
         <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
@@ -518,7 +518,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
   return (
     <div style={{ width: "100%", maxWidth: 800 }}>
-      <PageHeader title="Admin Panel" subtitle="Manage settings, schedules, goals, and data" />
+      <PageHeader icon={<Shield size={22} color="#8b5cf6" />} title="Admin Panel" subtitle="Manage settings, schedules, goals, and data" />
 
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>

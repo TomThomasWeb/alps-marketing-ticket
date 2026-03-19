@@ -39,7 +39,7 @@ export function SelfServiceGuide() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <PageHeader title="Self-Service Guide" subtitle="Image sizes, file formats, and frequently asked questions" />
+      <PageHeader icon={<FileText size={22} color="#0284c7" />} title="Self-Service Guide" subtitle="Image sizes, file formats, and frequently asked questions" />
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {sections.map((section) => (
           <div key={section.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
@@ -174,11 +174,11 @@ export function FileConverter() {
 
   return (
     <div style={{ width: "100%", maxWidth: 600 }}>
-      <PageHeader title="File Converter" subtitle="Resize and convert images with social media presets" />
+      <PageHeader icon={<ArrowLeftRight size={22} color="#0284c7" />} title="File Converter" subtitle="Resize and convert images with social media presets" />
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <button onClick={() => { setBatchMode(false); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (!batchMode ? "var(--brand)" : "var(--border)"), background: !batchMode ? "var(--brand-light)" : "transparent", color: !batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Single Image</button>
           <button onClick={() => { setBatchMode(true); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (batchMode ? "var(--brand)" : "var(--border)"), background: batchMode ? "var(--brand-light)" : "transparent", color: batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4DA}"} Batch Mode</button>
@@ -352,9 +352,9 @@ export function QRCodeGenerator() {
 
   return (
     <div style={{ width: "100%", maxWidth: 560 }}>
-      <PageHeader title="QR Code Generator" subtitle="Create branded QR codes with custom colours" />
+      <PageHeader icon={<QrCode size={22} color="#0284c7" />} title="QR Code Generator" subtitle="Create branded QR codes with custom colours" />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>URL or Text *</label>
           <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" onKeyDown={(e) => e.key === "Enter" && generate()} />
@@ -682,7 +682,7 @@ export function ImageEditor() {
 
   return (
     <div style={{ width: "100%", maxWidth: 720 }}>
-      <PageHeader title="Image Editor" subtitle="Crop, resize, watermark, and add text overlays" />
+      <PageHeader icon={<Crop size={22} color="#0284c7" />} title="Image Editor" subtitle="Crop, resize, watermark, and add text overlays" />
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {!file ? (
@@ -887,9 +887,9 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
 
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
-      <PageHeader title="Meeting Notes to Tickets" subtitle="Paste meeting notes and extract action items" />
+      <PageHeader icon={<ClipboardList size={22} color="#0284c7" />} title="Meeting Notes to Tickets" subtitle="Paste meeting notes and extract action items" />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20, borderTop: "3px solid #0284c7" }}>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste meeting notes here...\n\nExamples of what we'll pick up:\n- Create social media campaign for Q2 launch\n- Tom to update the website hero banner\n- ACTION: Send broker toolkit to new partners\n1. Schedule photography session for May\n2. Review print materials before Friday"} rows={10} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={extractActions} disabled={!notes.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !notes.trim() ? 0.5 : 1 }}>{"\u{1F50D}"} Extract Action Items</button>
@@ -1049,9 +1049,9 @@ export function ContentRepurposer() {
 
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
-      <PageHeader title="Content Repurposer" subtitle="Reformat long-form content for different platforms" />
+      <PageHeader icon={<Repeat size={22} color="#0284c7" />} title="Content Repurposer" subtitle="Reformat long-form content for different platforms" />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20 }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20, borderTop: "3px solid #0284c7" }}>
         <textarea value={source} onChange={(e) => setSource(e.target.value)} placeholder="Paste your content here — blog post, article, press release, announcement..." rows={8} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={repurpose} disabled={!source.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !source.trim() ? 0.5 : 1 }}>{"\u267B\uFE0F"} Repurpose Content</button>
