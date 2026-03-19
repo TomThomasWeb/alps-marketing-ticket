@@ -1,14 +1,23 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient.js";
-import { ALPS_LOGO, ALPS_LOGO_REVERSED, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown } from "./constants.js";
+import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
 import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, CampaignTracker, KnowledgeBase, AlpsGallery } from "./components/Resources.jsx";
 import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, MeetingNotesToTicket, ContentRepurposer } from "./components/Tools.jsx";
 import { FileChip, FilePreview, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
+
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/meeting-notes': 'meeting_notes', '/repurposer': 'repurposer', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/campaigns': 'campaigns', '/knowledge-base': 'knowledge_base', '/admin': 'admin' };
+const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
+const getHash = () => window.location.hash.replace(/^#/, '') || '/';
+
 export default function App() {
-  const [view, setView] = useState("hub");
+  const [_path, _setPath] = useState(getHash);
+  useEffect(() => { const h = () => _setPath(getHash()); window.addEventListener("hashchange", h); if (!window.location.hash) window.location.hash = "#/"; return () => window.removeEventListener("hashchange", h); }, []);
+  const view = PATH_MAP[_path] || "hub";
+  const setView = (v) => { window.location.hash = "#" + (VIEW_PATH[v] || "/"); };
+
   const [tickets, setTickets] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
     try { const u = localStorage.getItem('alps_hub_user'); return u ? JSON.parse(u) : null; } catch { return null; }
@@ -44,8 +53,6 @@ export default function App() {
   const [dashboardTab, setDashboardTab] = useState("tickets");
   const [duplicateData, setDuplicateData] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(() => { try { return !localStorage.getItem("alps_hub_onboarded"); } catch { return false; } });
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const toolsRef = useRef(null);
   const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
 
   // Request notification permission on mount
@@ -57,13 +64,6 @@ export default function App() {
     supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data, error }) => {
       if (data && !error) setNotifications(data);
     }).catch(() => {});
-  }, []);
-
-  // Close tools dropdown on outside click
-  useEffect(() => {
-    const handleClick = (e) => { if (toolsRef.current && !toolsRef.current.contains(e.target)) setToolsOpen(false); };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   const addNotification = async (icon, title, body, action, forUser) => {
@@ -729,24 +729,88 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
 
   const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
 
-  const handleDashboardClick = () => {
-    if (currentUser) {
-      setView("dashboard");
-    } else {
-      setView("password");
-    }
+  const activeCount = tickets.filter((t) => t.status !== "completed").length;
+  const myTicketCount = currentUser ? tickets.filter((t) => (t.createdBy === currentUser.id || t.name === currentUser.name) && t.status !== "completed").length : 0;
+  const unreadNotifs = currentUser ? notifications.filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
+  const [mobileNav, setMobileNav] = useState(false);
+  const [sideCollapsed, setSideCollapsed] = useState(false);
+
+  const nav = (v) => { setView(v); setMobileNav(false); };
+
+  const SidebarLink = ({ id, icon, label, badge, admin }) => {
+    if (admin && !isAdmin) return null;
+    const active = view === id;
+    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", position: "relative" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+      <span style={{ fontSize: 15, width: 20, textAlign: "center", flexShrink: 0 }}>{icon}</span>
+      {!sideCollapsed && <span style={{ flex: 1 }}>{label}</span>}
+      {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
+    </button>);
   };
 
+  const SidebarGroup = ({ label, children }) => (
+    <div style={{ marginBottom: 8 }}>
+      {!sideCollapsed && label && <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "12px 14px 4px", userSelect: "none" }}>{label}</div>}
+      {sideCollapsed && label && <div style={{ height: 1, background: "var(--border)", margin: "8px 10px" }}></div>}
+      {children}
+    </div>
+  );
 
+  const sidebarContent = (mobile) => (<>
+    {!mobile && (
+      <div style={{ padding: "16px 14px 8px", display: "flex", alignItems: "center", gap: 10, justifyContent: sideCollapsed ? "center" : "space-between" }}>
+        {!sideCollapsed && <img src={ALPS_LOGO} alt="Alps" style={{ height: 28, objectFit: "contain", cursor: "pointer" }} onClick={() => nav("hub")} />}
+        <button onClick={() => setSideCollapsed(!sideCollapsed)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, padding: "4px", lineHeight: 1 }}>{sideCollapsed ? "\u{1F82A}" : "\u{1F828}"}</button>
+      </div>
+    )}
+    <div style={{ padding: "8px 8px 4px" }}>
+      <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 4 }}>{sideCollapsed && !mobile ? "\u{1F4DD}" : "\u{1F4DD} Submit Ticket"}</button>
+      <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{sideCollapsed && !mobile ? "\u{1F50D}" : "\u{1F50D} Track Ticket"}</button>
+    </div>
+    {currentUser && <SidebarGroup label=""><SidebarLink id="profile" icon={"\u{1F464}"} label="My Tickets" badge={myTicketCount} /><SidebarLink id="lead_form" icon={"\u{1F4C8}"} label="Log a Lead" /></SidebarGroup>}
+    <SidebarGroup label="Resources">
+      <SidebarLink id="archive" icon={"\u{1F4DA}"} label="Marketing Archive" />
+      <SidebarLink id="brand_assets" icon={"\u{1F3A8}"} label="Brand Assets" />
+      <SidebarLink id="gallery" icon={"\u{1F5BC}\uFE0F"} label="Alps Gallery" />
+      {currentUser && <SidebarLink id="calendar" icon={"\u{1F4C5}"} label="Content Calendar" />}
+      {currentUser && <SidebarLink id="broker_toolkit" icon={"\u{1F4BC}"} label="Broker Toolkit" />}
+      {currentUser && <SidebarLink id="campaigns" icon={"\u{1F3AF}"} label="Campaigns" />}
+    </SidebarGroup>
+    <SidebarGroup label="Tools">
+      <SidebarLink id="converter" icon={"\u{1F504}"} label="File Converter" />
+      <SidebarLink id="qr_generator" icon={"\u{1F517}"} label="QR Generator" />
+      <SidebarLink id="image_editor" icon={"\u{1F58C}\uFE0F"} label="Image Editor" />
+      <SidebarLink id="repurposer" icon={"\u267B\uFE0F"} label="Content Repurposer" />
+      {currentUser && <SidebarLink id="templates" icon={"\u{1F4C4}"} label="Content Templates" />}
+      {currentUser && <SidebarLink id="meeting_notes" icon={"\u{1F4DD}"} label="Notes to Tickets" />}
+      {currentUser && <SidebarLink id="knowledge_base" icon={"\u{1F4D6}"} label="Knowledge Base" />}
+    </SidebarGroup>
+    <SidebarGroup label="Admin">
+      <SidebarLink id="dashboard" icon={"\u{1F4CB}"} label="Ticket Dashboard" badge={isAdmin ? activeCount : 0} admin />
+      <SidebarLink id="leads_dashboard" icon={"\u{1F4C8}"} label="Leads" admin />
+      <SidebarLink id="analytics" icon={"\u{1F4CA}"} label="Analytics" admin />
+      <SidebarLink id="activity" icon={"\u{1F4DD}"} label="Activity Log" admin />
+      <SidebarLink id="admin" icon={"\u2699\uFE0F"} label="Admin Panel" admin />
+    </SidebarGroup>
+    <div style={{ marginTop: "auto", padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
+      {currentUser ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px", flexWrap: "wrap" }}>
+          <span style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+          {(!sideCollapsed || mobile) && <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentUser.name}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{currentUser.role}</div></div>}
+          <div style={{ display: "flex", gap: 4 }}>
+            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "5px 7px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }}>{dark ? "\u2600" : "\u{1F319}"}</button>
+            <button onClick={handleLogout} title="Log out" style={{ padding: "5px 7px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}>{"\u23FB"}</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px" }}>
+          <button onClick={() => nav("password")} style={{ padding: "8px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+          <button onClick={() => nav("signup")} style={{ padding: "8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+          <button onClick={() => setDark(!dark)} style={{ padding: "5px", background: "none", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginTop: 4 }}>{dark ? "\u2600 Light" : "\u{1F319} Dark"}</button>
+        </div>
+      )}
+    </div>
+  </>);
 
-  const ticketViews = ["form", "submitted", "tracker", "dashboard", "password", "activity"];
-  const profileViews = ["profile"];
-  const archiveViews = ["archive", "archive_add", "archive_edit"];
-  const leadViews = ["lead_form", "leads_dashboard"];
-  const templateViews = ["templates"];
-  const guideViews = ["guide"];
-  const activeCount = tickets.filter((t) => t.status !== "completed").length;
-  const currentSection = view === "hub" ? "hub" : ticketViews.includes(view) ? "tickets" : archiveViews.includes(view) ? "archive" : view === "analytics" ? "analytics" : leadViews.includes(view) ? "leads" : view === "brand_assets" ? "brand" : view === "calendar" ? "calendar" : view === "gallery" ? "gallery" : view === "broker_toolkit" ? "broker_toolkit" : view === "profile" ? "profile" : view === "signup" ? "signup" : view === "campaigns" ? "campaigns" : view === "knowledge_base" ? "knowledge_base" : view === "admin" ? "admin" : view === "profile" ? "profile" : (view === "templates" || view === "converter" || view === "qr_generator" || view === "image_editor" || view === "guide" || view === "meeting_notes" || view === "repurposer") ? "tools" : "hub";
 
   return (
     <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
@@ -774,6 +838,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           --nav-bg: #ffffff; --nav-inactive: #6b7190;
           --bar-bg: #e8ebf0;
           --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --sidebar-bg: #ffffff;
         }
         [data-theme="dark"] {
           --bg-page: #0c1021; --bg-card: #161b2e; --bg-input: #0c1021; --bg-header: #131729;
@@ -785,34 +850,47 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           --nav-bg: #0c1021; --nav-inactive: #8892b0;
           --bar-bg: #252d45;
           --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --sidebar-bg: #131729;
         }
         [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.2); }
         [data-theme="dark"] ::selection { background: #818cf8; }
         [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select { color-scheme: dark; }
 
-        /* Transition defaults */
         button { transition: all 0.15s ease; }
         button:hover:not(:disabled) { filter: brightness(1.05); }
         button:active:not(:disabled) { transform: scale(0.98); }
         input, textarea, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
         input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
-
-        /* Card hover micro-interaction */
         .hub-card-hover { transition: all 0.18s ease; }
         .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
-
-        /* View transition */
         .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
-
-        /* Secondary nav bar */
-        .hub-secondary-nav { display: flex; gap: 2px; padding: 2px; background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border); }
-        .hub-secondary-nav button { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: transparent; color: var(--nav-inactive); white-space: nowrap; }
-        .hub-secondary-nav button.active { background: var(--brand); color: #fff; }
-        .hub-secondary-nav button:hover:not(.active) { background: var(--brand-light); color: var(--brand); }
-
-        /* Skeleton loader */
         .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; border-radius: 6px; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Sidebar */
+        .hub-sidebar { width: 240px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; }
+        .hub-sidebar.collapsed { width: 60px; }
+        .hub-sidebar.collapsed button span:last-child, .hub-sidebar.collapsed .hub-sidebar-label { display: none; }
+
+        /* Mobile header */
+        .hub-mobile-header { display: none; position: sticky; top: 0; z-index: 50; background: var(--bg-header); border-bottom: 1px solid var(--border); padding: 10px 16px; align-items: center; justify-content: space-between; }
+
+        /* Mobile bottom nav */
+        .hub-mobile-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); }
+        .hub-mobile-bottom button { background: none; border: none; padding: 6px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; transition: color 0.15s; }
+        .hub-mobile-bottom button.active { color: var(--brand); }
+
+        /* Mobile nav overlay */
+        .hub-mobile-overlay { display: none; position: fixed; inset: 0; z-index: 200; }
+
+        @media (max-width: 768px) {
+          .hub-sidebar { display: none !important; }
+          .hub-mobile-header { display: flex !important; }
+          .hub-mobile-bottom { display: flex !important; }
+          .hub-mobile-overlay.open { display: block !important; }
+          .hub-desktop-topbar { display: none !important; }
+          .hub-main { padding: 20px 14px 80px 14px !important; }
+        }
 
         @media (max-width: 900px) {
           .hub-layout-main { grid-template-columns: 1fr !important; }
@@ -822,9 +900,6 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           .hub-editor-grid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 640px) {
-          .hub-header { padding: 10px 16px !important; }
-          .hub-nav { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .hub-nav button { padding: 7px 12px !important; font-size: 12px !important; white-space: nowrap; }
           .hub-home-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-hero-grid { grid-template-columns: 1fr !important; }
           .hub-hero-split { grid-template-columns: 1fr !important; }
@@ -835,7 +910,6 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           .hub-dash-grid { grid-template-columns: 1fr !important; }
           .hub-type-filter { display: none !important; }
           .hub-color-grid { grid-template-columns: repeat(3, 1fr) !important; }
-          .hub-main { padding: 20px 14px 80px 14px !important; }
           .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
           .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
           .hub-template-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -844,93 +918,36 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
           .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
           .hub-analytics-cols { grid-template-columns: 1fr !important; }
           .hub-profile-stats { grid-template-columns: repeat(3, 1fr) !important; }
-          .hub-kanban { grid-template-columns: 1fr 1fr !important; }
-          .hub-week-compare { flex-direction: column; gap: 4px !important; }
-          .hub-secondary-nav { overflow-x: auto; flex-wrap: nowrap; }
-          .hub-mobile-nav { display: flex !important; }
-          .hub-desktop-nav { display: none !important; }
-          h2 { font-size: 20px !important; }
+          .hub-week-compare { flex-direction: column; gap: 10px !important; }
         }
-        .hub-mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); }
-        .hub-mobile-nav button { background: none; border: none; padding: 6px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; transition: color 0.15s; }
-        .hub-mobile-nav button.active { color: var(--brand); }
       `}</style>
 
-      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--bg-header)", borderBottom: "1px solid var(--border)", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
-        <div className="hub-header" style={{ padding: "10px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <img src={ALPS_LOGO} alt="Alps" style={{ height: 36, objectFit: "contain", cursor: "pointer", transition: "opacity 0.15s" }} onClick={() => setView("hub")} onMouseOver={(e) => e.target.style.opacity = "0.8"} onMouseOut={(e) => e.target.style.opacity = "1"} />
-            <div style={{ width: 1, height: 24, background: "var(--border)" }}></div>
-            <h1 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--brand)", lineHeight: 1.2 }}>Marketing Hub</h1>
+      <div style={{ display: "flex", minHeight: "100vh" }}>
+        {/* Desktop sidebar */}
+        <aside className={"hub-sidebar" + (sideCollapsed ? " collapsed" : "")}>
+          {sidebarContent(false)}
+        </aside>
+
+        {/* Mobile header */}
+        <div className="hub-mobile-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-primary)", padding: "4px" }}>{"\u2630"}</button>
+            <img src={ALPS_LOGO} alt="Alps" style={{ height: 28, objectFit: "contain" }} onClick={() => nav("hub")} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => setDark(!dark)} title={dark ? "Light mode" : "Dark mode"} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer", transition: "all 0.15s" }}>
-              {dark ? "\u2600" : "\u{1F319}"}
-            </button>
-            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
-            {currentUser ? (
-              <>
-                <button onClick={() => setView("profile")} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 20, height: 20, borderRadius: 10, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span> {currentUser.name}</button>
-                {isAdmin && <button onClick={() => setView("admin")} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4 }}>{"\u2699\uFE0F"} Admin</button>}
-                <button onClick={handleLogout} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>Log Out</button>
-              </>
-            ) : (
-              <button onClick={() => setView("password")} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "var(--brand)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>Log In</button>
-            )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); nav(v); }} isAdmin={isAdmin} />
+            {currentUser && <button onClick={() => nav("profile")} style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>}
           </div>
         </div>
-        {view !== "hub" && view !== "password" && view !== "signup" && (
-          <div style={{ padding: "0 32px 8px", display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
-            <button onClick={() => setView("hub")} style={{ padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-muted)", flexShrink: 0 }}>{"\u2190"} Home</button>
-            {currentUser && (<>
-            <div style={{ width: 1, height: 20, background: "var(--border)", flexShrink: 0 }}></div>
-            <nav className="hub-secondary-nav" style={{ flex: 1 }}>
-              {currentSection === "tickets" && <>
-                <button className={view === "form" ? "active" : ""} onClick={() => setView("form")}>Submit</button>
-                {isAdmin && <button className={view === "dashboard" ? "active" : ""} onClick={handleDashboardClick} style={{ position: "relative" }}>
-                  Dashboard
-                  {activeCount > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeCount}</span>}
-                </button>}
-                {isAdmin && <button className={view === "activity" ? "active" : ""} onClick={() => setView("activity")}>Activity</button>}
-                <button className={view === "tracker" ? "active" : ""} onClick={() => { setLastSubmittedRef(null); setView("tracker"); }}>Track</button>
-              </>}
-              {currentSection === "archive" && <>
-                <button className={view === "archive" ? "active" : ""} onClick={() => setView("archive")}>Browse</button>
-                {isAdmin && <button className={(view === "archive_add" || view === "archive_edit") ? "active" : ""} onClick={() => { setEditArchiveEntry("new"); setView("archive_add"); }}>Add Entry</button>}
-              </>}
-              {currentSection === "leads" && <>
-                <button className={view === "lead_form" ? "active" : ""} onClick={() => setView("lead_form")}>Log Lead</button>
-                {currentUser && <button className={view === "leads_dashboard" ? "active" : ""} onClick={() => setView("leads_dashboard")}>Dashboard</button>}
-              </>}
-              {currentSection === "tools" && <>
-                {[
-                  { id: "converter", label: "Converter" },
-                  { id: "qr_generator", label: "QR Code" },
-                  { id: "image_editor", label: "Image Editor" },
-                  { id: "repurposer", label: "Repurposer" },
-                  ...(currentUser ? [
-                    { id: "templates", label: "Templates" },
-                    { id: "meeting_notes", label: "Notes to Tickets" },
-                    { id: "guide", label: "Self-Service Guide" },
-                  ] : []),
-                ].map((t) => <button key={t.id} className={view === t.id ? "active" : ""} onClick={() => setView(t.id)}>{t.label}</button>)}
-              </>}
-              {currentSection === "analytics" && <button className="active">Analytics</button>}
-              {currentSection === "brand" && <button className="active">Brand Assets</button>}
-              {currentSection === "calendar" && <button className="active">Content Calendar</button>}
-              {currentSection === "gallery" && <button className="active">Alps Gallery</button>}
-              {currentSection === "broker_toolkit" && <button className="active">Broker Toolkit</button>}
-              {currentSection === "campaigns" && <button className="active">Campaigns</button>}
-              {currentSection === "knowledge_base" && <button className="active">Knowledge Base</button>}
-              {currentSection === "admin" && <button className="active">Admin Panel</button>}
-              {currentSection === "profile" && <button className="active">My Profile</button>}
-            </nav>
-            </>)}
-          </div>
-        )}
-      </header>
 
-      <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: (view === "archive" || view === "brand_assets" || view === "analytics" || view === "leads_dashboard" || view === "templates" || view === "calendar" || view === "dashboard" || view === "gallery" || view === "broker_toolkit" || view === "admin" || view === "campaigns" || view === "knowledge_base" || view === "profile") ? 1000 : 900, margin: "0 auto", padding: "32px 24px", display: "flex", justifyContent: "center" }}>
+        {/* Main content */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          {/* Desktop top bar with notifications */}
+          <div className="hub-desktop-topbar" style={{ padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderBottom: "1px solid var(--border)" }}>
+            <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
+          </div>
+
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: 1000, width: "100%", margin: "0 auto", padding: "28px 32px", flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1026,25 +1043,35 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
             )}
           </div>
         )}
-      </main>
-      {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
-      <div className="hub-mobile-nav">
-        <button onClick={() => setView("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
-        <button onClick={() => setView("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Ticket</button>
+          </main>
+        </div>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div className="hub-mobile-bottom">
+        <button onClick={() => nav("hub")} className={view === "hub" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F3E0}"}</span>Home</button>
+        <button onClick={() => nav("form")} className={view === "form" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DD}"}</span>Submit</button>
+        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
         {currentUser ? (
-          <>
-            <button onClick={() => setView("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile{notifications.filter((n) => !n.read && n.for_user === currentUser?.id).length > 0 && <span style={{ position: "absolute", top: 2, right: 8, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
-            {isAdmin && <button onClick={() => setView("dashboard")} className={view === "dashboard" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4CB}"}</span>Dash</button>}
-            <button onClick={() => setView("calendar")} className={view === "calendar" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4C5}"}</span>Calendar</button>
-          </>
+          <button onClick={() => nav("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><span style={{ fontSize: 18 }}>{"\u{1F464}"}</span>Profile{unreadNotifs > 0 && <span style={{ position: "absolute", top: 2, right: 8, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
         ) : (
-          <>
-            <button onClick={() => { setLastSubmittedRef(null); setView("tracker"); }} className={view === "tracker" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F50D}"}</span>Track</button>
-            <button onClick={() => setView("archive")} className={view === "archive" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F4DA}"}</span>Resources</button>
-          </>
+          <button onClick={() => nav("password")} className={view === "password" ? "active" : ""}><span style={{ fontSize: 18 }}>{"\u{1F511}"}</span>Login</button>
         )}
       </div>
 
+      {/* Mobile nav overlay */}
+      <div className={"hub-mobile-overlay" + (mobileNav ? " open" : "")}>
+        <div onClick={() => setMobileNav(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}></div>
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 280, background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflowY: "auto", animation: "fadeIn 0.15s ease" }}>
+          <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
+            <img src={ALPS_LOGO} alt="Alps" style={{ height: 28 }} />
+            <button onClick={() => setMobileNav(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)" }}>{"\u2715"}</button>
+          </div>
+          {sidebarContent(true)}
+        </div>
+      </div>
+
+      {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
       <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

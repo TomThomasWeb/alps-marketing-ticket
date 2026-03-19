@@ -48,208 +48,129 @@ export function FilePreview({ files }) {
 
 
 export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser }) {
-  const activeCount = tickets.filter((t) => t.status !== "completed").length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const myTickets = currentUser ? tickets.filter((t) => t.createdBy === currentUser.id || t.name === currentUser.name) : [];
   const myActive = myTickets.filter((t) => t.status !== "completed");
   const myReview = myTickets.filter((t) => t.status === "review");
-  const myNotifCount = currentUser ? (notifications || []).filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
   const [quickTitle, setQuickTitle] = useState("");
   const [quickSubmitting, setQuickSubmitting] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
-  const feedItems = (() => {
-    const items = [];
-    const myIds = currentUser ? new Set(myTickets.map((t) => t.id)) : new Set();
-    tickets.slice(0, 20).forEach((t) => {
-      const mine = myIds.has(t.id);
-      items.push({ icon: "\u{1F4DD}", text: (t.ref || "Ticket") + " submitted by " + t.name, time: t.createdAt, action: "tracker", mine });
-      if (t.status === "in_progress") items.push({ icon: "\u{1F504}", text: (t.ref || "Ticket") + " in progress", time: t.updatedAt || t.createdAt, action: "dashboard", mine });
-      if (t.status === "review") items.push({ icon: "\u{1F50D}", text: (t.ref || "Ticket") + (mine ? " ready for your review" : " in review"), time: t.updatedAt || t.createdAt, action: mine ? "tracker" : "dashboard", mine });
-      if (t.completedAt) items.push({ icon: "\u2705", text: (t.ref || "Ticket") + " completed", time: t.completedAt, action: "dashboard", mine });
-    });
-    const sorted = items.sort((a, b) => new Date(b.time) - new Date(a.time));
-    if (currentUser) { const m = sorted.filter((f) => f.mine); const o = sorted.filter((f) => !f.mine); return [...m.slice(0, 4), ...o.slice(0, 3)].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 7); }
-    return sorted.slice(0, 7);
-  })();
-  const fmtAgo = (ts) => { const d = (Date.now() - new Date(ts)) / 60000; if (d < 1) return "Just now"; if (d < 60) return Math.floor(d) + "m ago"; if (d < 1440) return Math.floor(d / 60) + "h ago"; return Math.floor(d / 1440) + "d ago"; };
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 16 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><span style={{ fontSize: 14 }}>{"\u{1F4E2}"}</span><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
 
-  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.05)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ fontSize: 16 }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
-  const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><span style={{ fontSize: 14 }}>{"\u{1F4E2}"}</span><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
-
-  // ── LOGGED OUT: CLEAN LANDING ──
+  // LOGGED OUT
   if (!currentUser) {
     return (
-      <div style={{ width: "100%", maxWidth: 860 }}>
-        <div style={{ textAlign: "center", padding: "56px 20px 40px" }}>
-          <h1 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Alps Marketing Hub</h1>
-          <p style={{ margin: "0 auto 32px", fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>Submit a marketing request and we'll handle the rest.</p>
-          <button onClick={() => onNavigate("form")} style={{ padding: "14px 40px", background: "var(--brand)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px var(--brand-glow)", transition: "all 0.2s", marginBottom: 12 }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px var(--brand-glow)"; }}>Submit a Request</button>
-          <div style={{ marginTop: 8 }}>
-            <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0 }}>or track an existing ticket →</button>
+      <div style={{ width: "100%", maxWidth: 640 }}>
+        <div style={{ padding: "48px 0 36px" }}>
+          <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15 }}>Welcome to the Alps Marketing Hub</h1>
+          <p style={{ margin: "0 0 28px", fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 480 }}>Need marketing support? Submit a request below and we'll get it sorted. You can track progress at any time using your ticket reference.</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={() => onNavigate("form")} style={{ padding: "13px 32px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px var(--brand-glow)", transition: "all 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px var(--brand-glow)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 20px var(--brand-glow)"; }}>Submit a Request</button>
+            <button onClick={() => onNavigate("tracker")} style={{ padding: "13px 24px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Track a Ticket</button>
           </div>
         </div>
-
         <OooBanner /><AnnBanner />
-
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Browse</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1, background: "var(--border)", borderRadius: 12, overflow: "hidden" }}>
-            {[
-              { id: "archive", icon: "\u{1F4DA}", title: "Marketing Archive", desc: "Past campaigns & materials" },
-              { id: "brand_assets", icon: "\u{1F3A8}", title: "Brand Assets", desc: "Logos, colours & guidelines" },
-              { id: "gallery", icon: "\u{1F5BC}\uFE0F", title: "Alps Gallery", desc: "Browse & download photos" },
-              { id: "converter", icon: "\u{1F504}", title: "File Converter", desc: "Resize & convert images" },
-              { id: "qr_generator", icon: "\u{1F517}", title: "QR Generator", desc: "Create branded QR codes" },
-              { id: "image_editor", icon: "\u{1F58C}\uFE0F", title: "Image Editor", desc: "Crop, watermark & edit" },
-              { id: "repurposer", icon: "\u267B\uFE0F", title: "Content Repurposer", desc: "Reformat for social & email" },
-              { id: "whitelabel", icon: "\u{1F3F7}\uFE0F", title: "White-Labelled Assets", desc: "Download branded materials", href: "https://whitelabel.alpsltd.co.uk/" },
-            ].map((r) => (
-              <button key={r.id} onClick={() => r.href ? window.open(r.href, "_blank") : onNavigate(r.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--bg-card)", border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.1s", width: "100%" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "var(--bg-card)"}>
-                <span style={{ fontSize: 20, width: 28, textAlign: "center", flexShrink: 0 }}>{r.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{r.title}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.desc}</div>
-                </div>
-                <span style={{ fontSize: 14, color: "var(--text-muted)" }}>›</span>
-              </button>
-            ))}
-          </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+          <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
         </div>
-
-        <div style={{ textAlign: "center", padding: "20px", marginBottom: 20 }}>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text-muted)" }}>Log in for personalised tracking, dashboards, and more tools</p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button onClick={() => onNavigate("password")} style={{ padding: "9px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Log In</button>
-            <button onClick={() => onNavigate("signup")} style={{ padding: "9px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
-          </div>
-        </div>
+        {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
       </div>
     );
   }
 
-  // ── LOGGED IN ──
+  // LOGGED IN
   const doQuickSubmit = () => { if (!quickTitle.trim() || !onQuickSubmit) return; setQuickSubmitting(true); onQuickSubmit({ name: currentUser.name, title: quickTitle.trim(), description: "Quick submit from homepage", priority: "medium", deadline: "", files: [], actualFiles: [] }).then(() => { setQuickTitle(""); setQuickSubmitting(false); }); };
 
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h2 style={{ margin: "0 0 2px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "No active tickets"}{myReview.length > 0 ? " · " + myReview.length + " ready for review" : ""}</p>
-        </div>
-        <button onClick={() => onNavigate("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", transition: "all 0.15s", position: "relative" }} className="hub-card-hover">
-          <span style={{ width: 28, height: 28, borderRadius: 14, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>My Profile</span>
-          {myNotifCount > 0 && <span style={{ position: "absolute", top: -3, right: -3, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{myNotifCount > 9 ? "9+" : myNotifCount}</span>}
-        </button>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
+          {myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "No active tickets"}
+          {myReview.length > 0 ? " · " + myReview.length + " ready for review" : ""}
+        </p>
       </div>
-
       <OooBanner /><AnnBanner />
 
-      {/* My Tickets — hero section */}
+      {/* Quick submit */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+        <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "11px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.4 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "Sending..." : "Submit →"}</button>
+      </div>
+
+      {/* My tickets */}
       {myActive.length > 0 ? (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Your Tickets</span>
             <button onClick={() => onNavigate("profile")} style={{ fontSize: 12, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>View all →</button>
           </div>
-          {myActive.slice(0, 4).map((t) => {
-            const s = { open: { color: "#6366f1", bg: "rgba(99,102,241,0.08)", label: "Open" }, in_progress: { color: "#0284c7", bg: "rgba(2,132,199,0.08)", label: "In Progress" }, review: { color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", label: "Review" } }[t.status] || { color: "#64748b", bg: "var(--bg-input)", label: t.status };
-            return (
-              <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "var(--bg-card)", borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.1s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "var(--bg-card)"}>
-                <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", flexShrink: 0, width: 44 }}>{t.ref || t.id}</span>
-                <span style={{ flex: 1, fontSize: 14, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, flexShrink: 0 }}>{s.label}</span>
-              </div>
-            );
-          })}
-          {myActive.length > 4 && <div style={{ padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>+ {myActive.length - 4} more</div>}
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            {myActive.slice(0, 5).map((t, i) => {
+              const s = { open: { color: "#6366f1", bg: "rgba(99,102,241,0.08)", label: "Open" }, in_progress: { color: "#0284c7", bg: "rgba(2,132,199,0.08)", label: "In Progress" }, review: { color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", label: "Review" } }[t.status] || { color: "#64748b", bg: "var(--bg-input)", label: t.status };
+              return (
+                <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i > 0 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                  <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", flexShrink: 0, width: 44 }}>{t.ref || t.id}</span>
+                  <span style={{ flex: 1, fontSize: 14, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, flexShrink: 0 }}>{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          {myActive.length > 5 && <div style={{ padding: "8px 0", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>+ {myActive.length - 5} more</div>}
         </div>
       ) : (
-        <div style={{ textAlign: "center", padding: "28px 20px", marginBottom: 20, background: "var(--bg-card)", borderRadius: 12 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>No active tickets</p>
+        <div style={{ textAlign: "center", padding: "32px 20px", marginBottom: 24, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>No active tickets</p>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-muted)" }}>Submit a request and it'll show up here</p>
           <button onClick={() => onNavigate("form")} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Submit a Request</button>
         </div>
       )}
 
-      {/* Quick submit + actions */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, alignItems: "stretch" }}>
-        <div style={{ flex: 1, display: "flex", gap: 6 }}>
-          <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
-          <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "10px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.4 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "..." : "→"}</button>
-        </div>
-        <button onClick={() => onNavigate("form")} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }} className="hub-card-hover">+ Full Form</button>
-      </div>
-
-      {/* Admin: stats + activity */}
-      {isAdmin && (
-        <div className="hub-hero-split" style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14, marginBottom: 24 }}>
-          <div>
-            {(() => {
-              const now = new Date(); const dow = now.getDay();
-              const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
-              const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
-              const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
-              const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
-              const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
-              const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
-              const ld = calc(leads, (l) => l.created_at);
-              const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
-              const cmp = (c, p) => c > p ? { t: "+" + (c - p), c: "#16a34a" } : c < p ? { t: "" + (c - p), c: "#dc2626" } : { t: "=", c: "var(--text-muted)" };
-              return (<div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>This Week</div><div style={{ display: "flex", gap: 16 }}>{[{ l: "Completed", v: comp.tw, d: cmp(comp.tw, comp.lw) }, { l: "Published", v: arch.tw, d: cmp(arch.tw, arch.lw) }, { l: "Leads", v: ld.tw, d: cmp(ld.tw, ld.lw) }].map((item) => (<div key={item.l} style={{ flex: 1, textAlign: "center" }}><div style={{ fontSize: 24, fontWeight: 800, color: "var(--brand)", lineHeight: 1 }}>{item.v}</div><div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{item.l}</div><div style={{ fontSize: 10, color: item.d.c, marginTop: 2 }}>{item.d.t} vs last week</div></div>))}</div></div>);
-            })()}
-          </div>
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Activity</span><span style={{ width: 6, height: 6, borderRadius: 3, background: feedItems.length > 0 ? "#22c55e" : "var(--border)", display: "inline-block" }}></span></div>
-            <div style={{ flex: 1, overflowY: "auto", maxHeight: 150 }}>
-              {feedItems.length === 0 ? (<div style={{ padding: "20px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>No activity yet</div>) : feedItems.map((f, i) => (<div key={i} onClick={() => onNavigate(f.action)} style={{ padding: "5px 12px", borderBottom: i < feedItems.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.1s", display: "flex", alignItems: "center", gap: 6, background: f.mine ? "var(--brand-light)" : "transparent" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = f.mine ? "var(--brand-light)" : "transparent"}><span style={{ fontSize: 11, flexShrink: 0 }}>{f.icon}</span><div style={{ flex: 1, minWidth: 0, fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: f.mine ? 600 : 400 }}>{f.text}</div><span style={{ fontSize: 9, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(f.time)}</span></div>))}
+      {/* Admin stats */}
+      {isAdmin && (() => {
+        const now = new Date(); const dow = now.getDay();
+        const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7)); thisMon.setHours(0,0,0,0);
+        const thisSun = new Date(thisMon); thisSun.setDate(thisMon.getDate() + 6); thisSun.setHours(23,59,59,999);
+        const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+        const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
+        const calc = (arr, dateKey) => ({ tw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= thisMon && d <= thisSun; }).length, lw: arr.filter((e) => { const d = new Date(dateKey(e)); return d >= lastMon && d <= lastSun; }).length });
+        const comp = calc(tickets.filter((t) => t.completedAt), (t) => t.completedAt);
+        const arch = calc(archiveEntries || [], (e) => e.date || e.created_at);
+        const ld = calc(leads, (l) => l.created_at);
+        const activeTickets = tickets.filter((t) => t.status !== "completed").length;
+        const cmp = (c, p) => c > p ? "+" + (c - p) : c < p ? "" + (c - p) : "=";
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{activeTickets}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Active</div>
+            </div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#16a34a" }}>{comp.tw}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Done this week</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(comp.tw, comp.lw)} vs last</div>
+            </div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#E64592" }}>{arch.tw}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Published</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(arch.tw, arch.lw)} vs last</div>
+            </div>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#ca8a04" }}>{ld.tw}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Leads</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{cmp(ld.tw, ld.lw)} vs last</div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* Resources & Tools — compact list */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Resources & Tools</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
-          {[
-            { id: "archive", icon: "\u{1F4DA}", label: "Marketing Archive" },
-            { id: "brand_assets", icon: "\u{1F3A8}", label: "Brand Assets" },
-            { id: "calendar", icon: "\u{1F4C5}", label: "Content Calendar" },
-            { id: "gallery", icon: "\u{1F5BC}\uFE0F", label: "Alps Gallery" },
-            { id: "broker_toolkit", icon: "\u{1F4BC}", label: "Broker Toolkit" },
-            { id: "campaigns", icon: "\u{1F3AF}", label: "Campaigns" },
-            { id: "templates", icon: "\u{1F4C4}", label: "Content Templates" },
-            { id: "converter", icon: "\u{1F504}", label: "File Converter" },
-            { id: "qr_generator", icon: "\u{1F517}", label: "QR Generator" },
-            { id: "image_editor", icon: "\u{1F58C}\uFE0F", label: "Image Editor" },
-            { id: "meeting_notes", icon: "\u{1F4DD}", label: "Notes to Tickets" },
-            { id: "repurposer", icon: "\u267B\uFE0F", label: "Content Repurposer" },
-            { id: "knowledge_base", icon: "\u{1F4D6}", label: "Knowledge Base" },
-            ...(isAdmin ? [
-              { id: "dashboard", icon: "\u{1F4CB}", label: "Ticket Dashboard" },
-              { id: "leads_dashboard", icon: "\u{1F4C8}", label: "Leads Dashboard" },
-              { id: "analytics", icon: "\u{1F4CA}", label: "Analytics" },
-            ] : []),
-          ].map((r) => (
-            <button key={r.id} onClick={() => onNavigate(r.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-card)", border: "1px solid transparent", borderRadius: 8, cursor: "pointer", textAlign: "left", transition: "all 0.15s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--bg-card)"; }}>
-              <span style={{ fontSize: 16 }}>{r.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{r.label}</span>
-            </button>
-          ))}
-        </div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+        <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}>What's New</button>
       </div>
-
-      {/* Footer: What's New link */}
-      <div style={{ textAlign: "center", paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-        <button onClick={() => setShowChangelog(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: "4px 8px" }}>What's New</button>
-      </div>
-
-      {/* Changelog modal */}
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
     </div>
   );
@@ -257,32 +178,25 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
 
 function ChangelogModal({ onClose }) {
   const entries = [
+    { date: "Mar 2026", title: "Sidebar Navigation", desc: "New sidebar layout with proper URL routing and browser history." },
     { date: "Mar 2026", title: "Approval Workflow", desc: "Submitters can approve or request changes on reviewed tickets." },
     { date: "Mar 2026", title: "SLA Tracking", desc: "Track turnaround times against priority-based SLA targets." },
     { date: "Mar 2026", title: "Email Digest", desc: "Generate weekly summaries to share with stakeholders." },
     { date: "Mar 2026", title: "Meeting Notes Tool", desc: "Extract action items from meeting notes and create tickets." },
     { date: "Mar 2026", title: "Content Repurposer", desc: "Turn long-form content into LinkedIn, email, social & threads." },
-    { date: "Mar 2026", title: "Comments & Editing", desc: "Threaded comments, inline ticket editing, and clone." },
-    { date: "Mar 2026", title: "Review Status", desc: "New Review stage between In Progress and Complete." },
-    { date: "Mar 2026", title: "Smart Notifications", desc: "Deadline reminders and status change alerts." },
-    { date: "Mar 2026", title: "File Previews", desc: "Inline image thumbnails on tickets." },
     { date: "Mar 2026", title: "User Accounts", desc: "Sign in, profiles, and role-based access." },
-    { date: "Mar 2026", title: "Campaign Tracker", desc: "Group tickets, content, and leads under campaigns." },
-    { date: "Mar 2026", title: "Admin Panel", desc: "OOO, announcements, and data export." },
-    { date: "Feb 2026", title: "Brand Assets Overhaul", desc: "Preview thumbnails and branded templates." },
-    { date: "Feb 2026", title: "Alps Gallery", desc: "Photo library with search and download." },
     { date: "Jan 2026", title: "Marketing Hub Launch", desc: "Tickets, calendar, brand assets, dashboards." },
   ];
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20, backdropFilter: "blur(4px)" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "28px 24px", maxWidth: 520, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20, backdropFilter: "blur(4px)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: "28px 24px", maxWidth: 480, width: "100%", maxHeight: "70vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>What's New</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: "4px 8px" }}>✕</button>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+        <div style={{ flex: 1, overflowY: "auto" }}>
           {entries.map((e, i) => (
-            <div key={i} style={{ padding: "12px 0", borderBottom: i < entries.length - 1 ? "1px solid var(--border)" : "none" }}>
+            <div key={i} style={{ padding: "10px 0", borderBottom: i < entries.length - 1 ? "1px solid var(--border)" : "none" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{e.title}</span>
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.date}</span>
