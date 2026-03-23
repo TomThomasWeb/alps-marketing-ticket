@@ -106,7 +106,7 @@ export function FileConverter() {
     selected.forEach((f) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const img = new Image();
+        const img = new window.Image();
         img.onload = () => {
           loaded.push({ file: f, img, preview: ev.target.result, origW: img.width, origH: img.height });
           if (loaded.length === selected.length) {
@@ -308,14 +308,14 @@ export function QRCodeGenerator() {
     if (!generated || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const qrImg = new Image();
+    const qrImg = new window.Image();
     qrImg.crossOrigin = "anonymous";
     qrImg.onload = () => {
       canvas.width = qrImg.width;
       canvas.height = qrImg.height;
       ctx.drawImage(qrImg, 0, 0);
       if (logoPreview) {
-        const logoImg = new Image();
+        const logoImg = new window.Image();
         logoImg.onload = () => {
           const logoSize = Math.round(qrImg.width * 0.22);
           const x = (qrImg.width - logoSize) / 2;
@@ -488,7 +488,7 @@ export function ImageEditor() {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(imgRef.current, 0, 0, w, h);
-    const newImg = new Image();
+    const newImg = new window.Image();
     newImg.onload = () => { imgRef.current = newImg; setOrigW(w); setOrigH(h); setResizeW(""); setResizeH(""); };
     newImg.src = canvas.toDataURL("image/png");
   };
@@ -508,7 +508,7 @@ export function ImageEditor() {
 
   // Load watermark logo
   useEffect(() => {
-    const wImg = new Image();
+    const wImg = new window.Image();
     wImg.src = ALPS_LOGO_REVERSED;
     wImg.onload = () => { watermarkImgRef.current = wImg; };
   }, []);
@@ -519,7 +519,7 @@ export function ImageEditor() {
     setFile(f);
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => { setOrigW(img.width); setOrigH(img.height); imgRef.current = img; setPreview(ev.target.result); resetEdits(); setUndoStack([]); };
       img.src = ev.target.result;
     };
@@ -540,7 +540,7 @@ export function ImageEditor() {
     setTextOverlay(last.textOverlay); setTextSize(last.textSize); setTextColor(last.textColor); setTextPos(last.textPos);
     setWatermark(last.watermark); setWatermarkPos(last.watermarkPos); setWatermarkSize(last.watermarkSize); setWatermarkOpacity(last.watermarkOpacity);
     if (last.imgSrc !== imgRef.current?.src) {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => { imgRef.current = img; setOrigW(last.w); setOrigH(last.h); };
       img.src = last.imgSrc;
     }
@@ -641,7 +641,7 @@ export function ImageEditor() {
     const tmpCanvas = document.createElement("canvas");
     tmpCanvas.width = sw; tmpCanvas.height = sh;
     tmpCanvas.getContext("2d").drawImage(imgRef.current, sx, sy, sw, sh, 0, 0, sw, sh);
-    const newImg = new Image();
+    const newImg = new window.Image();
     newImg.onload = () => { imgRef.current = newImg; setOrigW(sw); setOrigH(sh); setCropMode(false); setCropStart(null); setCropEnd(null); renderPreview(); };
     newImg.src = tmpCanvas.toDataURL("image/png");
   };
@@ -767,7 +767,7 @@ export function ImageEditor() {
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <input type="number" value={resizeW} onChange={(e) => handleResizeW(e.target.value)} placeholder="W" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
-                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>resizeLock ? "🔗" : "⛓"</button>
+                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>{resizeLock ? "🔗" : "⛓"}</button>
                 <input type="number" value={resizeH} onChange={(e) => handleResizeH(e.target.value)} placeholder="H" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
                 <button onClick={() => { if (resizeW && resizeH) applyResize(Number(resizeW), Number(resizeH)); }} disabled={!resizeW || !resizeH} style={{ padding: "6px 10px", border: "none", borderRadius: 4, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: (!resizeW || !resizeH) ? 0.4 : 1 }}>{"\u2713"}</button>
               </div>
