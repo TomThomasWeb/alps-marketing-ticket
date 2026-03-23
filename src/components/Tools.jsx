@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { PRIORITIES, BRAND_COLORS } from "../constants.js";
+import { PRIORITIES, BRAND_COLORS, ALPS_LOGO_REVERSED } from "../constants.js";
 import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
