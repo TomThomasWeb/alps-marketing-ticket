@@ -1081,6 +1081,7 @@ const handleAddComment = async (id, author, text) => {
         @media (max-width: 768px) {
           .hub-sidebar { display: none !important; }
           .hub-main-col { margin-left: 0 !important; }
+          .hub-desktop-topbar { left: 0 !important; }
           .hub-mobile-header { display: flex !important; }
           .hub-mobile-bottom { display: flex !important; }
           .hub-mobile-overlay.open { display: block !important; }
@@ -1134,7 +1135,7 @@ const handleAddComment = async (id, author, text) => {
         {/* Main column */}
         <div className="hub-main-col" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
-          <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 40 }}>
+          <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
               {view !== "hub" && <button onClick={() => nav("hub")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}><Home size={15} /></button>}
               {view !== "hub" && parentView && <><span style={{ color: "var(--border)", fontSize: 12 }}>/</span><button onClick={() => nav(parentView)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 13, fontWeight: 500, padding: 0 }}>{parentTitle}</button></>}
@@ -1161,7 +1162,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: 1000, width: "100%", margin: "0 auto", padding: "28px 32px", flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
