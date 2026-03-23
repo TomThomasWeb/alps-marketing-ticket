@@ -291,7 +291,7 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
                   </div>
                 ) : (
                   <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-body)", transition: "all 0.15s" }} title="Click to change deadline">
-                    <><CalendarDays size={12} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
+                    <CalendarDays size={12} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
                   </button>
                 )}
               </div>
@@ -430,7 +430,7 @@ export function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReope
         </div>
         {ticket.completedAt && <span style={{ color: "#16a34a", fontSize: 10 }}>{"\u2713"} {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
       </div>
-      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><><MessageSquare size={11} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
+      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><MessageSquare size={11} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
         {ticket.status === "completed" && <button onClick={() => onReopen(ticket.id)} style={{ padding: "4px 8px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 5, color: "#6366f1", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u21A9"}</button>}
         {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
