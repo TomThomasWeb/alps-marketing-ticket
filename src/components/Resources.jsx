@@ -10,6 +10,8 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [campaignFilter, setCampaignFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const campaigns = [...new Set(entries.map((e) => e.campaign).filter(Boolean))].sort();
   const PERF_BADGE = { strong: { label: "Strong", color: "#16a34a", bg: "rgba(22,163,74,0.1)" }, average: { label: "Average", color: "#ca8a04", bg: "rgba(202,138,4,0.1)" }, weak: { label: "Weak", color: "#dc2626", bg: "rgba(220,38,38,0.1)" } };
@@ -17,6 +19,8 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
   const filtered = entries.filter((e) => {
     if (filter !== "all" && e.type !== filter) return false;
     if (campaignFilter !== "all" && (e.campaign || "") !== campaignFilter) return false;
+    if (dateFrom) { const d = new Date(e.date || e.created_at); if (d < new Date(dateFrom + "T00:00:00")) return false; }
+    if (dateTo) { const d = new Date(e.date || e.created_at); if (d > new Date(dateTo + "T23:59:59")) return false; }
     if (search.trim()) { const q = search.toLowerCase(); return e.title.toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.tags || []).some((tag) => tag.toLowerCase().includes(q)) || (e.campaign || "").toLowerCase().includes(q); }
     return true;
   });
@@ -67,6 +71,12 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
             {campaigns.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         )}
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 11, outline: "none" }} title="From date" />
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>–</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 11, outline: "none" }} title="To date" />
+          {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ padding: "4px 8px", background: "none", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", fontSize: 10, cursor: "pointer" }}>Clear</button>}
+        </div>
         <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
           <button onClick={() => setViewMode("list")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"☰"}</button>
           <button onClick={() => setViewMode("grid")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"\u25A6"}</button>
@@ -183,9 +193,11 @@ export function LeadForm({ onSave, onBackToHub, currentUser }) {
 export function LeadsDashboard({ leads, onUpdate, onDelete }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("list");
+  const [viewMode, setViewMode] = useState("table");
   const [expandedLead, setExpandedLead] = useState(null);
   const [noteText, setNoteText] = useState("");
+  const [leadSort, setLeadSort] = useState({ key: "created_at", dir: "desc" });
+  const toggleSort = (key) => setLeadSort((prev) => prev.key === key ? { key, dir: prev.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" });
 
   const filtered = leads.filter((l) => {
     if (filter === "needs_action" && l.next_steps !== "needs_action") return false;
@@ -194,7 +206,14 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
     if (search.trim()) { const q = search.toLowerCase(); return l.broker.toLowerCase().includes(q) || l.enquiry.toLowerCase().includes(q) || l.logged_by.toLowerCase().includes(q); }
     return true;
   });
-  const sorted = [...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = leadSort.dir === "asc" ? 1 : -1;
+    if (leadSort.key === "created_at") return dir * (new Date(b.created_at) - new Date(a.created_at));
+    if (leadSort.key === "broker") return dir * a.broker.localeCompare(b.broker);
+    if (leadSort.key === "source") return dir * (a.source || "").localeCompare(b.source || "");
+    if (leadSort.key === "status") return dir * (a.next_steps || "").localeCompare(b.next_steps || "");
+    return 0;
+  });
   const needsAction = leads.filter((l) => l.next_steps === "needs_action").length;
   const passedThrough = leads.filter((l) => l.next_steps === "passed_through").length;
   const closed = leads.filter((l) => l.next_steps === "closed").length;
@@ -285,7 +304,7 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
           ))}
         </div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-          {[["list", "☰"], ["timeline", <CalendarDays size={13} />]].map(([k, ic]) => (
+          {[["table", "☰"], ["list", "▤"], ["timeline", <CalendarDays size={13} />]].map(([k, ic]) => (
             <button key={k} onClick={() => setViewMode(k)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 14, cursor: "pointer", border: "none", background: viewMode === k ? "var(--brand)" : "transparent", color: viewMode === k ? "#fff" : "var(--text-muted)" }}>{ic}</button>
           ))}
         </div>
@@ -296,6 +315,40 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
           <div className="hub-empty-icon"><TrendingUp size={40} /></div>
           <p className="hub-empty-title">{search.trim() ? "No leads match your search" : "No leads logged yet"}</p>
           <p className="hub-empty-desc">{search.trim() ? "Try different keywords" : "Log your first lead using the form"}</p>
+        </div>
+      ) : viewMode === "table" ? (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                {[{ key: "created_at", label: "Date" }, { key: "broker", label: "Broker" }, { key: "source", label: "Source" }, { key: "status", label: "Status" }].map((col) => (
+                  <th key={col.key} onClick={() => toggleSort(col.key)} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none", background: "var(--bg-input)" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{col.label}{leadSort.key === col.key && <span style={{ fontSize: 10 }}>{leadSort.dir === "asc" ? "↑" : "↓"}</span>}</span>
+                  </th>
+                ))}
+                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", background: "var(--bg-input)" }}>Enquiry</th>
+                <th style={{ padding: "10px 14px", background: "var(--bg-input)", width: 60 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((lead) => {
+                const s = LEAD_SOURCES[lead.source] || LEAD_SOURCES.other;
+                const st = STATUS_OPTS.find((o) => o.key === lead.next_steps) || STATUS_OPTS[0];
+                return (
+                  <tr key={lead.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.1s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(lead.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</td>
+                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--text-primary)" }}>{lead.broker}</td>
+                    <td style={{ padding: "10px 14px" }}><span style={{ fontSize: 11, fontWeight: 600, color: s.color }}>{s.icon} {s.label}</span></td>
+                    <td style={{ padding: "10px 14px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span></td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lead.enquiry}</td>
+                    <td style={{ padding: "10px 14px" }}>
+                      <button onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14 }}>{expandedLead === lead.id ? "▴" : "▾"}</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : viewMode === "timeline" ? (
         <div style={{ position: "relative", paddingLeft: 24 }}>

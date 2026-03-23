@@ -83,7 +83,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
         <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
           {TEMPLATES.map((tmpl, i) => (
-            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}>
+            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = new Date(); d.setHours(d.getHours() + sla.hours); update("deadline", d.toISOString().split("T")[0]); } }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}>
               <div style={{ fontSize: 18, marginBottom: 4 }}>{tmpl.icon}</div>
               {tmpl.label}
             </button>
@@ -102,7 +102,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
           </div>
         ) : (
           <div>
-        <label style={labelStyle}>Your Name *</label>
+        <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
         <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
           </div>
         )}
@@ -110,13 +110,13 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Task Title *</label>
+        <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
         <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.title && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.title}</span>}
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Description *</label>
+        <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
         <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.description && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.description}</span>}
         <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>Supports **bold**, *italic*, `code`, - bullet lists, and [links](url)</span>
@@ -156,9 +156,10 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         )}
       </div>
 
-      <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "13px", background: submitting ? "var(--brand)" : "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : "pointer", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: "0 4px 14px var(--brand-glow)" }} onMouseOver={(e) => { if (!submitting) { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 6px 20px var(--brand-glow)"; } }} onMouseOut={(e) => { e.target.style.background = "var(--brand)"; e.target.style.boxShadow = "0 4px 14px var(--brand-glow)"; }}>
+      {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
+      <button onClick={handleSubmit} disabled={submitting || !ready} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: ready ? "0 4px 14px var(--brand-glow)" : "none", opacity: ready ? 1 : 0.5 }}>
         {submitting ? "Submitting\u2026" : "Submit Ticket \u2192"}
-      </button>
+      </button>); })()}
     </div>
   );
 }
@@ -486,6 +487,12 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [selected, setSelected] = useState({});
+  const [savedFilters, setSavedFilters] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_dash_filters") || "[]"); } catch { return []; } });
+  const [showSaveFilter, setShowSaveFilter] = useState(false);
+  const [filterName, setFilterName] = useState("");
+  const saveFilter = () => { if (!filterName.trim()) return; const preset = { name: filterName.trim(), filter, sortBy, viewMode }; const next = [...savedFilters.filter((f) => f.name !== preset.name), preset]; setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} setFilterName(""); setShowSaveFilter(false); };
+  const loadFilter = (preset) => { setFilter(preset.filter); setSortBy(preset.sortBy); if (preset.viewMode) setViewMode(preset.viewMode); };
+  const deleteFilter = (name) => { const next = savedFilters.filter((f) => f.name !== name); setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} };
   const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
   const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
@@ -576,8 +583,25 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
             <option value="deadline">Sort: Deadline</option>
             <option value="newest">Sort: Newest</option>
           </select>
+          {savedFilters.length > 0 && (
+            <select onChange={(e) => { const p = savedFilters.find((f) => f.name === e.target.value); if (p) loadFilter(p); e.target.value = ""; }} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer", outline: "none" }}>
+              <option value="">Saved views...</option>
+              {savedFilters.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          )}
+          <button onClick={() => setShowSaveFilter(!showSaveFilter)} title="Save current view" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border)", background: showSaveFilter ? "var(--brand-light)" : "var(--bg-input)", color: showSaveFilter ? "var(--brand)" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><Save size={14} /></button>
         </div>
       </div>
+      {showSaveFilter && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>Save as:</span>
+          <input value={filterName} onChange={(e) => setFilterName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveFilter(); }} placeholder="e.g. High priority overdue" style={{ flex: 1, padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none" }} />
+          <button onClick={saveFilter} disabled={!filterName.trim()} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: filterName.trim() ? 1 : 0.4 }}>Save</button>
+          {savedFilters.length > 0 && <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>{savedFilters.map((f) => (
+            <span key={f.name} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "var(--bg-input)", borderRadius: 4, fontSize: 11, color: "var(--text-muted)" }}>{f.name}<button onClick={() => deleteFilter(f.name)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", padding: 0, fontSize: 12, lineHeight: 1 }}>×</button></span>
+          ))}</div>}
+        </div>
+      )}
 
       {selectedIds.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 10, marginBottom: 12, flexWrap: "wrap" }}>

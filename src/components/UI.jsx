@@ -417,6 +417,50 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         );
       })()}
 
+      {/* Recently published + This week */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }} className="hub-hero-split">
+        {/* Recently published */}
+        {archiveEntries && archiveEntries.length > 0 && (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recently Published</span>
+              <button onClick={() => onNavigate("archive")} style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>View all →</button>
+            </div>
+            {[...archiveEntries].sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at)).slice(0, 4).map((e, i) => (
+              <div key={e.id || i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < 3 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: "#8b5cf6", flexShrink: 0 }}></div>
+                <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(e.date || e.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* This week */}
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 10 }}>This Week</span>
+          {(() => {
+            const now = new Date(); const dow = now.getDay();
+            const mon = new Date(now); mon.setDate(now.getDate() - ((dow + 6) % 7)); mon.setHours(0,0,0,0);
+            const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+            const weekEvents = (calendarEvents || []).filter((e) => { const d = new Date(e.date); return d >= mon && d <= sun; }).sort((a, b) => a.date.localeCompare(b.date));
+            const weekDeadlines = tickets.filter((t) => t.status !== "completed" && t.deadline).filter((t) => { const d = new Date(t.deadline + "T00:00:00"); return d >= mon && d <= sun; }).sort((a, b) => a.deadline.localeCompare(b.deadline));
+            const items = [
+              ...weekEvents.map((e) => ({ type: "event", label: e.title, date: e.date })),
+              ...weekDeadlines.map((t) => ({ type: "deadline", label: (t.ref || t.id) + ": " + t.title, date: t.deadline })),
+            ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+            if (items.length === 0) return <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "12px 0", textAlign: "center" }}>Nothing scheduled this week</div>;
+            return items.map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: item.type === "event" ? "#0284c7" : "#ca8a04", flexShrink: 0 }}></div>
+                <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(item.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" })}</span>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
       {/* About + socials */}
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "18px 20px", marginBottom: 16 }}>
         <h3 style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>About the Marketing Hub</h3>

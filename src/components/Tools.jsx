@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PRIORITIES, BRAND_COLORS } from "../constants.js";
-import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2 } from "lucide-react";
+import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
 export function SelfServiceGuide() {
@@ -1072,3 +1072,179 @@ export function ContentRepurposer() {
   );
 }
 
+
+export function EmailSignatureGenerator() {
+  return (
+    <div style={{ width: "100%", maxWidth: 600 }}>
+      <PageHeader icon={<Mail size={22} color="#0284c7" />} title="Email Signature Generator" subtitle="Select your company to open the signature builder" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <a href="https://alpsltd.signature.email" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+          <div style={{ background: "var(--bg-card)", border: "2px solid var(--border)", borderRadius: 14, padding: "32px 24px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">
+            <div style={{ width: 56, height: 56, borderRadius: 12, background: "#231d6812", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Mail size={24} style={{ color: "#231d68" }} /></div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#231d68", marginBottom: 4 }}>Alps Ltd</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Insurance services signatures</div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#231d68", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>Open Builder <ExternalLink size={13} /></div>
+          </div>
+        </a>
+        <a href="https://alpslegal.signature.email" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+          <div style={{ background: "var(--bg-card)", border: "2px solid var(--border)", borderRadius: 14, padding: "32px 24px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">
+            <div style={{ width: 56, height: 56, borderRadius: 12, background: "#e6459212", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Mail size={24} style={{ color: "#e64592" }} /></div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#e64592", marginBottom: 4 }}>Alps Legal</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Legal services signatures</div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "#e64592", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>Open Builder <ExternalLink size={13} /></div>
+          </div>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+export function ContrastChecker() {
+  const [fg, setFg] = useState("#ffffff");
+  const [bg, setBg] = useState("#231d68");
+  const BRAND = [
+    { name: "Alps Blue", hex: "#231d68" }, { name: "Motor Pink", hex: "#e64592" },
+    { name: "Commercial Teal", hex: "#20A39E" }, { name: "Let Gold", hex: "#FAB315" },
+    { name: "Personal Purple", hex: "#464B99" }, { name: "Alt Cyan", hex: "#27D7F4" },
+    { name: "White", hex: "#ffffff" }, { name: "Black", hex: "#1a1d2e" },
+  ];
+  const hexToRgb = (hex) => { const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return [r, g, b]; };
+  const luminance = ([r, g, b]) => { const a = [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+  const contrastRatio = (c1, c2) => { const l1 = luminance(hexToRgb(c1)); const l2 = luminance(hexToRgb(c2)); const lighter = Math.max(l1, l2); const darker = Math.min(l1, l2); return (lighter + 0.05) / (darker + 0.05); };
+  const ratio = contrastRatio(fg, bg);
+  const aaLarge = ratio >= 3; const aaNormal = ratio >= 4.5; const aaaLarge = ratio >= 4.5; const aaaNormal = ratio >= 7;
+  const Pass = ({ ok }) => <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: ok ? "rgba(22,163,74,0.08)" : "rgba(220,38,38,0.08)", color: ok ? "#16a34a" : "#dc2626" }}>{ok ? "Pass" : "Fail"}</span>;
+
+  return (
+    <div style={{ width: "100%", maxWidth: 600 }}>
+      <PageHeader icon={<Droplet size={22} color="#0284c7" />} title="Colour Contrast Checker" subtitle="Check WCAG accessibility of colour combinations" />
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Foreground (Text)</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="color" value={fg} onChange={(e) => setFg(e.target.value)} style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+              <input value={fg} onChange={(e) => setFg(e.target.value)} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, fontFamily: "monospace", color: "var(--text-primary)", outline: "none" }} />
+            </div>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Background</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} style={{ width: 40, height: 36, border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+              <input value={bg} onChange={(e) => setBg(e.target.value)} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, fontFamily: "monospace", color: "var(--text-primary)", outline: "none" }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          {BRAND.map((c) => (
+            <button key={c.hex} onClick={() => setBg(c.hex)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "var(--bg-input)", border: "1px solid " + (bg === c.hex ? "var(--brand)" : "var(--border)"), borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 500, color: "var(--text-secondary)" }}>
+              <span style={{ width: 14, height: 14, borderRadius: 3, background: c.hex, border: "1px solid rgba(0,0,0,0.1)", flexShrink: 0 }}></span>{c.name}
+            </button>
+          ))}
+        </div>
+        <div style={{ borderRadius: 12, padding: "32px 24px", marginBottom: 20, textAlign: "center", background: bg, border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: fg, marginBottom: 4 }}>Sample Heading</div>
+          <div style={{ fontSize: 16, color: fg, marginBottom: 8 }}>Regular body text at 16px</div>
+          <div style={{ fontSize: 12, color: fg }}>Small text at 12px — the hardest to read</div>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 42, fontWeight: 800, color: ratio >= 4.5 ? "#16a34a" : ratio >= 3 ? "#ca8a04" : "#dc2626" }}>{ratio.toFixed(2)}:1</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Contrast Ratio</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8 }}>WCAG AA</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Normal text (14px)</span><Pass ok={aaNormal} /></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Large text (18px+)</span><Pass ok={aaLarge} /></div>
+          </div>
+          <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8 }}>WCAG AAA</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Normal text (14px)</span><Pass ok={aaaNormal} /></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Large text (18px+)</span><Pass ok={aaaLarge} /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SocialPreview() {
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [img, setImg] = useState("");
+  const [site, setSite] = useState("Alps Ltd");
+
+  return (
+    <div style={{ width: "100%", maxWidth: 640 }}>
+      <PageHeader icon={<Type size={22} color="#0284c7" />} title="Social Media Preview" subtitle="See how your link will look when shared on social platforms" />
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7", marginBottom: 20 }}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Page URL</label>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://alpsltd.co.uk/page" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Title <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({title.length}/70 chars)</span></label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Alps Ltd — Professional Insurance Services" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Description <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({desc.length}/160 chars)</span></label>
+          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="Short description of the page content..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Image URL (optional)</label>
+            <input value={img} onChange={(e) => setImg(e.target.value)} placeholder="https://..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Site Name</label>
+            <input value={site} onChange={(e) => setSite(e.target.value)} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          </div>
+        </div>
+      </div>
+
+      {(title || desc) && (<>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Preview</div>
+
+        {/* LinkedIn */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#0a66c2", marginBottom: 6 }}>LinkedIn</div>
+          <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #e0e0e0", overflow: "hidden", maxWidth: 552 }}>
+            {img && <div style={{ height: 288, background: "#f3f3f3", backgroundImage: "url(" + img + ")", backgroundSize: "cover", backgroundPosition: "center" }}></div>}
+            <div style={{ padding: "12px 16px", background: "#f9fafb" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#000", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Page title"}</div>
+              {desc && <div style={{ fontSize: 12, color: "#666", marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{desc}</div>}
+              <div style={{ fontSize: 12, color: "#999" }}>{url ? new URL(url.startsWith("http") ? url : "https://" + url).hostname : "alpsltd.co.uk"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Facebook */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#1877f2", marginBottom: 6 }}>Facebook</div>
+          <div style={{ background: "#fff", borderRadius: 8, border: "1px solid #ddd", overflow: "hidden", maxWidth: 500 }}>
+            {img && <div style={{ height: 261, background: "#f0f0f0", backgroundImage: "url(" + img + ")", backgroundSize: "cover", backgroundPosition: "center" }}></div>}
+            <div style={{ padding: "10px 12px", background: "#f2f3f5" }}>
+              <div style={{ fontSize: 11, color: "#999", textTransform: "uppercase", marginBottom: 2 }}>{url ? new URL(url.startsWith("http") ? url : "https://" + url).hostname : "alpsltd.co.uk"}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#1d2129", marginBottom: 2 }}>{title || "Page title"}</div>
+              {desc && <div style={{ fontSize: 14, color: "#606770", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{desc}</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* X/Twitter */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#000", marginBottom: 6 }}>X / Twitter</div>
+          <div style={{ borderRadius: 16, border: "1px solid #cfd9de", overflow: "hidden", maxWidth: 504 }}>
+            {img && <div style={{ height: 252, background: "#f7f9f9", backgroundImage: "url(" + img + ")", backgroundSize: "cover", backgroundPosition: "center" }}></div>}
+            <div style={{ padding: "12px", background: "#fff", borderTop: img ? "1px solid #cfd9de" : "none" }}>
+              <div style={{ fontSize: 15, color: "#0f1419", fontWeight: 700, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title || "Page title"}</div>
+              {desc && <div style={{ fontSize: 15, color: "#536471", marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{desc}</div>}
+              <div style={{ fontSize: 15, color: "#536471" }}>{url ? new URL(url.startsWith("http") ? url : "https://" + url).hostname : "alpsltd.co.uk"}</div>
+            </div>
+          </div>
+        </div>
+      </>)}
+    </div>
+  );
+}

@@ -90,40 +90,50 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
     <div style={{ width: "100%" }}>
       <PageHeader icon={<PieChart size={22} color="#8b5cf6" />} title="Analytics" subtitle="Performance overview across all areas" />
 
-      {/* Summary metrics */}
+      {/* Summary metrics with trends */}
       <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
         {[
-          { v: at.length, l: "Active Tickets", c: "var(--brand)" },
+          { v: at.length, l: "Active Tickets", c: "var(--brand)", tw: at.length, lw: tickets.filter((t) => t.status !== "completed").length },
           { v: cr + "%", l: "Completion Rate", c: cr >= 80 ? "#16a34a" : cr >= 50 ? "#ca8a04" : "#dc2626" },
           { v: fmtH(avgH), l: "Avg Turnaround", c: "var(--brand)" },
-          { v: archiveEntries.length, l: "Content Published", c: "#8b5cf6" },
-          { v: leads.length, l: "Total Leads", c: "#0d9488" },
+          { v: archiveEntries.length, l: "Content Published", c: "#8b5cf6", tw: atw, lw: alw },
+          { v: leads.length, l: "Total Leads", c: "#0d9488", tw: ltw, lw: llw },
           { v: slaPct + "%", l: "SLA Met", c: slaPct >= 80 ? "#16a34a" : "#dc2626" },
         ].map((s) => (
           <div key={s.l} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 10px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.c, lineHeight: 1 }}>{s.v}</div>
             <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 500, marginTop: 4 }}>{s.l}</div>
+            {s.tw !== undefined && <div style={{ fontSize: 10, marginTop: 3, color: s.tw > s.lw ? "#16a34a" : s.tw < s.lw ? "#dc2626" : "var(--text-muted)", fontWeight: 600 }}>{s.tw > s.lw ? "↑" : s.tw < s.lw ? "↓" : "—"} {s.tw} this week</div>}
           </div>
         ))}
       </div>
 
-      {/* Multi-line trend chart */}
+      {/* Multi-line trend chart - tickets + content + leads */}
       <div style={{ ...card, marginBottom: 20, padding: "16px 20px" }}>
         <div style={st}>6-Month Trend</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 110 }}>
-          {mt.map((m, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ display: "flex", gap: 2, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}>
-                <div style={{ width: "35%", background: "var(--brand)", borderRadius: "3px 3px 0 0", height: (m.c / mmt * 85) + "px", minHeight: m.c > 0 ? 4 : 0, opacity: 0.6 }} title={m.c + " submitted"}></div>
-                <div style={{ width: "35%", background: "#16a34a", borderRadius: "3px 3px 0 0", height: (m.done / mmt * 85) + "px", minHeight: m.done > 0 ? 4 : 0, opacity: 0.6 }} title={m.done + " completed"}></div>
+          {mt.map((m, i) => {
+            const archV = (ma[i] || { v: 0 }).v;
+            const leadV = (mld[i] || { v: 0 }).v;
+            const localMax = Math.max(mmt, mma, mml, 1);
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <div style={{ display: "flex", gap: 1, alignItems: "flex-end", width: "100%", justifyContent: "center", height: 90 }}>
+                  <div style={{ width: "22%", background: "var(--brand)", borderRadius: "2px 2px 0 0", height: (m.c / localMax * 85) + "px", minHeight: m.c > 0 ? 3 : 0, opacity: 0.6 }} title={m.c + " submitted"}></div>
+                  <div style={{ width: "22%", background: "#16a34a", borderRadius: "2px 2px 0 0", height: (m.done / localMax * 85) + "px", minHeight: m.done > 0 ? 3 : 0, opacity: 0.6 }} title={m.done + " completed"}></div>
+                  <div style={{ width: "22%", background: "#8b5cf6", borderRadius: "2px 2px 0 0", height: (archV / localMax * 85) + "px", minHeight: archV > 0 ? 3 : 0, opacity: 0.6 }} title={archV + " published"}></div>
+                  <div style={{ width: "22%", background: "#0d9488", borderRadius: "2px 2px 0 0", height: (leadV / localMax * 85) + "px", minHeight: leadV > 0 ? 3 : 0, opacity: 0.6 }} title={leadV + " leads"}></div>
+                </div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span>
               </div>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
+        <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
           <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--brand)", marginRight: 4, opacity: 0.6 }}></span>Submitted</span>
           <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#16a34a", marginRight: 4, opacity: 0.6 }}></span>Completed</span>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#8b5cf6", marginRight: 4, opacity: 0.6 }}></span>Published</span>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "#0d9488", marginRight: 4, opacity: 0.6 }}></span>Leads</span>
         </div>
       </div>
 
@@ -138,6 +148,27 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
             <div><div style={st}>Active by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span><div style={{ flex: 1, height: 8, background: "var(--bar-bg)", borderRadius: 4, overflow: "hidden" }}><div style={{ width: (pb[key] / mp * 100) + "%", height: "100%", background: p.color, borderRadius: 4 }}></div></div><span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-body)", width: 20, textAlign: "right" }}>{pb[key]}</span></div>))}</div>
             <div><div style={st}>Top Submitters</div>{topS.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p> : topS.slice(0, 5).map(([name, count]) => (<div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, color: "var(--text-body)" }}>{name}</span><span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 10 }}>{count}</span></div>))}</div>
           </div>
+          {/* Turnaround distribution */}
+          {ct.length > 0 && (() => {
+            const buckets = [{ label: "< 4h", max: 4 }, { label: "4-8h", max: 8 }, { label: "8-24h", max: 24 }, { label: "1-3d", max: 72 }, { label: "3-7d", max: 168 }, { label: "7d+", max: Infinity }];
+            const counts = buckets.map(() => 0);
+            cTimes.forEach((h) => { const idx = buckets.findIndex((b) => h < b.max); counts[idx >= 0 ? idx : counts.length - 1]++; });
+            const maxC = Math.max(...counts, 1);
+            return (
+              <div style={{ marginTop: 16 }}>
+                <div style={st}>Turnaround Distribution</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80 }}>
+                  {buckets.map((b, i) => (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      {counts[i] > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)" }}>{counts[i]}</span>}
+                      <div style={{ width: "70%", background: i < 2 ? "#16a34a" : i < 4 ? "#ca8a04" : "#dc2626", borderRadius: "3px 3px 0 0", height: (counts[i] / maxC * 55) + "px", minHeight: counts[i] > 0 ? 4 : 0, opacity: 0.6 }}></div>
+                      <span style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 600 }}>{b.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </SectionCard>
 
