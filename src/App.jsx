@@ -1068,7 +1068,7 @@ const handleAddComment = async (id, author, text) => {
         .hub-ticket-card.priority-low::before { background: #6366f1; }
         .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; border-radius: 6px; }
 
-        .hub-sidebar { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; }
+        .hub-sidebar { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; z-index: 40; }
         .hub-sidebar.collapsed { width: 60px; }
 
         .hub-mobile-header { display: none; position: sticky; top: 0; z-index: 50; background: var(--bg-header); border-bottom: 1px solid var(--border); padding: 10px 16px; align-items: center; justify-content: space-between; }
@@ -1080,6 +1080,7 @@ const handleAddComment = async (id, author, text) => {
 
         @media (max-width: 768px) {
           .hub-sidebar { display: none !important; }
+          .hub-main-col { margin-left: 0 !important; }
           .hub-mobile-header { display: flex !important; }
           .hub-mobile-bottom { display: flex !important; }
           .hub-mobile-overlay.open { display: block !important; }
@@ -1131,7 +1132,7 @@ const handleAddComment = async (id, author, text) => {
         </aside>
 
         {/* Main column */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <div className="hub-main-col" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "sticky", top: 0, zIndex: 40 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
