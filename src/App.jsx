@@ -94,8 +94,8 @@ export default function App() {
         if (payload.new) {
           const t = payload.new;
           const p = PRIORITIES[t.priority];
-          setNotifications((prev) => [{ icon: "\u{1F4DD}", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
-          { const _n = { icon: "\u{1F4DD}", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
+          setNotifications((prev) => [{ icon: "📝", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: "📝", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
           if ("Notification" in window && Notification.permission === "granted") {
             new Notification("New Ticket: " + t.ref, {
               body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + "\nFrom: " + t.name,
@@ -109,8 +109,8 @@ export default function App() {
         if (payload.new && payload.old && payload.new.status !== payload.old.status) {
           const t = payload.new;
           const statusLabels = { new: "New", open: "Open", in_progress: "In Progress", review: "Ready for Review", completed: "Completed" };
-          setNotifications((prev) => [{ icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "\u{1F50D}" : "\u{1F504}", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
-          { const _n = { icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "\u{1F50D}" : "\u{1F504}", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
+          setNotifications((prev) => [{ icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "◎" : "⟳", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "◎" : "⟳", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
         }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "tickets" }, () => {
@@ -134,7 +134,7 @@ export default function App() {
   useEffect(() => {
     async function fl() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
     fl();
-    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); persistNotif({ icon: "\u{1F4C8}", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
+    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "📈", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); persistNotif({ icon: "📈", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -226,12 +226,12 @@ export default function App() {
           addNotification("\u23F0", "Due Tomorrow", (t.ref || t.id) + ": " + t.title + " is due tomorrow", "dashboard");
           try { localStorage.setItem(key, "1"); } catch {}
         } else if (days === 0) {
-          addNotification("\u{1F6A8}", "Due Today", (t.ref || t.id) + ": " + t.title + " is due today!", "dashboard");
+          addNotification("⚠", "Due Today", (t.ref || t.id) + ": " + t.title + " is due today!", "dashboard");
           try { localStorage.setItem(key, "1"); } catch {}
         } else if (days < 0) {
           const oKey = key + "_overdue";
           try { if (localStorage.getItem(oKey)) return; } catch {}
-          addNotification("\u{1F534}", "Overdue", (t.ref || t.id) + ": " + t.title + " is " + Math.abs(days) + " day" + (Math.abs(days) !== 1 ? "s" : "") + " overdue", "dashboard");
+          addNotification("●", "Overdue", (t.ref || t.id) + ": " + t.title + " is " + Math.abs(days) + " day" + (Math.abs(days) !== 1 ? "s" : "") + " overdue", "dashboard");
           try { localStorage.setItem(oKey, "1"); } catch {}
         }
       });
@@ -378,7 +378,7 @@ export default function App() {
             ref,
             name: "Recurring Schedule",
             title: s.title,
-            description: (s.description || "") + "\n\n\u{1F501} Auto-created from recurring schedule.",
+            description: (s.description || "") + "\n\nAuto-created from recurring schedule.",
             priority: s.priority,
             status: "open",
             file_names: [],
@@ -386,7 +386,7 @@ export default function App() {
           });
           if (!error) {
             await supabase.from("recurring_tickets").update({ last_created: now.toISOString() }).eq("id", s.id);
-            toast("\u{1F501} Recurring ticket created: " + s.title, "success");
+            toast("Recurring ticket created: " + s.title, "success");
           }
         }
       }
@@ -540,7 +540,7 @@ export default function App() {
       setLastSubmittedRef(ref);
       setView("submitted");
       toast("Ticket " + ref + " submitted", "success");
-      if (currentUser) { addNotification("\u{1F4DD}", "Ticket Submitted", "Your ticket " + ref + " has been submitted. You'll be notified when it's updated.", "tracker", currentUser.id); }
+      if (currentUser) { addNotification("📝", "Ticket Submitted", "Your ticket " + ref + " has been submitted. You'll be notified when it's updated.", "tracker", currentUser.id); }
       try { localStorage.removeItem("alps_hub_draft"); } catch {}
     } else { toast("Failed to submit ticket", "error"); }
   };
@@ -548,9 +548,11 @@ export default function App() {
   const handleStatusChange = async (id, status) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
+      const prev = ticket.status;
+      setTickets((ts) => ts.map((t) => t.id === id ? { ...t, status } : t));
       const { error } = await supabase.from("tickets").update({ status }).eq("id", ticket.dbId);
-      if (error) toast("Failed to update status", "error");
-else if (ticket.createdBy) { const sl = { open: "reopened", in_progress: "now in progress", review: "ready for your review", completed: "completed" }; addNotification(status === "review" ? "\u{1F50D}" : "\u{1F4CB}", "Ticket Update", "Your ticket " + (ticket.ref || ticket.id) + " is " + (sl[status] || status), "profile", ticket.createdBy); }
+      if (error) { toast("Failed to update status", "error"); setTickets((ts) => ts.map((t) => t.id === id ? { ...t, status: prev } : t)); }
+      else if (ticket.createdBy) { const sl = { open: "reopened", in_progress: "now in progress", review: "ready for your review", completed: "completed" }; addNotification(status === "review" ? "◎" : "📋", "Ticket Update", "Your ticket " + (ticket.ref || ticket.id) + " is " + (sl[status] || status), "profile", ticket.createdBy); }
     }
   };
 
@@ -579,7 +581,10 @@ else if (ticket.createdBy) { const sl = { open: "reopened", in_progress: "now in
   const handleTogglePin = async (id) => {
     const ticket = tickets.find((t) => t.id === id);
     if (ticket) {
-      await supabase.from("tickets").update({ pinned: !ticket.pinned }).eq("id", ticket.dbId);
+      const newVal = !ticket.pinned;
+      setTickets((ts) => ts.map((t) => t.id === id ? { ...t, pinned: newVal } : t));
+      const { error } = await supabase.from("tickets").update({ pinned: newVal }).eq("id", ticket.dbId);
+      if (error) setTickets((ts) => ts.map((t) => t.id === id ? { ...t, pinned: !newVal } : t));
     }
   };
 
@@ -596,7 +601,7 @@ else if (ticket.createdBy) { const sl = { open: "reopened", in_progress: "now in
     }
   };
 
-const handleAddComment = async (id, author, text) => { await handleAddNote(id, author, text); const ticket = tickets.find((t) => t.id === id); if (ticket && ticket.createdBy && currentUser && ticket.createdBy !== currentUser.id) { addNotification("\u{1F4AC}", "New Comment", author + " commented on " + (ticket.ref || ticket.id), "profile", ticket.createdBy); } };
+const handleAddComment = async (id, author, text) => { await handleAddNote(id, author, text); const ticket = tickets.find((t) => t.id === id); if (ticket && ticket.createdBy && currentUser && ticket.createdBy !== currentUser.id) { addNotification("💬", "New Comment", author + " commented on " + (ticket.ref || ticket.id), "profile", ticket.createdBy); } };
 
   const handleEditTicket = async (id, updates) => {
     const ticket = tickets.find((t) => t.id === id);
@@ -633,14 +638,14 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
       const newNotes = [...(ticket.notes || []), autoNote];
       await supabase.from("tickets").update({ status: "in_progress", notes: newNotes }).eq("id", ticket.dbId);
       toast("Changes requested \u2014 ticket moved back to In Progress", "info");
-      addNotification("\u{1F504}", "Changes Requested", (currentUser?.name || "Submitter") + " requested changes on " + (ticket.ref || ticket.id) + ": " + (feedback || "Please revise"), "dashboard");
+      addNotification("⟳", "Changes Requested", (currentUser?.name || "Submitter") + " requested changes on " + (ticket.ref || ticket.id) + ": " + (feedback || "Please revise"), "dashboard");
     }
   };
 
   const handleDuplicate = (ticket) => {
     setDuplicateData({ title: ticket.title + " (copy)", description: ticket.description, priority: ticket.priority, deadline: ticket.deadline });
     setView("form");
-    toast("\u{1F4CB} Pre-filled from " + (ticket.ref || ticket.id), "info");
+    toast("Pre-filled from " + (ticket.ref || ticket.id), "info");
   };
 
   const handleAddNote = async (id, author, text) => {
@@ -741,7 +746,13 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
 
   const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
   const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
-  const nav = (v) => { setView(v); setMobileNav(false); setMobileMore(false); };
+  const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
+  const nav = (v) => {
+    setView(v); setMobileNav(false); setMobileMore(false);
+    if (v !== "hub" && v !== "password" && v !== "signup") {
+      setRecentPages((prev) => { const next = [v, ...prev.filter((p) => p !== v)].slice(0, 3); try { localStorage.setItem("alps_recent_pages", JSON.stringify(next)); } catch {} return next; });
+    }
+  };
 
   // Page titles for top bar
   const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
@@ -805,9 +816,11 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
 
   const SidebarLink = ({ id, label, badge }) => {
     const active = view === id;
+    const recent = !active && recentPages.includes(id);
     return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
       <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
       {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
+      {!sideCollapsed && recent && <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--brand)", opacity: 0.35, flexShrink: 0 }}></span>}
       {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
     </button>);
   };
@@ -992,7 +1005,16 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
         .hub-card-hover { transition: all 0.18s ease; }
         .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
-        .hub-view-enter { animation: fadeIn 0.2s ease forwards; }
+        .hub-view-enter { animation: slideIn 0.18s ease forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Context menu */
+        .hub-ctx-menu { position: fixed; z-index: 300; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); padding: 4px; min-width: 180; animation: fadeInScale 0.12s ease; }
+        .hub-ctx-menu button { display: flex; align-items: center; gap: 8; width: 100%; padding: 8px 12px; border: none; border-radius: 6px; background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.1s; }
+        .hub-ctx-menu button:hover { background: var(--bg-hover); }
+        .hub-ctx-menu button.danger { color: #dc2626; }
+        .hub-ctx-menu button.danger:hover { background: rgba(220,38,38,0.06); }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
         /* Polished inputs */
         .hub-input { width: 100%; padding: 11px 14px; background: var(--bg-input); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; outline: none; transition: border 0.2s, box-shadow 0.2s; box-sizing: border-box; font-family: inherit; }
@@ -1175,7 +1197,7 @@ const handleAddComment = async (id, author, text) => { await handleAddNote(id, a
         ) : view === "image_editor" ? (
           <ImageEditor />
         ) : view === "meeting_notes" ? (
-          <MeetingNotesToTicket currentUser={currentUser} onCreateTicket={(data) => { setDuplicateData({ title: data.title, description: data.description, priority: data.priority, deadline: "" }); setView("form"); toast("\u{1F4DD} Ticket pre-filled from meeting notes", "info"); }} onDirectCreate={async (data) => { const ref = await getNextRef(); const { error } = await supabase.from("tickets").insert({ ref, name: currentUser?.name || "Meeting Notes", title: data.title, description: data.description, priority: data.priority, status: "open", created_by: currentUser?.id || null, file_names: [], notes: [] }); if (!error) toast("Ticket " + ref + " created", "success"); else toast("Failed to create ticket", "error"); }} />
+          <MeetingNotesToTicket currentUser={currentUser} onCreateTicket={(data) => { setDuplicateData({ title: data.title, description: data.description, priority: data.priority, deadline: "" }); setView("form"); toast("Ticket pre-filled from meeting notes", "info"); }} onDirectCreate={async (data) => { const ref = await getNextRef(); const { error } = await supabase.from("tickets").insert({ ref, name: currentUser?.name || "Meeting Notes", title: data.title, description: data.description, priority: data.priority, status: "open", created_by: currentUser?.id || null, file_names: [], notes: [] }); if (!error) toast("Ticket " + ref + " created", "success"); else toast("Failed to create ticket", "error"); }} />
         ) : view === "repurposer" ? (
           <ContentRepurposer />
         ) : view === "calendar" ? (

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadge, getSlaStatus, formatDate, renderMarkdown } from "../constants.js";
 import { FileChip, FilePreview, PageHeader } from "./UI.jsx";
-import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, LayoutDashboard, List, Columns3, AlertCircle } from "lucide-react";
+import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, LayoutDashboard, List, Columns3, AlertCircle, User, CalendarDays, Save, Upload } from "lucide-react";
 
 export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
   const [form, setForm] = useState(() => {
@@ -73,7 +73,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
 
       {hasDraft && form.title.trim() && !duplicateData && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
-          <span style={{ fontSize: 14 }}>{"\u{1F4BE}"}</span>
+          <span style={{ fontSize: 14 }}><Save size={14} style={{display:"inline"}} /></span>
           <span style={{ color: "var(--text-primary)", flex: 1 }}>Draft saved</span>
           <button onClick={() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); clearDraft(); }} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Discard</button>
         </div>
@@ -147,7 +147,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
         <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
         <button onClick={() => fileRef.current?.click()} style={{ padding: "10px 18px", background: "var(--bg-input)", border: "1px dashed var(--border)", borderRadius: 8, color: "var(--text-secondary)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.target.style.background = "var(--brand-light)"; e.target.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { e.target.style.background = "var(--bg-input)"; e.target.style.borderColor = "var(--border)"; }}>
-          {"\u{1F4CE}"} Click to attach files
+          <><Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files</>
         </button>
         {form.files.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
@@ -210,8 +210,13 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
     setEditingDeadline(false);
   };
 
+  const [ctxMenu, setCtxMenu] = useState(null);
+  useEffect(() => { const cl = () => setCtxMenu(null); window.addEventListener("click", cl); return () => window.removeEventListener("click", cl); }, []);
+  const handleCtx = (e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY }); };
+
   return (
-    <div className={"hub-ticket-card priority-" + ticket.priority} onClick={() => setExpanded(!expanded)} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px 16px 22px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+    <>
+    <div className={"hub-ticket-card priority-" + ticket.priority} onClick={() => setExpanded(!expanded)} onContextMenu={handleCtx} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px 16px 22px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
@@ -224,8 +229,8 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
           </div>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: expanded ? "normal" : "nowrap" }}>{ticket.title}</h3>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, display: "flex", gap: 14, flexWrap: "wrap" }}>
-            <span>{"\u{1F464}"} {ticket.name}</span>
-            <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
+            <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
+            <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
             <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
             {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
           </div>
@@ -286,7 +291,7 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
                   </div>
                 ) : (
                   <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-body)", transition: "all 0.15s" }} title="Click to change deadline">
-                    {"\u{1F4C5}"} {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
+                    <><CalendarDays size={12} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
                   </button>
                 )}
               </div>
@@ -343,7 +348,7 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
                 )}
                 {ticket.status === "in_progress" && (
                   <button onClick={() => onStatusChange(ticket.id, "review")} style={{ padding: "8px 16px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(139,92,246,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(139,92,246,0.1)"}>
-                    {"\u{1F50D}"} Send for Review
+                    <><Eye size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Send for Review</>
                   </button>
                 )}
                 {ticket.status === "review" && (
@@ -363,11 +368,11 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
               </button>
             )}
             <button onClick={() => onDuplicate(ticket)} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-              {"\u{1F4CB}"} Clone
+              <><Copy size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Clone</>
             </button>
             {!confirmDelete ? (
               <button onClick={() => setConfirmDelete(true)} style={{ padding: "8px 16px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", marginLeft: "auto" }} onMouseOver={(e) => e.target.style.background = "rgba(220,38,38,0.12)"} onMouseOut={(e) => e.target.style.background = "rgba(220,38,38,0.06)"}>
-                {"\u{1F5D1}"} Delete
+                <Trash2 size={12} /> Delete
               </button>
             ) : (
               <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
@@ -384,6 +389,18 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
         </div>
       )}
     </div>
+    {ctxMenu && (
+      <div className="hub-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={(e) => e.stopPropagation()}>
+        {ticket.status === "open" && <button onClick={() => { onStatusChange(ticket.id, "in_progress"); setCtxMenu(null); }}><ArrowRight size={14} /> Start</button>}
+        {ticket.status === "in_progress" && <button onClick={() => { onStatusChange(ticket.id, "review"); setCtxMenu(null); }}><Eye size={14} /> Send for Review</button>}
+        {ticket.status !== "completed" && <button onClick={() => { onComplete(ticket.id); setCtxMenu(null); }}><CheckCircle2 size={14} /> Complete</button>}
+        {ticket.status === "completed" && <button onClick={() => { onReopen(ticket.id); setCtxMenu(null); }}><RotateCcw size={14} /> Reopen</button>}
+        <button onClick={() => { onTogglePin(ticket.id); setCtxMenu(null); }}><Pin size={14} /> {ticket.pinned ? "Unpin" : "Pin"}</button>
+        <button onClick={() => { onDuplicate(ticket); setCtxMenu(null); }}><Copy size={14} /> Clone</button>
+        <button className="danger" onClick={() => { onDelete(ticket.id); setCtxMenu(null); }}><Trash2 size={14} /> Delete</button>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -406,21 +423,21 @@ export function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReope
       </div>
       <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
       <div style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
-        <span>{"\u{1F464}"} {ticket.name}</span>
+        <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
+          <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
           {dueBadge && <span style={{ fontSize: 10, fontWeight: 700, color: dueBadge.color }}>{dueBadge.text}</span>}
         </div>
         {ticket.completedAt && <span style={{ color: "#16a34a", fontSize: 10 }}>{"\u2713"} {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
       </div>
-      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{"\u{1F4DD}"} {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
+      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><><MessageSquare size={11} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
         {ticket.status === "completed" && <button onClick={() => onReopen(ticket.id)} style={{ padding: "4px 8px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 5, color: "#6366f1", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u21A9"}</button>}
         {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
-        {ticket.status === "in_progress" && <button onClick={() => onStatusChange(ticket.id, "review")} style={{ padding: "4px 8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 5, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u{1F50D}"}</button>}
+        {ticket.status === "in_progress" && <button onClick={() => onStatusChange(ticket.id, "review")} style={{ padding: "4px 8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 5, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}><Eye size={12} /></button>}
         {ticket.status !== "completed" && <button onClick={() => onComplete(ticket.id)} style={{ padding: "4px 8px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 5, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"}</button>}
         {!confirmDelete ? (
-          <button onClick={() => setConfirmDelete(true)} style={{ padding: "4px 8px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 5, color: "#dc2626", fontSize: 11, cursor: "pointer", marginLeft: "auto" }}>{"\u{1F5D1}"}</button>
+          <button onClick={() => setConfirmDelete(true)} style={{ padding: "4px 8px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 5, color: "#dc2626", fontSize: 11, cursor: "pointer", marginLeft: "auto" }}><Trash2 size={12} /></button>
         ) : (
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
             <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "4px 8px", background: "#dc2626", border: "none", borderRadius: 5, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Delete</button>
@@ -510,7 +527,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
         </div>
       } />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", position: "sticky", top: 52, zIndex: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
         {(() => {
           const open = tickets.filter((t) => t.status === "open").length;
           const inP = tickets.filter((t) => t.status === "in_progress").length;
@@ -519,7 +536,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
           const pct = tickets.length > 0 ? Math.round((tickets.filter((t) => t.status === "completed").length / tickets.length) * 100) : 0;
           return <>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 18 }}>{total > 5 ? "\u{1F525}" : total > 2 ? "\u{1F7E1}" : "\u{1F7E2}"}</span>
+              <span style={{ fontSize: 18 }}>{total > 5 ? "●" : total > 2 ? "●" : "●"}</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{total} active ticket{total !== 1 ? "s" : ""}</div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{open} open {"\u2022"} {inP} in progress{rev > 0 ? " \u2022 " + rev + " review" : ""}</div>
@@ -551,7 +568,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
           <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
             <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
             <button onClick={() => setViewMode("kanban")} title="Kanban view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "kanban" ? "var(--brand)" : "transparent", color: viewMode === "kanban" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}>{"\u25A8"}</button>
-            <button onClick={() => setViewMode("queue")} title="Queue view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "queue" ? "var(--brand)" : "transparent", color: viewMode === "queue" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}>{"\u{1F4CB}"}</button>
+            <button onClick={() => setViewMode("queue")} title="Queue view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "queue" ? "var(--brand)" : "transparent", color: viewMode === "queue" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}><List size={13} /></button>
             <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
           </div>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--brand)", fontSize: 13, cursor: "pointer", outline: "none" }}>
@@ -567,7 +584,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>{selectedIds.length} selected</span>
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             <button onClick={() => batchAction("in_progress")} style={{ padding: "5px 12px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 6, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"} Start All</button>
-            <button onClick={() => batchAction("review")} style={{ padding: "5px 12px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u{1F50D}"} Review All</button>
+            <button onClick={() => batchAction("review")} style={{ padding: "5px 12px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}><><Eye size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Review All</></button>
             <button onClick={() => batchAction("complete")} style={{ padding: "5px 12px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 6, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"} Complete All</button>
             <button onClick={clearSelection} style={{ padding: "5px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
           </div>
@@ -616,7 +633,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
         </div>
       ) : viewMode === "kanban" ? (
         <div className="hub-kanban" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, overflowX: "auto" }}>
-          {[{ key: "open", label: "Open", color: "#6366f1", icon: "\u{1F4E5}" }, { key: "in_progress", label: "In Progress", color: "#0284c7", icon: "\u{1F528}" }, { key: "review", label: "Review", color: "#8b5cf6", icon: "\u{1F50D}" }, { key: "completed", label: "Completed", color: "#16a34a", icon: "\u2705" }].map((col) => {
+          {[{ key: "open", label: "Open", color: "#6366f1", icon: "→" }, { key: "in_progress", label: "In Progress", color: "#0284c7", icon: "⟳" }, { key: "review", label: "Review", color: "#8b5cf6", icon: "◎" }, { key: "completed", label: "Completed", color: "#16a34a", icon: "\u2705" }].map((col) => {
             const colTickets = tickets.filter((t) => t.status === col.key).sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
             return (
               <div key={col.key} style={{ minWidth: 200 }}>
@@ -732,8 +749,8 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
               <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--brand)" }}>{ticket.title}</h4>
               <div style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(ticket.description) }}></div>
               <div style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
-                <span>{"\u{1F464}"} {ticket.name}</span>
-                <span>{"\u{1F4C5}"} {formatDate(ticket.deadline)}</span>
+                <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
+                <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
                 <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                 {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
               </div>
@@ -741,9 +758,9 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
               {/* Status timeline */}
               <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
                 {[
-                  { key: "open", label: "Submitted", icon: "\u{1F4E5}" },
-                  { key: "in_progress", label: "In Progress", icon: "\u{1F528}" },
-                  { key: "review", label: "Review", icon: "\u{1F50D}" },
+                  { key: "open", label: "Submitted", icon: "→" },
+                  { key: "in_progress", label: "In Progress", icon: "⟳" },
+                  { key: "review", label: "Review", icon: "◎" },
                   { key: "completed", label: "Completed", icon: "\u2713" },
                 ].map((step, idx) => {
                   const statusOrder = { open: 0, in_progress: 1, review: 2, completed: 3 };
@@ -785,12 +802,12 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
               {/* Approval workflow */}
               {ticket.status === "review" && onApprove && (
                 <div style={{ marginBottom: 14, padding: 16, background: "rgba(139,92,246,0.04)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", marginBottom: 8 }}>{"\u{1F50D}"} This ticket is ready for your review</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", marginBottom: 8 }}><Eye size={12} /> This ticket is ready for your review</div>
                   <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>The marketing team has completed the work. Please review and either approve or request changes.</p>
                   {!showFeedback ? (
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => onApprove(ticket.id)} style={{ padding: "9px 20px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} Approve</button>
-                      <button onClick={() => setShowFeedback(true)} style={{ padding: "9px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F504}"} Request Changes</button>
+                      <button onClick={() => setShowFeedback(true)} style={{ padding: "9px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><><RotateCcw size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Request Changes</></button>
                     </div>
                   ) : (
                     <div>

@@ -46,7 +46,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
             {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--bg-input)", color: "var(--text-muted)" }}>{tag}</span>)}
           </div>
         </div>
-        {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>{"\u{1F517}"} Link</a>}
+        {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}><><ExternalLink size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Link</></a>}
         {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Edit</button>}
       </div>
     );
@@ -56,7 +56,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
     <div style={{ width: "100%" }}>
       <PageHeader icon={<Library size={22} color="#20A39E" />} title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} action={isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>} />
       <div className="hub-filter-row" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14 }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 14px 9px 36px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 14px 9px 36px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
         <div className="hub-type-filter" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
           <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-muted)" }}>All</button>
           {Object.entries(ARCHIVE_TYPES).map(([key, t]) => (<button key={key} onClick={() => setFilter(key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === key ? t.color : "transparent", color: filter === key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{t.icon} {t.label}</button>))}
@@ -68,7 +68,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
           </select>
         )}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
-          <button onClick={() => setViewMode("list")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"\u2630"}</button>
+          <button onClick={() => setViewMode("list")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"☰"}</button>
           <button onClick={() => setViewMode("grid")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"\u25A6"}</button>
         </div>
       </div>
@@ -115,7 +115,7 @@ export function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
   const handleSave = async () => { if (!form.title.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), type: form.type, description: form.description.trim(), date: form.date || null, link: form.link.trim() || null, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean), campaign: form.campaign.trim() || null, performance: form.performance || null }, entry?.id); setSaving(false); };
   const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none" };
   const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 };
-  const PERF = [{ value: "", label: "Not tracked" }, { value: "strong", label: "\u{1F7E2} Strong" }, { value: "average", label: "\u{1F7E1} Average" }, { value: "weak", label: "\u{1F534} Weak" }];
+  const PERF = [{ value: "", label: "Not tracked" }, { value: "strong", label: "● Strong" }, { value: "average", label: "● Average" }, { value: "weak", label: "● Weak" }];
   return (
     <div style={{ maxWidth: 560, width: "100%" }}>
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
@@ -171,7 +171,7 @@ export function LeadForm({ onSave, onBackToHub, currentUser }) {
       <div style={{ marginBottom: 16 }}><label style={labelStyle}>Enquiry *</label><textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.enquiry} onChange={(e) => setForm({ ...form, enquiry: e.target.value })} placeholder="What is the lead about?" /></div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div><label style={labelStyle}>Source</label><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>{Object.entries(LEAD_SOURCES).map(([key, s]) => (<button key={key} onClick={() => setForm({ ...form, source: key })} style={{ padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer", border: "1.5px solid " + (form.source === key ? s.color : "var(--border)"), background: form.source === key ? s.color + "15" : "var(--bg-input)", color: form.source === key ? s.color : "var(--text-muted)", transition: "all 0.2s", lineHeight: 1.2, textAlign: "center" }}><div style={{ fontSize: 14, marginBottom: 2 }}>{s.icon}</div>{s.label}</button>))}</div></div>
-        <div><label style={labelStyle}>Next Steps</label><div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{[["needs_action", "\u{1F7E1} Needs Action", "#ca8a04"], ["passed_through", "\u2705 Passed Through", "#16a34a"], ["closed", "\u{1F6D1} Closed", "#64748b"]].map(([val, label, col]) => (<button key={val} onClick={() => setForm({ ...form, next_steps: val })} style={{ padding: "10px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1.5px solid " + (form.next_steps === val ? col : "var(--border)"), background: form.next_steps === val ? col + "15" : "var(--bg-input)", color: form.next_steps === val ? col : "var(--text-muted)", transition: "all 0.2s", textAlign: "left" }}>{label}</button>))}</div></div>
+        <div><label style={labelStyle}>Next Steps</label><div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{[["needs_action", "● Needs Action", "#ca8a04"], ["passed_through", "\u2705 Passed Through", "#16a34a"], ["closed", "● Closed", "#64748b"]].map(([val, label, col]) => (<button key={val} onClick={() => setForm({ ...form, next_steps: val })} style={{ padding: "10px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1.5px solid " + (form.next_steps === val ? col : "var(--border)"), background: form.next_steps === val ? col + "15" : "var(--bg-input)", color: form.next_steps === val ? col : "var(--text-muted)", transition: "all 0.2s", textAlign: "left" }}>{label}</button>))}</div></div>
       </div>
         {currentUser ? <div style={{ marginBottom: 24 }}><label style={labelStyle}>Logged By</label><div style={{ padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)" }}>{currentUser.name}</div></div> : <div style={{ marginBottom: 24 }}><label style={labelStyle}>Logged By *</label><input style={inputStyle} value={form.logged_by} onChange={(e) => setForm({ ...form, logged_by: e.target.value })} placeholder="Your name" /></div>}
       <button onClick={handleSave} disabled={saving || !valid} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "wait" : "pointer", opacity: valid ? 1 : 0.5 }}>{saving ? "Saving..." : "Log Lead"}</button>
@@ -276,16 +276,16 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14 }}>{"\u{1F50D}"}</span>
+          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..." style={{ width: "100%", padding: "9px 14px 9px 36px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
         </div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-          {[["all", "All"], ["needs_action", "\u{1F7E1} Action"], ["passed_through", "\u2705 Passed"], ["closed", "\u{1F6D1} Closed"]].map(([k, l]) => (
+          {[["all", "All"], ["needs_action", "● Action"], ["passed_through", "\u2705 Passed"], ["closed", "● Closed"]].map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === k ? "var(--brand)" : "transparent", color: filter === k ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{l}</button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-          {[["list", "\u2630"], ["timeline", "\u{1F4C5}"]].map(([k, ic]) => (
+          {[["list", "☰"], ["timeline", <CalendarDays size={13} />]].map(([k, ic]) => (
             <button key={k} onClick={() => setViewMode(k)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 14, cursor: "pointer", border: "none", background: viewMode === k ? "var(--brand)" : "transparent", color: viewMode === k ? "#fff" : "var(--text-muted)" }}>{ic}</button>
           ))}
         </div>
@@ -363,7 +363,7 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
                     </div>
                     {onDelete && (
                       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 12 }}>
-                        <button onClick={() => { if (window.confirm("Delete this lead from " + lead.broker + "? This cannot be undone.")) onDelete(lead.id); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => { e.target.style.background = "#fef2f2"; }} onMouseOut={(e) => { e.target.style.background = "transparent"; }}>{"\u{1F5D1}"} Delete Lead</button>
+                        <button onClick={() => { if (window.confirm("Delete this lead from " + lead.broker + "? This cannot be undone.")) onDelete(lead.id); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => { e.target.style.background = "#fef2f2"; }} onMouseOut={(e) => { e.target.style.background = "transparent"; }}><><Trash2 size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Delete Lead</></button>
                       </div>
                     )}
                   </div>
@@ -513,7 +513,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
       <PageHeader icon={<Palette size={22} color="#20A39E" />} title="Brand Assets" subtitle="Logos, colours, fonts, and brand guidelines" />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
-        <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>{"\u{1F4E6}"} Download Brand Pack</button>
+        <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}><><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download Brand Pack</></button>
       </div>
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 20 }}>
@@ -566,7 +566,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
               <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Category</label><select value={uploadMeta.category} onChange={(e) => setUploadMeta({ ...uploadMeta, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{ASSET_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{"\u{1F4CE}"} Choose Files<input ref={fileRef} type="file" accept="image/*,.svg,.pdf" multiple style={{ display: "none" }} /></label>
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}><><Upload size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Choose Files<input ref={fileRef} type="file" accept="image/*,.svg,.pdf" multiple style={{ display: "none" }} /></label>
               <button onClick={handleUpload} disabled={uploading || !uploadMeta.name.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: uploading ? "wait" : "pointer", opacity: (uploading || !uploadMeta.name.trim()) ? 0.5 : 1 }}>{uploading ? "Uploading..." : "Upload"}</button>
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Upload multiple formats (PNG, SVG, PDF, JPG) under the same name to group them.</span>
             </div>
@@ -590,7 +590,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
                       return (
                         <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                           <div style={{ width: "100%", aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-conic-gradient(#80808015 0% 25%, transparent 0% 50%) 50%/16px 16px", padding: 12 }}>
-                            {isImg ? <img src={previewFile.file_url} alt={name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ fontSize: 48, opacity: 0.3 }}>{"\u{1F5BC}\uFE0F"}</div>}
+                            {isImg ? <img src={previewFile.file_url} alt={name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} /> : <div style={{ opacity: 0.3 }}><Image size={40} /></div>}
                           </div>
                           <div style={{ padding: "10px 12px" }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
@@ -624,7 +624,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <input style={inputStyle} value={bgUploadName} onChange={(e) => setBgUploadName(e.target.value)} placeholder="Background name..." />
-              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{"\u{1F4CE}"} Choose File<input ref={bgFileRef} type="file" accept="image/*" style={{ display: "none" }} /></label>
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}><><Upload size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Choose File<input ref={bgFileRef} type="file" accept="image/*" style={{ display: "none" }} /></label>
               <button onClick={async () => { if (!bgFileRef.current?.files?.length || !bgUploadName.trim()) return; setUploading(true); await onUpload(bgFileRef.current.files[0], bgUploadName.trim(), "video_bg"); setUploading(false); setBgUploadName(""); setShowBgUpload(false); if (bgFileRef.current) bgFileRef.current.value = ""; }} disabled={uploading || !bgUploadName.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (uploading || !bgUploadName.trim()) ? 0.5 : 1, whiteSpace: "nowrap" }}>{uploading ? "Uploading..." : "Upload"}</button>
             </div>
             <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Recommended: 1920x1080 or 1280x720 PNG/JPG for best results on video calls.</p>
@@ -644,7 +644,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
                 return (
                   <div key={name} className="hub-card-hover" style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                     <div style={{ width: "100%", aspectRatio: "16/9", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1a2e" }}>
-                      {isImg ? <img src={previewFile.file_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ fontSize: 36, opacity: 0.3 }}>{"\u{1F3AC}"}</div>}
+                      {isImg ? <img src={previewFile.file_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ opacity: 0.3 }}><Video size={32} /></div>}
                     </div>
                     <div style={{ padding: "10px 12px" }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>{name}</div>
@@ -675,7 +675,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 18, marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <input style={inputStyle} value={tplUploadName} onChange={(e) => setTplUploadName(e.target.value)} placeholder="Template name..." />
-              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{"\u{1F4CE}"} Choose File<input ref={tplFileRef} type="file" accept=".docx,.doc,.pptx,.ppt,.xlsx,.xls,.pdf,.zip" style={{ display: "none" }} /></label>
+              <label style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap" }}><><Upload size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Choose File<input ref={tplFileRef} type="file" accept=".docx,.doc,.pptx,.ppt,.xlsx,.xls,.pdf,.zip" style={{ display: "none" }} /></label>
               <button onClick={async () => { if (!tplFileRef.current?.files?.length || !tplUploadName.trim()) return; setUploading(true); await onUpload(tplFileRef.current.files[0], tplUploadName.trim(), "template"); setUploading(false); setTplUploadName(""); setShowTplUpload(false); if (tplFileRef.current) tplFileRef.current.value = ""; }} disabled={uploading || !tplUploadName.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (uploading || !tplUploadName.trim()) ? 0.5 : 1, whiteSpace: "nowrap" }}>{uploading ? "Uploading..." : "Upload"}</button>
             </div>
           </div>
@@ -686,11 +686,11 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           tplAssets.forEach((a) => { const n = a.asset_name || "Template"; if (!tplGrouped[n]) tplGrouped[n] = []; tplGrouped[n].push(a); });
           const tplIcon = (url) => {
             const ext = (url || "").split(".").pop().split("?")[0].toLowerCase();
-            if (ext === "docx" || ext === "doc") return "\u{1F4DD}";
-            if (ext === "pptx" || ext === "ppt") return "\u{1F4CA}";
-            if (ext === "xlsx" || ext === "xls") return "\u{1F4CA}";
-            if (ext === "pdf") return "\u{1F4C4}";
-            return "\u{1F4CE}";
+            if (ext === "docx" || ext === "doc") return "📄";
+            if (ext === "pptx" || ext === "ppt") return "📊";
+            if (ext === "xlsx" || ext === "xls") return "📊";
+            if (ext === "pdf") return "📄";
+            return "📎";
           };
           return Object.keys(tplGrouped).length === 0 ? (
             <div className="hub-empty" style={{ padding: "32px 20px" }}><div className="hub-empty-icon"><FolderOpen size={36} /></div><p className="hub-empty-desc">No templates uploaded yet.</p></div>
@@ -729,12 +729,12 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
   const [saving, setSaving] = useState(false);
 
   const CATS = {
-    email: { label: "Email", icon: "\u{1F4E7}", color: "#6366f1" },
-    social: { label: "Social", icon: "\u{1F4F1}", color: "#0284c7" },
-    product: { label: "Product Copy", icon: "\u{1F4E6}", color: "#16a34a" },
-    broker: { label: "Broker Comms", icon: "\u{1F91D}", color: "#ea580c" },
-    internal: { label: "Internal", icon: "\u{1F3E2}", color: "#8b5cf6" },
-    other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
+    email: { label: "Email", icon: "✉", color: "#6366f1" },
+    social: { label: "Social", icon: "📱", color: "#0284c7" },
+    product: { label: "Product Copy", icon: "📦", color: "#16a34a" },
+    broker: { label: "Broker Comms", icon: "🤝", color: "#ea580c" },
+    internal: { label: "Internal", icon: "🏢", color: "#8b5cf6" },
+    other: { label: "Other", icon: "📌", color: "#64748b" },
   };
 
   const filtered = templates.filter((t) => {
@@ -772,7 +772,7 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
     <div style={{ width: "100%" }}>
       <PageHeader icon={<FileText size={22} color="#20A39E" />} title="Content Templates" subtitle="Reusable copy snippets, emails, and social captions. Use [BROKER], [PRODUCT], [NAME] as placeholders." action={isAdmin && <button onClick={() => startEdit(null)} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />New Template</button>} />
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
           <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
           {Object.entries(CATS).map(([k, c]) => (<button key={k} onClick={() => setFilter(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === k ? c.color : "transparent", color: filter === k ? "#fff" : "var(--text-secondary)" }}>{c.icon} {c.label}</button>))}
@@ -787,7 +787,7 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: c.color, textTransform: "uppercase", background: c.color + "12", padding: "2px 8px", borderRadius: 4 }}>{c.icon} {c.label}</span>
                 <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{t.title}</span>
-                <button onClick={() => handleCopy(t.content)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : "\u{1F4CB} Copy"}</button>
+                <button onClick={() => handleCopy(t.content)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : "Copy"}</button>
                 {isAdmin && <button onClick={() => startEdit(t)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
               </div>
               <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 14, borderRadius: 8, border: "1px solid var(--border)", maxHeight: 160, overflow: "auto" }}>{t.content}</pre>
@@ -809,11 +809,11 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedul
   const [dragItem, setDragItem] = useState(null);
 
   const EVENT_TYPES = {
-    social: { label: "Social Post", color: "#2563eb", icon: "\u{1F4F1}" },
+    social: { label: "Social Post", color: "#2563eb", icon: "📱" },
     email: { label: "Email Campaign", color: "#16a34a", icon: "\u2709\uFE0F" },
-    event: { label: "Event", color: "#8b5cf6", icon: "\u{1F389}" },
+    event: { label: "Event", color: "#8b5cf6", icon: "🎉" },
     deadline: { label: "Deadline", color: "#dc2626", icon: "\u23F0" },
-    survey: { label: "Survey", color: "#ca8a04", icon: "\u{1F4CB}" },
+    survey: { label: "Survey", color: "#ca8a04", icon: "📋" },
   };
 
   const EVENT_STATUS = {
@@ -928,7 +928,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedul
         {Object.entries(EVENT_TYPES).map(([k, v]) => (
           <span key={k} style={{ padding: "4px 10px", borderRadius: 20, background: v.color + "18", color: v.color, fontSize: 11, fontWeight: 600 }}>{v.icon} {v.label}</span>
         ))}
-        <span style={{ padding: "4px 10px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626", fontSize: 11, fontWeight: 600, borderLeft: "2px solid #dc2626" }}>{"\u{1F4CB}"} From tickets</span>
+        <span style={{ padding: "4px 10px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626", fontSize: 11, fontWeight: 600, borderLeft: "2px solid #dc2626" }}>From tickets</span>
       </div>
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
@@ -1006,23 +1006,23 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
   const [editing, setEditing] = useState(null);
 
   const PRODUCTS = [
-    { key: "all", label: "All", icon: "\u{1F4E6}" },
-    { key: "general", label: "General", icon: "\u{1F4CB}" },
-    { key: "alps", label: "Alps", icon: "\u{1F3D4}\uFE0F" },
-    { key: "motor", label: "Motor", icon: "\u{1F697}" },
-    { key: "commercial", label: "Commercial", icon: "\u{1F3E2}" },
-    { key: "let", label: "Let", icon: "\u{1F3E0}" },
-    { key: "personal", label: "Personal", icon: "\u{1F464}" },
+    { key: "all", label: "All", icon: "📦" },
+    { key: "general", label: "General", icon: "📋" },
+    { key: "alps", label: "Alps", icon: "⛰" },
+    { key: "motor", label: "Motor", icon: "🚗" },
+    { key: "commercial", label: "Commercial", icon: "🏢" },
+    { key: "let", label: "Let", icon: "🏠" },
+    { key: "personal", label: "Personal", icon: "👤" },
   ];
 
   const ASSET_TYPES = {
-    one_pager: { label: "One-Pager", icon: "\u{1F4C4}" },
-    email_copy: { label: "Email Copy", icon: "\u{1F4E7}" },
-    social_pack: { label: "Social Pack", icon: "\u{1F4F1}" },
-    flyer: { label: "Flyer / Print", icon: "\u{1F5A8}\uFE0F" },
-    presentation: { label: "Presentation", icon: "\u{1F4CA}" },
-    guide: { label: "Guide / PDF", icon: "\u{1F4D6}" },
-    other: { label: "Other", icon: "\u{1F4CE}" },
+    one_pager: { label: "One-Pager", icon: "📄" },
+    email_copy: { label: "Email Copy", icon: "✉" },
+    social_pack: { label: "Social Pack", icon: "📱" },
+    flyer: { label: "Flyer / Print", icon: "🖨" },
+    presentation: { label: "Presentation", icon: "📊" },
+    guide: { label: "Guide / PDF", icon: "📖" },
+    other: { label: "Other", icon: "📎" },
   };
 
   const filtered = items.filter((item) => filter === "all" || item.product === filter);
@@ -1200,7 +1200,7 @@ export function CampaignTracker({ campaigns, tickets, archiveEntries, leads, cal
             return (
               <div key={c.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                 <div onClick={() => setExpanded(isExp ? null : c.id)} style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-                  <span style={{ fontSize: 22 }}>{"\u{1F3AF}"}</span>
+                  <Target size={22} style={{color:"var(--brand)"}} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{c.name}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1283,7 +1283,7 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search articles..." style={{ ...inputStyle, paddingLeft: 34 }} />
         </div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
@@ -1316,7 +1316,7 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
             return (
               <div key={a.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
                 <div onClick={() => setExpanded(isExp ? null : a.id)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 18 }}>{"\u{1F4C4}"}</span>
+                  <FileText size={18} style={{color:"var(--text-muted)"}} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{a.title}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{cat.label}</div>
@@ -1350,14 +1350,14 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
   const fileRef = useRef(null);
 
   const GALLERY_CATEGORIES = [
-    { key: "all", label: "All", icon: "\u{1F5BC}\uFE0F" },
-    { key: "general", label: "General", icon: "\u{1F4F7}" },
-    { key: "events", label: "Events", icon: "\u{1F389}" },
-    { key: "products", label: "Products", icon: "\u{1F4E6}" },
-    { key: "team", label: "Team", icon: "\u{1F465}" },
-    { key: "social", label: "Social Media", icon: "\u{1F4F1}" },
-    { key: "branding", label: "Branding", icon: "\u{1F3A8}" },
-    { key: "office", label: "Office", icon: "\u{1F3E2}" },
+    { key: "all", label: "All", icon: "🖼" },
+    { key: "general", label: "General", icon: "📷" },
+    { key: "events", label: "Events", icon: "🎉" },
+    { key: "products", label: "Products", icon: "📦" },
+    { key: "team", label: "Team", icon: "👥" },
+    { key: "social", label: "Social Media", icon: "📱" },
+    { key: "branding", label: "Branding", icon: "🎨" },
+    { key: "office", label: "Office", icon: "🏢" },
   ];
 
   const filtered = images.filter((img) => {
@@ -1406,7 +1406,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Browse and download photos. Click any image to save it.</p>
         </div>
         <div style={{ position: "relative", minWidth: 200 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: 14, pointerEvents: "none" }}>{"\u{1F50D}"}</span>
+          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search images..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
         </div>
       </div>
@@ -1432,7 +1432,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
           </select>
           <label style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ padding: "8px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: uploading ? "wait" : "pointer", opacity: uploading ? 0.6 : 1, transition: "all 0.15s" }}>
-              {uploading ? "Uploading..." : "\u{2B06}\uFE0F Upload Images"}
+              {uploading ? "Uploading..." : "Upload Images"}
             </button>
             <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleUpload} style={{ display: "none" }} />
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG, WEBP {"\u2022"} Multiple files supported</span>

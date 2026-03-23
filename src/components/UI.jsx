@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { renderMarkdown, SLA_TARGETS } from "../constants.js";
-import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles, Lock, User, ClipboardList, Inbox, Palette } from "lucide-react";
+import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles, Lock, User, ClipboardList, Inbox, Palette, Bell, TrendingUp, CalendarDays } from "lucide-react";
 
 
 export function FileChip({ name, url, onRemove }) {
   const ext = name.split(".").pop().toLowerCase();
-  const icons = { pdf: "\u{1F4C4}", doc: "\u{1F4DD}", docx: "\u{1F4DD}", xls: "\u{1F4CA}", xlsx: "\u{1F4CA}", png: "\u{1F5BC}", jpg: "\u{1F5BC}", jpeg: "\u{1F5BC}", gif: "\u{1F5BC}", mp4: "\u{1F3AC}", zip: "\u{1F4E6}" };
+  const icons = { pdf: "📄", doc: "📝", docx: "📝", xls: "📊", xlsx: "📊", png: "🖼", jpg: "🖼", jpeg: "🖼", gif: "🖼", mp4: "🎬", zip: "📦" };
   const content = (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px", fontSize: 13, color: url ? "var(--brand)" : "#475569", cursor: url ? "pointer" : "default", transition: "all 0.2s", textDecoration: "none" }}>
-      <span>{icons[ext] || "\u{1F4CE}"}</span>
+      <span>{icons[ext] || "📎"}</span>
       <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
       {url && <span style={{ fontSize: 11, opacity: 0.5 }}>{"\u2197"}</span>}
       {onRemove && <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>{"\u00D7"}</button>}
@@ -92,7 +92,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
     { href: "https://www.instagram.com/alpsltd/", icon: <Instagram size={14} />, label: "Instagram" },
   ];
 
-  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.06)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ color: "#ca8a04" }}>{"\u{1F334}"}</span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
+  const OooBanner = () => oooActive && oooReturnDate ? (<div style={{ background: "rgba(202,138,4,0.06)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}><span style={{ color: "#ca8a04" }}><CalendarDays size={14} style={{color:"#ca8a04"}} /></span><span style={{ color: "var(--text-secondary)" }}><strong style={{ color: "#ca8a04" }}>Out of Office</strong> — back {new Date(oooReturnDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</span></div>) : null;
   const AnnBanner = () => announcement && announcement.active && announcement.text ? (<div style={{ borderRadius: 10, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-light)" }}><Sparkles size={14} style={{ color: "var(--brand)", flexShrink: 0 }} /><span style={{ fontSize: 13, color: "var(--text-primary)", flex: 1 }}>{announcement.text}{announcement.link && <a href={announcement.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none", marginLeft: 6, fontSize: 12 }}>Learn more →</a>}</span></div>) : null;
 
   // ── LOGGED OUT ──
@@ -263,6 +263,39 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
           <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Logos, colours & guidelines</div>
         </button>
       </div>
+
+      {/* Onboarding checklist - show for new users */}
+      {(() => {
+        const steps = [
+          { key: "account", label: "Create your account", done: true },
+          { key: "submit", label: "Submit your first ticket", done: myTickets.length > 0 },
+          { key: "track", label: "Track a ticket", done: myTickets.length > 0 },
+          { key: "brand", label: "Browse brand assets", done: false },
+        ];
+        const allDone = steps.every((s) => s.done);
+        const dismissed = (() => { try { return localStorage.getItem("alps_checklist_dismissed") === "1"; } catch { return false; } })();
+        if (allDone || dismissed) return null;
+        const doneCnt = steps.filter((s) => s.done).length;
+        return (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>Getting Started</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{doneCnt}/{steps.length}</span>
+                <button onClick={() => { try { localStorage.setItem("alps_checklist_dismissed", "1"); } catch {} window.location.reload(); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>Dismiss</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {steps.map((s) => (
+                <div key={s.key} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: s.done ? "rgba(22,163,74,0.04)" : "var(--bg-input)", borderRadius: 8, border: "1px solid " + (s.done ? "rgba(22,163,74,0.15)" : "transparent") }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 9, border: s.done ? "none" : "2px solid var(--border)", background: s.done ? "#16a34a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{s.done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}</div>
+                  <span style={{ fontSize: 12, color: s.done ? "#16a34a" : "var(--text-secondary)", fontWeight: s.done ? 600 : 500, textDecoration: s.done ? "line-through" : "none" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Two-column: tickets + right sidebar */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, marginBottom: 24 }} className="hub-hero-split">
@@ -473,7 +506,7 @@ export function LoginPage({ onLogin, hubUsers, onGoToSignUp }) {
         </div>
         <div style={{ marginBottom: 16, position: "relative" }}>
           <input type={showPw ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }} placeholder="Password" style={{ ...inputStyle, paddingRight: 44 }} />
-          <button onClick={() => setShowPw(!showPw)} type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--text-muted)", padding: 0, lineHeight: 1 }}>{showPw ? "\u{1F441}\uFE0F" : "\u{1F441}\u200D\u{1F5E8}\uFE0F"}</button>
+          <button onClick={() => setShowPw(!showPw)} type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--text-muted)", padding: 0, lineHeight: 1 }}>showPw ? "👁" : "👁‍🗨"</button>
         </div>
         {error && <div style={{ fontSize: 13, color: "#ef4444", marginBottom: 12 }}>{error}</div>}
         <button onClick={handleSubmit} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>Log In</button>
@@ -628,13 +661,11 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
 
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
-        <div style={{ width: 48, height: 48, borderRadius: 24, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 20, fontWeight: 700, flexShrink: 0 }}>{currentUser?.name?.charAt(0)?.toUpperCase() || "?"}</div>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-primary)" }}>{currentUser?.name}</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>@{currentUser?.username} {"\u2022"} {currentUser?.role}</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<div style={{ width: 40, height: 40, borderRadius: 20, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 700, flexShrink: 0 }}>{currentUser?.name?.charAt(0)?.toUpperCase() || "?"}</div>}
+        title={currentUser?.name}
+        subtitle={"@" + currentUser?.username + " · " + currentUser?.role}
+      />
 
       <div className="hub-profile-stats" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
@@ -681,9 +712,9 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
         ) : null;
       })()}
 
-      {myReviewTickets.length > 0 && renderTicketSection("Ready for Review", "\u{1F50D}", myReviewTickets, "")}
-      {renderTicketSection("In Progress", "\u{1F528}", myInProgressTickets, "Nothing in progress right now.")}
-      {myOpenTickets.length > 0 && renderTicketSection("Open", "\u{1F4E5}", myOpenTickets, "")}
+      {myReviewTickets.length > 0 && renderTicketSection("Ready for Review", "◎", myReviewTickets, "")}
+      {renderTicketSection("In Progress", "⟳", myInProgressTickets, "Nothing in progress right now.")}
+      {myOpenTickets.length > 0 && renderTicketSection("Open", "→", myOpenTickets, "")}
 
       {myCompletedTickets.length > 0 && (
         <div style={{ marginBottom: 24 }}>
@@ -707,7 +738,7 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {myLeads.slice(0, 5).map((l) => (
               <div key={l.id} style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 14 }}>{"\u{1F4C8}"}</span>
+                <span style={{ fontSize: 14 }}><TrendingUp size={14} /></span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{l.broker}</span>
                 <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}>{l.product || "General"}</span>
                 <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmtAgo(l.created_at)}</span>
@@ -740,11 +771,11 @@ export function Toast({ toasts, onDismiss }) {
 export function OnboardingOverlay({ onDismiss }) {
   const [step, setStep] = useState(0);
   const steps = [
-    { icon: "\u{1F44B}", title: "Welcome to the Marketing Hub", desc: "Your central place for marketing requests, brand assets, and tools. Here's a quick overview of what you can do." },
-    { icon: "\u{1F4DD}", title: "Submit a Ticket", desc: "Need marketing support? Submit a ticket with your request, set the priority, and track its progress all the way through to completion." },
-    { icon: "\u{1F4DA}", title: "Browse Resources", desc: "Access the Marketing Archive for past campaigns, Brand Assets for logos and colours, and the Self-Service Guide for image sizes and FAQs." },
-    { icon: "\u{1F6E0}\uFE0F", title: "Use the Tools", desc: "Convert and resize images, generate QR codes, edit images with brand overlays, plan content on the calendar, and access reusable copy templates." },
-    { icon: "\u{1F4C8}", title: "Log Leads", desc: "Record inbound marketing leads with source tracking. Leads are visible in the Leads Dashboard for reporting." },
+    { icon: "👋", title: "Welcome to the Marketing Hub", desc: "Your central place for marketing requests, brand assets, and tools. Here's a quick overview of what you can do." },
+    { icon: "📝", title: "Submit a Ticket", desc: "Need marketing support? Submit a ticket with your request, set the priority, and track its progress all the way through to completion." },
+    { icon: "📚", title: "Browse Resources", desc: "Access the Marketing Archive for past campaigns, Brand Assets for logos and colours, and the Self-Service Guide for image sizes and FAQs." },
+    { icon: "🛠", title: "Use the Tools", desc: "Convert and resize images, generate QR codes, edit images with brand overlays, plan content on the calendar, and access reusable copy templates." },
+    { icon: "📈", title: "Log Leads", desc: "Record inbound marketing leads with source tracking. Leads are visible in the Leads Dashboard for reporting." },
   ];
   const s = steps[step];
   return (
@@ -796,19 +827,19 @@ export function NotificationsCenter({ notifications, onClear, onNavigate, isAdmi
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button onClick={() => { if (isAdmin) setOpen(!open); }} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: open ? "var(--brand-light)" : "var(--bg-card)", cursor: isAdmin ? "pointer" : "default", position: "relative", fontSize: 16, lineHeight: 1, color: "var(--text-secondary)", transition: "all 0.2s" }} title={isAdmin ? "Notifications" : unread + " new notification" + (unread !== 1 ? "s" : "")}>
-        {"\u{1F514}"}
+        <Bell size={18} />
         {unread > 0 && <span style={{ position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{unread}</span>}
       </button>
       {open && isAdmin && (
         <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 340, maxHeight: 420, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow-hover)", zIndex: 100, display: "flex", flexDirection: "column", animation: "fadeIn 0.15s ease" }}>
           <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{"\u{1F514}"} Notifications</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Bell size={18} /> Notifications</span>
             {notifications.length > 0 && <button onClick={onClear} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer", transition: "all 0.2s" }}>Clear all</button>}
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {notifications.length === 0 ? (
               <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}>{"\u{1F514}"}</div>
+                <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.4 }}><Bell size={18} /></div>
                 <p style={{ fontSize: 13, margin: 0 }}>No notifications yet</p>
               </div>
             ) : (
@@ -846,7 +877,7 @@ export function ActivityLog({ tickets }) {
     activities.push({
       time: t.createdAt,
       type: "created",
-      icon: "\u{1F4E5}",
+      icon: "→",
       color: "#6366f1",
       ref: t.id,
       title: t.title,
@@ -871,7 +902,7 @@ export function ActivityLog({ tickets }) {
       activities.push({
         time: note.timestamp,
         type: note.auto ? "system" : "note",
-        icon: note.auto ? "\u2699" : "\u{1F4DD}",
+        icon: note.auto ? "⚙" : "💬",
         color: note.auto ? "#8b5cf6" : "#0284c7",
         ref: t.id,
         title: t.title,

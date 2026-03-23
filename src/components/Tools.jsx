@@ -8,30 +8,30 @@ export function SelfServiceGuide() {
   const toggle = (id) => setOpen(open === id ? null : id);
 
   const sections = [
-    { id: "sizes", title: "\u{1F4D0} Image & Asset Sizes", items: [
+    { id: "sizes", title: "Image & Asset Sizes", items: [
       { q: "Social media image sizes", a: "LinkedIn: 1200x627px (post), 1584x396px (cover)\nFacebook: 1200x630px (post), 820x312px (cover)\nInstagram: 1080x1080px (post), 1080x1920px (story)\nX/Twitter: 1600x900px (post), 1500x500px (header)" },
       { q: "Email banner size", a: "Standard email banner: 600px wide, 200-300px tall. Keep file size under 200KB for fast loading." },
       { q: "Print material specs", a: "A4 flyer: 210x297mm (3mm bleed)\nA5 flyer: 148x210mm (3mm bleed)\nDL leaflet: 99x210mm\nBusiness card: 85x55mm\nAlways supply at 300dpi with CMYK colour." },
       { q: "PowerPoint slide dimensions", a: "Standard: 16:9 (33.867cm x 19.05cm)\nWe use widescreen by default. Fonts should be minimum 18pt for body text on slides." },
     ]},
-    { id: "brand", title: "\u{1F3A8} Brand & Logo Usage", items: [
+    { id: "brand", title: "Brand & Logo Usage", items: [
       { q: "Where do I find Alps logos?", a: "Go to Brand Assets in the Marketing Hub. You can download logos in PNG, SVG, JPG, and PDF formats." },
       { q: "Can I edit the Alps logo?", a: "No. The logo should not be stretched, recoloured, rotated, or modified in any way. Always use the approved versions from the Brand Assets page." },
       { q: "What fonts does Alps use?", a: "Headlines: Museo Sans 700\nBody copy: Montserrat Regular\nThese are listed in the Brand Assets section with the full colour palette." },
       { q: "How do I use the brand colours?", a: "Main: #231D68\nMotor: #E64592\nCommercial: #20A39E\nLet: #FAB315\nPersonal: #464B99\nAlt Man: #27D7F4\nClick any colour in Brand Assets to copy the hex code." },
     ]},
-    { id: "requests", title: "\u{1F4DD} Marketing Requests", items: [
+    { id: "requests", title: "Marketing Requests", items: [
       { q: "How do I request marketing work?", a: "Use the Submit a Ticket feature on the Marketing Hub homepage. Fill in the form with as much detail as possible, and select the appropriate template and priority." },
       { q: "What's the typical turnaround?", a: "Low priority: 5-7 working days\nMedium priority: 3-5 working days\nHigh priority: 1-2 working days\nCritical/urgent: Same day where possible\nThese are estimates and depend on current workload." },
       { q: "How do I track my request?", a: "Use Track a Ticket on the Hub homepage. Enter the reference number (e.g. M001) you received when you submitted. You can also add comments to your ticket and edit it if needed." },
       { q: "What if I need changes to completed work?", a: "Add a note to your existing ticket via the tracker. If it's a new piece of work, submit a new ticket referencing the original." },
     ]},
-    { id: "content", title: "\u{1F4DA} Content & Campaigns", items: [
+    { id: "content", title: "Content & Campaigns", items: [
       { q: "How do I get content published?", a: "Submit a ticket with the content, target audience, channel, and any deadlines. Include all copy, images, and links needed." },
       { q: "What's the approvals process?", a: "All external-facing content goes through marketing review before publishing. Allow at least 1 working day for review and revisions." },
       { q: "How do I log a marketing lead?", a: "Use Log a Lead on the Hub homepage. Fill in the broker name, what the enquiry is about, the source channel, and set next steps." },
     ]},
-    { id: "tools", title: "\u{1F6E0}\uFE0F Tools & Access", items: [
+    { id: "tools", title: "Tools & Access", items: [
       { q: "What can I do without logging in?", a: "Anyone can: submit tickets, track tickets, log leads, browse the archive, view brand assets, and read this guide. The dashboard, analytics, and admin features require a user account." },
       { q: "How do I get an account?", a: "Click Sign Up to create an account. Your account will be pending until an admin approves it. Once approved, you can log in and access dashboards, analytics, and commenting features." },
     ]},
@@ -85,14 +85,14 @@ export function FileConverter() {
   ];
 
   const SOCIAL_PRESETS = [
-    { label: "LinkedIn Post", w: 1200, h: 627, icon: "\u{1F4BC}" },
-    { label: "LinkedIn Cover", w: 1584, h: 396, icon: "\u{1F4BC}" },
-    { label: "Facebook Post", w: 1200, h: 630, icon: "\u{1F4D8}" },
-    { label: "Facebook Cover", w: 820, h: 312, icon: "\u{1F4D8}" },
-    { label: "Instagram Post", w: 1080, h: 1080, icon: "\u{1F4F7}" },
-    { label: "Instagram Story", w: 1080, h: 1920, icon: "\u{1F4F7}" },
-    { label: "X / Twitter Post", w: 1600, h: 900, icon: "\u{1D54F}" },
-    { label: "X / Twitter Header", w: 1500, h: 500, icon: "\u{1D54F}" },
+    { label: "LinkedIn Post", w: 1200, h: 627, icon: "in" },
+    { label: "LinkedIn Cover", w: 1584, h: 396, icon: "in" },
+    { label: "Facebook Post", w: 1200, h: 630, icon: "fb" },
+    { label: "Facebook Cover", w: 820, h: 312, icon: "fb" },
+    { label: "Instagram Post", w: 1080, h: 1080, icon: "ig" },
+    { label: "Instagram Story", w: 1080, h: 1920, icon: "ig" },
+    { label: "X / Twitter Post", w: 1600, h: 900, icon: "x" },
+    { label: "X / Twitter Header", w: 1500, h: 500, icon: "x" },
     { label: "Email Banner", w: 600, h: 250, icon: "\u2709\uFE0F" },
   ];
   const [showPresets, setShowPresets] = useState(false);
@@ -181,12 +181,12 @@ export function FileConverter() {
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <button onClick={() => { setBatchMode(false); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (!batchMode ? "var(--brand)" : "var(--border)"), background: !batchMode ? "var(--brand-light)" : "transparent", color: !batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Single Image</button>
-          <button onClick={() => { setBatchMode(true); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (batchMode ? "var(--brand)" : "var(--border)"), background: batchMode ? "var(--brand-light)" : "transparent", color: batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4DA}"} Batch Mode</button>
+          <button onClick={() => { setBatchMode(true); setFiles([]); setResults([]); }} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid " + (batchMode ? "var(--brand)" : "var(--border)"), background: batchMode ? "var(--brand-light)" : "transparent", color: batchMode ? "var(--brand)" : "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Batch Mode</button>
         </div>
 
         {files.length === 0 ? (
           <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "40px 20px", border: "2px dashed var(--border)", borderRadius: 12, cursor: "pointer", marginBottom: 16, transition: "border-color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
-            <div style={{ fontSize: 32, opacity: 0.4 }}>{batchMode ? "\u{1F4DA}" : "\u{1F5BC}\uFE0F"}</div>
+            <div style={{ fontSize: 32, opacity: 0.4 }}>batchMode ? <Image size={32} /> : <Image size={32} /></div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>{batchMode ? "Select multiple images" : "Select an image"}</div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>PNG, JPG, WEBP, GIF</div>
             <input ref={fileRef} type="file" accept="image/*" multiple={batchMode} onChange={handleFiles} style={{ display: "none" }} />
@@ -248,7 +248,7 @@ export function FileConverter() {
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{results.length} file{results.length !== 1 ? "s" : ""} ready</span>
-              {results.length > 1 && <button onClick={downloadAll} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4E6}"} Download All</button>}
+              {results.length > 1 && <button onClick={downloadAll} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download All</></button>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {results.map((r, i) => (
@@ -407,8 +407,8 @@ export function QRCodeGenerator() {
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, wordBreak: "break-all" }}>{generated.inputUrl}</div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              <button onClick={downloadQR} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4BE}"} Download PNG</button>
-              <button onClick={() => { navigator.clipboard.writeText(generated.url); }} style={{ padding: "10px 20px", background: "var(--brand-light)", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u{1F4CB}"} Copy URL</button>
+              <button onClick={downloadQR} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download PNG</></button>
+              <button onClick={() => { navigator.clipboard.writeText(generated.url); }} style={{ padding: "10px 20px", background: "var(--brand-light)", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><><Copy size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Copy URL</></button>
             </div>
           </div>
         )}
@@ -716,7 +716,7 @@ export function ImageEditor() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{"\u{1F4BE}"} Download</button>
+              <button onClick={exportImage} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}><><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download</></button>
               <button onClick={() => { saveUndo(); resetEdits(); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>Reset</button>
               <button onClick={() => { setFile(null); setPreview(null); imgRef.current = null; if (fileRef.current) fileRef.current.value = ""; setUndoStack([]); }} style={{ padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.2s" }}>New Image</button>
             </div>
@@ -742,7 +742,7 @@ export function ImageEditor() {
             </div>
 
             <div style={panelStyle}>
-              <div style={panelTitle}>{"\u{1F3F7}\uFE0F"} Watermark</div>
+              <div style={panelTitle}>Watermark</div>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: watermark ? 10 : 0 }}>
                 <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} style={{ accentColor: "var(--brand)" }} />
                 Alps logo watermark
@@ -759,7 +759,7 @@ export function ImageEditor() {
             </div>
 
             <div style={panelStyle}>
-              <div style={panelTitle}>{"\u{1F4D0}"} Resize</div>
+              <div style={panelTitle}>Resize</div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
                 {RESIZE_PRESETS.map((p) => (
                   <button key={p.label} onClick={() => applyResize(p.w, p.h)} title={p.w + "x" + p.h} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "var(--bg-input)", fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", transition: "all 0.15s" }}>{p.label}</button>
@@ -767,14 +767,14 @@ export function ImageEditor() {
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <input type="number" value={resizeW} onChange={(e) => handleResizeW(e.target.value)} placeholder="W" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
-                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>{resizeLock ? "\u{1F517}" : "\u26D3"}</button>
+                <button onClick={() => setResizeLock(!resizeLock)} style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, background: resizeLock ? "var(--brand-light)" : "transparent", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>resizeLock ? "🔗" : "⛓"</button>
                 <input type="number" value={resizeH} onChange={(e) => handleResizeH(e.target.value)} placeholder="H" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-primary)", fontSize: 11, outline: "none" }} />
                 <button onClick={() => { if (resizeW && resizeH) applyResize(Number(resizeW), Number(resizeH)); }} disabled={!resizeW || !resizeH} style={{ padding: "6px 10px", border: "none", borderRadius: 4, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: (!resizeW || !resizeH) ? 0.4 : 1 }}>{"\u2713"}</button>
               </div>
             </div>
 
             <div style={panelStyle}>
-              <div style={panelTitle}>{"\u{1F4BE}"} Export</div>
+              <div style={panelTitle}>Export</div>
               <div style={{ display: "flex", gap: 4, marginBottom: exportFormat !== "png" ? 8 : 0 }}>
                 {[{ k: "png", l: "PNG" }, { k: "jpeg", l: "JPEG" }, { k: "webp", l: "WEBP" }].map((f) => (
                   <button key={f.k} onClick={() => setExportFormat(f.k)} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (exportFormat === f.k ? "var(--brand)" : "var(--border)"), background: exportFormat === f.k ? "var(--brand-light)" : "transparent", fontSize: 11, fontWeight: 600, cursor: "pointer", color: exportFormat === f.k ? "var(--brand)" : "var(--text-muted)" }}>{f.l}</button>
@@ -892,7 +892,7 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20, borderTop: "3px solid #0284c7" }}>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste meeting notes here...\n\nExamples of what we'll pick up:\n- Create social media campaign for Q2 launch\n- Tom to update the website hero banner\n- ACTION: Send broker toolkit to new partners\n1. Schedule photography session for May\n2. Review print materials before Friday"} rows={10} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={extractActions} disabled={!notes.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !notes.trim() ? 0.5 : 1 }}>{"\u{1F50D}"} Extract Action Items</button>
+          <button onClick={extractActions} disabled={!notes.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !notes.trim() ? 0.5 : 1 }}>Extract Action Items</button>
           {extracted.length > 0 && <button onClick={() => { setExtracted([]); setCreated({}); }} style={{ padding: "10px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear</button>}
           {notes.trim() && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{notes.split("\n").filter((l) => l.trim()).length} lines</span>}
         </div>
@@ -903,7 +903,7 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Extracted Items ({extracted.length})</h3>
             {selectedCount > 0 && (
-              <button onClick={createAll} disabled={creating} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>{creating ? "\u23F3 Creating..." : "\u{1F680} Create " + selectedCount + " Ticket" + (selectedCount !== 1 ? "s" : "")}</button>
+              <button onClick={createAll} disabled={creating} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>{creating ? "Creating..." : "Create " + selectedCount + " Ticket" + (selectedCount !== 1 ? "s" : "")}</button>
             )}
           </div>
 
@@ -927,7 +927,7 @@ export function MeetingNotesToTicket({ onCreateTicket, onDirectCreate, currentUs
                               {pr.icon} {pr.label}
                             </button>
                           ))}
-                          <button onClick={() => createTicket(action, idx)} disabled={creating} style={{ marginLeft: "auto", padding: "5px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>{"\u{1F4DD}"} Create Ticket</button>
+                          <button onClick={() => createTicket(action, idx)} disabled={creating} style={{ marginLeft: "auto", padding: "5px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: creating ? 0.6 : 1 }}>Create Ticket</button>
                           <button onClick={() => removeItem(idx)} style={{ padding: "5px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
                         </div>
                       )}
@@ -1038,7 +1038,7 @@ export function ContentRepurposer() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 11, color: content.length > (charLimit || 99999) ? "#dc2626" : "var(--text-muted)" }}>{content.length} chars{charLimit ? " / " + charLimit : ""}</span>
           <button onClick={() => copy(extra ? extra + "\n\n" + content : content, copyKey)} style={{ padding: "5px 12px", background: copied === copyKey ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === copyKey ? "#fff" : "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-            {copied === copyKey ? "\u2713 Copied" : "\u{1F4CB} Copy"}
+            {copied === copyKey ? "\u2713 Copied" : "Copy"}
           </button>
         </div>
       </div>
@@ -1054,7 +1054,7 @@ export function ContentRepurposer() {
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, marginBottom: 20, borderTop: "3px solid #0284c7" }}>
         <textarea value={source} onChange={(e) => setSource(e.target.value)} placeholder="Paste your content here — blog post, article, press release, announcement..." rows={8} style={{ ...inputStyle, resize: "vertical", marginBottom: 14, lineHeight: 1.6 }} />
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={repurpose} disabled={!source.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !source.trim() ? 0.5 : 1 }}>{"\u267B\uFE0F"} Repurpose Content</button>
+          <button onClick={repurpose} disabled={!source.trim()} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: !source.trim() ? 0.5 : 1 }}>Repurpose Content</button>
           {outputs && <button onClick={() => { setOutputs(null); }} style={{ padding: "10px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear</button>}
           {source.trim() && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{source.trim().split(/\s+/).length} words</span>}
         </div>
@@ -1062,10 +1062,10 @@ export function ContentRepurposer() {
 
       {outputs && (
         <div>
-          <OutputCard title="LinkedIn Post" icon={"\u{1F4BC}"} content={outputs.linkedin} copyKey="linkedin" charLimit={3000} />
-          <OutputCard title="Email" icon={"\u{1F4E7}"} content={outputs.emailBody} copyKey="email" extra={"Subject: " + outputs.emailSubject} />
-          <OutputCard title="Social Caption" icon={"\u{1F4F1}"} content={outputs.social} copyKey="social" charLimit={280} />
-          <OutputCard title="X / Twitter Thread" icon={"\u{1D54F}"} content={outputs.tweetThread} copyKey="thread" charLimit={280} />
+          <OutputCard title="LinkedIn Post" icon="LinkedIn" content={outputs.linkedin} copyKey="linkedin" charLimit={3000} />
+          <OutputCard title="Email" icon="Email" content={outputs.emailBody} copyKey="email" extra={"Subject: " + outputs.emailSubject} />
+          <OutputCard title="Social Caption" icon="Social" content={outputs.social} copyKey="social" charLimit={280} />
+          <OutputCard title="X / Twitter Thread" icon="X" content={outputs.tweetThread} copyKey="thread" charLimit={280} />
         </div>
       )}
     </div>
