@@ -265,7 +265,18 @@ export default function App() {
     setCurrentUser(user);
     try { localStorage.setItem("alps_hub_user", JSON.stringify(user)); } catch {}
     if (view === "password") setView("hub");
+    supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", user.id).then(() => {});
   };
+
+  // Update last_seen_at periodically
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", currentUser.id).then(() => {});
+    const interval = setInterval(() => {
+      supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", currentUser.id).then(() => {});
+    }, 5 * 60 * 1000); // every 5 minutes
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -759,6 +770,7 @@ const handleAddComment = async (id, author, text) => {
   const unreadNotifs = currentUser ? notifications.filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
   const [mobileNav, setMobileNav] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
+  const [quickAdd, setQuickAdd] = useState(false);
   const [sideCollapsed, setSideCollapsed] = useState(() => { try { return localStorage.getItem("alps_sidebar_collapsed") === "1"; } catch { return false; } });
   const [sideSearch, setSideSearch] = useState("");
   const [openGroups, setOpenGroups] = useState(() => { try { const s = localStorage.getItem("alps_sidebar_groups"); return s ? JSON.parse(s) : { resources: true, tools: true, admin: true }; } catch { return { resources: true, tools: true, admin: true }; } });
@@ -1040,6 +1052,8 @@ const handleAddComment = async (id, author, text) => {
         .hub-ctx-menu button:hover { background: var(--bg-hover); }
         .hub-ctx-menu button.danger { color: #dc2626; }
         .hub-ctx-menu button.danger:hover { background: rgba(220,38,38,0.06); }
+        .hub-gallery-card:hover .hub-gallery-delete { opacity: 1 !important; }
+        .hub-desktop-only { display: block; }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
         /* Polished inputs */
@@ -1082,6 +1096,7 @@ const handleAddComment = async (id, author, text) => {
           .hub-sidebar { display: none !important; }
           .hub-main-col { margin-left: 0 !important; }
           .hub-desktop-topbar { left: 0 !important; }
+          .hub-desktop-only { display: none !important; }
           .hub-mobile-header { display: flex !important; }
           .hub-mobile-bottom { display: flex !important; }
           .hub-mobile-overlay.open { display: block !important; }
@@ -1245,7 +1260,7 @@ const handleAddComment = async (id, author, text) => {
         ) : view === "knowledge_base" ? (
           <KnowledgeBase articles={kbArticles} isAdmin={isAdmin} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "profile" ? (
-          <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} />
+          <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} onUpdateUser={handleUpdateUser} hubUsers={hubUsers} />
         ) : view === "admin" ? (
           <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
         ) : (
@@ -1256,7 +1271,7 @@ const handleAddComment = async (id, author, text) => {
               ))}
             </div>
             {dashboardTab === "tickets" ? (
-              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} onDuplicate={handleDuplicate} onEditTicket={handleEditTicket} currentUser={currentUser} />
+              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} onDuplicate={handleDuplicate} onEditTicket={handleEditTicket} currentUser={currentUser} hubUsers={hubUsers} />
             ) : dashboardTab === "leads" ? (
               <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
             ) : (
@@ -1265,6 +1280,20 @@ const handleAddComment = async (id, author, text) => {
           </div>
         )}
           </main>
+
+          {/* Global quick-add FAB */}
+          {view !== "form" && view !== "lead_form" && view !== "archive_add" && (
+            <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100 }} className="hub-desktop-only">
+              {quickAdd && (
+                <div style={{ position: "absolute", bottom: 56, right: 0, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.12)", padding: 6, minWidth: 200, animation: "fadeInScale 0.15s ease" }}>
+                  <button onClick={() => { setQuickAdd(false); nav("form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><PenSquare size={16} style={{ color: "#6366f1" }} />Submit a Ticket</button>
+                  <button onClick={() => { setQuickAdd(false); nav("lead_form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><TrendingUp size={16} style={{ color: "#0d9488" }} />Log a Lead</button>
+                  {isAdmin && <button onClick={() => { setQuickAdd(false); nav("archive_add"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><Library size={16} style={{ color: "#8b5cf6" }} />Archive Entry</button>}
+                </div>
+              )}
+              <button onClick={() => setQuickAdd(!quickAdd)} style={{ width: 48, height: 48, borderRadius: 24, background: "var(--brand)", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", boxShadow: "0 4px 16px var(--brand-glow)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", transform: quickAdd ? "rotate(45deg)" : "none" }}><Plus size={22} /></button>
+            </div>
+          )}
         </div>
       </div>
 

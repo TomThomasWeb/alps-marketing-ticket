@@ -126,3 +126,9 @@ export async function getNextRef() {
   const last = parseInt(data[0].ref.replace("M", ""), 10);
   return "M" + String(last + 1).padStart(3, "0");
 }
+
+export function highlightText(text, query) {
+  if (!query || !query.trim() || !text) return text;
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp("(" + escaped + ")", "gi"), '<mark style="background:rgba(234,179,8,0.3);padding:0 1px;border-radius:2px">$1</mark>');
+}

@@ -3,6 +3,56 @@ import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadg
 import { FileChip, FilePreview, PageHeader } from "./UI.jsx";
 import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, LayoutDashboard, List, Columns3, AlertCircle, User, CalendarDays, Save, Upload } from "lucide-react";
 
+function MentionInput({ value, onChange, onSubmit, placeholder, users }) {
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPos, setMentionPos] = useState(0);
+  const inputRef = useRef(null);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    onChange(val);
+    const cursor = e.target.selectionStart;
+    const before = val.slice(0, cursor);
+    const atMatch = before.match(/@(\w*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1].toLowerCase());
+      setMentionPos(cursor);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+    }
+  };
+
+  const insertMention = (name) => {
+    const before = value.slice(0, mentionPos - mentionQuery.length - 1);
+    const after = value.slice(mentionPos);
+    const newVal = before + "@" + name + " " + after;
+    onChange(newVal);
+    setShowMentions(false);
+    setTimeout(() => { if (inputRef.current) { const pos = before.length + name.length + 2; inputRef.current.focus(); inputRef.current.setSelectionRange(pos, pos); } }, 0);
+  };
+
+  const filtered = (users || []).filter((u) => u.name.toLowerCase().includes(mentionQuery));
+
+  return (
+    <div style={{ flex: 1, position: "relative" }}>
+      <input ref={inputRef} value={value} onChange={handleChange} placeholder={placeholder} onKeyDown={(e) => { if (e.key === "Enter" && !showMentions) onSubmit(); if (e.key === "Escape") setShowMentions(false); }} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; setTimeout(() => setShowMentions(false), 200); }} />
+      {showMentions && filtered.length > 0 && (
+        <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", padding: 4, maxHeight: 160, overflowY: "auto", zIndex: 80, minWidth: 180 }}>
+          {filtered.slice(0, 6).map((u) => (
+            <button key={u.id} onMouseDown={(e) => { e.preventDefault(); insertMention(u.name); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 10px", border: "none", borderRadius: 6, background: "transparent", cursor: "pointer", textAlign: "left", fontSize: 12, color: "var(--text-primary)" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+              <span style={{ width: 22, height: 22, borderRadius: 11, background: u.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{u.name?.charAt(0)?.toUpperCase()}</span>
+              <span style={{ fontWeight: 600 }}>{u.name}</span>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{u.role}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
   const [form, setForm] = useState(() => {
     try { const d = localStorage.getItem("alps_ticket_draft"); if (d) { const parsed = JSON.parse(d); return { ...parsed, files: [] }; } } catch {}
@@ -82,12 +132,13 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
       <div style={{ marginBottom: 20 }}>
         <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
         <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-          {TEMPLATES.map((tmpl, i) => (
-            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = new Date(); d.setHours(d.getHours() + sla.hours); update("deadline", d.toISOString().split("T")[0]); } }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3 }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}>
+          {(() => { const lastUsed = (() => { try { return localStorage.getItem("alps_last_template"); } catch { return null; } })(); return TEMPLATES.map((tmpl, i) => (
+            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = new Date(); d.setHours(d.getHours() + sla.hours); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid " + (lastUsed === tmpl.label ? "var(--brand)" : "var(--border)"), borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3, position: "relative" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = lastUsed === tmpl.label ? "var(--brand)" : "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}>
               <div style={{ fontSize: 18, marginBottom: 4 }}>{tmpl.icon}</div>
               {tmpl.label}
+              {lastUsed === tmpl.label && <span style={{ position: "absolute", top: 4, right: 4, fontSize: 8, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Last used</span>}
             </button>
-          ))}
+          )); })()}
         </div>
       </div>
 
@@ -117,7 +168,23 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
 
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
-        <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+        <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
+          {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "—", md: "\n- ", title: "Bullet list" }, { label: "🔗", md: "[", title: "Link" }].map((btn) => (
+            <button key={btn.label} type="button" title={btn.title} onClick={() => {
+              const ta = document.querySelector("textarea[placeholder*='Describe']");
+              if (!ta) return;
+              const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
+              let ins;
+              if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
+              else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
+              else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
+              const next = form.description.slice(0, start) + ins + form.description.slice(end);
+              update("description", next);
+              setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
+            }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
+          ))}
+        </div>
+        <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
         {errors.description && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.description}</span>}
         <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>Supports **bold**, *italic*, `code`, - bullet lists, and [links](url)</span>
       </div>
@@ -165,7 +232,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
 }
 
 
-export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser }) {
+export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser, hubUsers }) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteName, setNoteName] = useState(currentUser?.name || "");
@@ -327,7 +394,7 @@ export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDe
               ) : (
                 <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} />
               )}
-              <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a comment..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+              <MentionInput value={noteText} onChange={setNoteText} onSubmit={submitNote} placeholder="Add a comment... (type @ to mention)" users={hubUsers} />
               <button onClick={submitNote} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
                 Send
               </button>
@@ -481,7 +548,7 @@ export function StatsBar({ tickets }) {
 }
 
 
-export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser }) {
+export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser, hubUsers }) {
   const [filter, setFilter] = useState("active");
   const [sortBy, setSortBy] = useState("priority");
   const [search, setSearch] = useState("");
@@ -493,6 +560,9 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
   const saveFilter = () => { if (!filterName.trim()) return; const preset = { name: filterName.trim(), filter, sortBy, viewMode }; const next = [...savedFilters.filter((f) => f.name !== preset.name), preset]; setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} setFilterName(""); setShowSaveFilter(false); };
   const loadFilter = (preset) => { setFilter(preset.filter); setSortBy(preset.sortBy); if (preset.viewMode) setViewMode(preset.viewMode); };
   const deleteFilter = (name) => { const next = savedFilters.filter((f) => f.name !== name); setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} };
+  const [detailId, setDetailId] = useState(null);
+  const detailTicket = detailId ? tickets.find((t) => t.id === detailId || t.ref === detailId) : null;
+  const [mineOnly, setMineOnly] = useState(false);
   const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
   const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
@@ -501,6 +571,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
   const batchAction = (action) => { selectedIds.forEach((id) => { if (action === "complete") onComplete(id); else if (action === "in_progress") onStatusChange(id, "in_progress"); else if (action === "review") onStatusChange(id, "review"); }); clearSelection(); };
 
   const filtered = tickets.filter((t) => {
+    if (mineOnly && currentUser && t.createdBy !== currentUser.id && t.name !== currentUser.name) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       if (!t.id.toLowerCase().includes(q) && !t.name.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q) && !(t.description || "").toLowerCase().includes(q)) return false;
@@ -571,6 +642,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
             </button>
           ))}
         </div>
+        {currentUser && <button onClick={() => setMineOnly(!mineOnly)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (mineOnly ? "var(--brand)" : "var(--border)"), background: mineOnly ? "var(--brand)" : "transparent", color: mineOnly ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>Mine</button>}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
             <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
@@ -623,7 +695,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
         </div>
       ) : viewMode === "list" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={(id, ts) => onComplete(id, ts)} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} onDuplicate={onDuplicate} onEditTicket={onEditTicket} currentUser={currentUser} />)}
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={(id, ts) => onComplete(id, ts)} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} onDuplicate={onDuplicate} onEditTicket={onEditTicket} currentUser={currentUser} hubUsers={hubUsers} />)}
         </div>
       ) : viewMode === "queue" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -637,7 +709,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
             const p = PRIORITIES[t.priority];
             const s = STATUS[t.status] || STATUS_FALLBACK;
             return (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, transition: "all 0.15s" }} className="hub-card-hover">
+              <div key={t.id} onClick={() => setDetailId(detailId === t.id ? null : t.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: detailId === t.id ? "var(--brand-light)" : "var(--bg-card)", border: "1px solid " + (detailId === t.id ? "var(--brand)" : "var(--border)"), borderRadius: 8, transition: "all 0.15s", cursor: "pointer" }} className="hub-card-hover">
                 <input type="checkbox" checked={!!selected[t.id]} onChange={() => toggleSelect(t.id)} style={{ accentColor: "var(--brand)", cursor: "pointer", flexShrink: 0 }} />
                 <span style={{ fontSize: 14 }}>{p?.icon}</span>
                 <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 7px", borderRadius: 4, flexShrink: 0 }}>{t.ref || t.id}</span>
@@ -698,6 +770,47 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
           {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} onReopen={onReopen} onTogglePin={onTogglePin} />)}
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {detailTicket && (
+        <div style={{ position: "fixed", top: 52, right: 0, bottom: 0, width: 380, background: "var(--bg-card)", borderLeft: "1px solid var(--border)", boxShadow: "-4px 0 20px rgba(0,0,0,0.06)", zIndex: 50, overflowY: "auto", animation: "slideIn 0.15s ease", padding: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <span style={{ fontSize: 14, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 10px", borderRadius: 6 }}>{detailTicket.ref || detailTicket.id}</span>
+            <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>✕</button>
+          </div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 17, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3 }}>{detailTicket.title}</h3>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: (PRIORITIES[detailTicket.priority]?.bg || "var(--bg-input)"), color: (PRIORITIES[detailTicket.priority]?.color || "var(--text-muted)"), border: "1px solid " + (PRIORITIES[detailTicket.priority]?.border || "var(--border)") }}>{PRIORITIES[detailTicket.priority]?.icon} {PRIORITIES[detailTicket.priority]?.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: (STATUS[detailTicket.status]?.bg || "var(--bg-input)"), color: (STATUS[detailTicket.status]?.color || "var(--text-muted)") }}>{STATUS[detailTicket.status]?.label || detailTicket.status}</span>
+          </div>
+          <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--text-muted)", marginBottom: 16, flexWrap: "wrap" }}>
+            <span><User size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {detailTicket.name}</span>
+            {detailTicket.deadline && <span><CalendarDays size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {formatDate(detailTicket.deadline)}</span>}
+            <span>Created {new Date(detailTicket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+          </div>
+          {detailTicket.description && <div style={{ fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 16, padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, border: "1px solid var(--border)" }} dangerouslySetInnerHTML={{ __html: renderMarkdown(detailTicket.description) }}></div>}
+          <FilePreview files={detailTicket.files} />
+          {(detailTicket.notes || []).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8 }}>Comments ({detailTicket.notes.length})</div>
+              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                {detailTicket.notes.map((n, i) => (
+                  <div key={i} style={{ padding: "8px 10px", background: n.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 4, fontSize: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{n.author}</span><span style={{ fontSize: 10, color: "var(--text-muted)" }}>{(() => { const d = (Date.now() - new Date(n.timestamp)) / 60000; return d < 60 ? Math.floor(d) + "m" : d < 1440 ? Math.floor(d / 60) + "h" : Math.floor(d / 1440) + "d"; })()}</span></div>
+                    <div style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}>{n.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, marginTop: 16, flexWrap: "wrap" }}>
+            {detailTicket.status === "open" && <button onClick={() => onStatusChange(detailTicket.id, "in_progress")} style={{ padding: "7px 14px", background: "rgba(2,132,199,0.08)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 8, color: "#0284c7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Start</button>}
+            {detailTicket.status === "in_progress" && <button onClick={() => onStatusChange(detailTicket.id, "review")} style={{ padding: "7px 14px", background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 8, color: "#8b5cf6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Send for Review</button>}
+            {detailTicket.status !== "completed" && <button onClick={() => onComplete(detailTicket.id)} style={{ padding: "7px 14px", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 8, color: "#16a34a", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Complete</button>}
+            {detailTicket.status === "completed" && <button onClick={() => onReopen(detailTicket.id)} style={{ padding: "7px 14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#6366f1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Reopen</button>}
+          </div>
         </div>
       )}
     </div>

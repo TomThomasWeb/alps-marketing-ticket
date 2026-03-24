@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../supabaseClient.js";
 import jsPDF from "jspdf";
-import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, BRAND_COLORS, formatDate, renderMarkdown, daysUntil } from "../constants.js";
+import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, BRAND_COLORS, formatDate, renderMarkdown, daysUntil, highlightText } from "../constants.js";
 import { Library, TrendingUp, Palette, Image, CalendarDays, Briefcase, Target, FileText, BookOpen, Search, FolderOpen, Video, Upload, Plus, Pencil, Trash2, Copy, Download, ChevronDown, ExternalLink, Filter, Grid3X3, List, Tag, Star } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
@@ -12,13 +12,16 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
 
   const campaigns = [...new Set(entries.map((e) => e.campaign).filter(Boolean))].sort();
+  const allTags = [...new Set(entries.flatMap((e) => e.tags || []))].sort();
   const PERF_BADGE = { strong: { label: "Strong", color: "#16a34a", bg: "rgba(22,163,74,0.1)" }, average: { label: "Average", color: "#ca8a04", bg: "rgba(202,138,4,0.1)" }, weak: { label: "Weak", color: "#dc2626", bg: "rgba(220,38,38,0.1)" } };
 
   const filtered = entries.filter((e) => {
     if (filter !== "all" && e.type !== filter) return false;
     if (campaignFilter !== "all" && (e.campaign || "") !== campaignFilter) return false;
+    if (tagFilter && !(e.tags || []).includes(tagFilter)) return false;
     if (dateFrom) { const d = new Date(e.date || e.created_at); if (d < new Date(dateFrom + "T00:00:00")) return false; }
     if (dateTo) { const d = new Date(e.date || e.created_at); if (d > new Date(dateTo + "T23:59:59")) return false; }
     if (search.trim()) { const q = search.toLowerCase(); return e.title.toLowerCase().includes(q) || (e.description || "").toLowerCase().includes(q) || (e.tags || []).some((tag) => tag.toLowerCase().includes(q)) || (e.campaign || "").toLowerCase().includes(q); }
@@ -34,14 +37,19 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
     return Object.keys(groups).length > 1 ? groups : null;
   })();
 
+  const [previewId, setPreviewId] = useState(null);
+  const previewTimer = useRef(null);
+  const showPreview = (id) => { previewTimer.current = setTimeout(() => setPreviewId(id), 400); };
+  const hidePreview = () => { clearTimeout(previewTimer.current); setPreviewId(null); };
+
   const renderEntry = (entry) => {
     const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
     const perf = PERF_BADGE[entry.performance];
     return (
-      <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", cursor: "default" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = t.color; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}>
+      <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", cursor: "default", position: "relative" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = t.color; showPreview(entry.id); }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; hidePreview(); }}>
         <div style={{ width: 42, height: 42, borderRadius: 10, background: t.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{t.icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(entry.title, search) : entry.title }}></div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap" }}>
             <span style={{ fontWeight: 600, color: t.color }}>{t.label}</span>
             <span>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
@@ -50,8 +58,16 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
             {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--bg-input)", color: "var(--text-muted)" }}>{tag}</span>)}
           </div>
         </div>
-        {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}><><ExternalLink size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Link</></a>}
+        {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}><ExternalLink size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Link</a>}
         {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Edit</button>}
+        {previewId === entry.id && entry.description && (
+          <div style={{ position: "absolute", left: 60, top: "100%", marginTop: 4, zIndex: 80, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", padding: "12px 16px", maxWidth: 360, minWidth: 200, animation: "fadeInScale 0.12s ease" }}>
+            <div style={{ fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, maxHeight: 120, overflow: "hidden" }}>{entry.description}</div>
+            {entry.files && entry.files.length > 0 && entry.files[0].match(/\.(png|jpg|jpeg|webp|gif)$/i) && (
+              <img src={entry.files[0]} alt="" style={{ width: "100%", maxHeight: 100, objectFit: "cover", borderRadius: 6, marginTop: 8, border: "1px solid var(--border)" }} />
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -82,6 +98,16 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
           <button onClick={() => setViewMode("grid")} style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14 }}>{"\u25A6"}</button>
         </div>
       </div>
+      {allTags.length > 0 && (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, padding: "4px 0", marginRight: 4 }}>Tags:</span>
+          {tagFilter && <button onClick={() => setTagFilter("")} style={{ padding: "3px 10px", borderRadius: 20, border: "1px solid var(--brand)", background: "var(--brand-light)", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>All ×</button>}
+          {allTags.map((tag) => {
+            const count = entries.filter((e) => (e.tags || []).includes(tag)).length;
+            return <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)} style={{ padding: "3px 10px", borderRadius: 20, border: "1px solid " + (tagFilter === tag ? "var(--brand)" : "var(--border)"), background: tagFilter === tag ? "var(--brand)" : "var(--bg-card)", color: tagFilter === tag ? "#fff" : "var(--text-secondary)", fontSize: 11, fontWeight: 500, cursor: "pointer", transition: "all 0.15s" }}>{tag} <span style={{ opacity: 0.6 }}>({count})</span></button>;
+          })}
+        </div>
+      )}
       {sorted.length === 0 ? (
         <div className="hub-empty"><div className="hub-empty-icon">{search.trim() ? <Search size={40} /> : <Library size={40} />}</div><p className="hub-empty-title">{search.trim() ? "No entries match your search" : "No archive entries yet"}</p><p className="hub-empty-desc">{search.trim() ? "Try different keywords" : "Add completed campaigns, posts, and materials to build your archive"}</p></div>
       ) : viewMode === "list" ? (
@@ -106,7 +132,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
           {sorted.map((entry) => { const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other; const perf = PERF_BADGE[entry.performance]; return (
             <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 16, transition: "all 0.2s", display: "flex", flexDirection: "column", gap: 8, cursor: "default" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = t.color; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}><span style={{ fontSize: 22 }}>{t.icon}</span><div style={{ display: "flex", gap: 4 }}>{perf && <span style={{ fontSize: 10, fontWeight: 600, color: perf.color }}>{perf.label}</span>}{entry.campaign && <span style={{ fontSize: 10, fontWeight: 600, color: "var(--brand)" }}>{entry.campaign}</span>}</div></div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{entry.title}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(entry.title, search) : entry.title }}></div>
               {entry.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{entry.description}</div>}
               <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}><span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(entry.date || entry.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>{isAdmin && <button onClick={() => onManage(entry.id)} style={{ fontSize: 11, background: "transparent", border: "1px solid var(--border)", borderRadius: 4, padding: "3px 8px", cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>}</div>
             </div>); })}
@@ -337,10 +363,10 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
                 return (
                   <tr key={lead.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.1s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-input)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{new Date(lead.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</td>
-                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--text-primary)" }}>{lead.broker}</td>
+                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--text-primary)" }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(lead.broker, search) : lead.broker }}></td>
                     <td style={{ padding: "10px 14px" }}><span style={{ fontSize: 11, fontWeight: 600, color: s.color }}>{s.icon} {s.label}</span></td>
                     <td style={{ padding: "10px 14px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span></td>
-                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lead.enquiry}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(lead.enquiry, search) : lead.enquiry }}></td>
                     <td style={{ padding: "10px 14px" }}>
                       <button onClick={() => setExpandedLead(expandedLead === lead.id ? null : lead.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14 }}>{expandedLead === lead.id ? "▴" : "▾"}</button>
                     </td>
@@ -564,41 +590,72 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
   return (
     <div style={{ width: "100%" }}>
       <PageHeader icon={<Palette size={22} color="#20A39E" />} title="Brand Assets" subtitle="Logos, colours, fonts, and brand guidelines" />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
-        <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}><><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download Brand Pack</></button>
+        <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download Brand Pack</button>
       </div>
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {[{ id: "brand-colours", label: "Colours", icon: "🎨" }, { id: "brand-typography", label: "Typography", icon: "Aa" }, { id: "brand-logos", label: "Logos & Icons", icon: "◆" }, { id: "brand-videos", label: "Video Backgrounds", icon: "▶" }, { id: "brand-templates", label: "Templates", icon: "📄" }].map((s) => (
+          <button key={s.id} onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>
+            <span>{s.icon}</span>{s.label}
+          </button>
+        ))}
+      </div>
+
+      <div id="brand-colours" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 20, scrollMarginTop: 80 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Brand Colours</h3>
-        <div className="hub-color-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-          {BRAND_COLORS.map((c) => (
-            <button key={c.hex} onClick={() => copyHex(c.hex)} style={{ background: c.hex, borderRadius: 10, padding: "18px 14px", border: "2px solid " + (copied === c.hex ? "#fff" : "transparent"), cursor: "pointer", transition: "all 0.2s", position: "relative", textAlign: "left" }} title={"Click to copy " + c.hex}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.3)", marginBottom: 4 }}>{c.name}</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: "monospace" }}>{c.hex}</div>
-              {copied === c.hex && <span style={{ position: "absolute", top: 8, right: 10, fontSize: 10, fontWeight: 700, color: "#fff", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: 10 }}>Copied!</span>}
-            </button>
-          ))}
+        <div className="hub-color-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+          {BRAND_COLORS.map((c) => {
+            const r = parseInt(c.hex.slice(1,3),16), g = parseInt(c.hex.slice(3,5),16), b = parseInt(c.hex.slice(5,7),16);
+            const rf=r/255,gf=g/255,bf=b/255,mx=Math.max(rf,gf,bf),mn=Math.min(rf,gf,bf),d=mx-mn,l=(mx+mn)/2;
+            let h=0,s=0; if(d!==0){s=l>0.5?d/(2-mx-mn):d/(mx+mn);if(mx===rf)h=((gf-bf)/d+(gf<bf?6:0))*60;else if(mx===gf)h=((bf-rf)/d+2)*60;else h=((rf-gf)/d+4)*60;}
+            const k=1-mx,ck=mx===0?0:(mx-rf)/mx,mk=mx===0?0:(mx-gf)/mx,yk=mx===0?0:(mx-bf)/mx;
+            const fmts = [
+              { l: "HEX", v: c.hex },
+              { l: "RGB", v: r+", "+g+", "+b },
+              { l: "HSL", v: Math.round(h)+"°, "+Math.round(s*100)+"%, "+Math.round(l*100)+"%" },
+              { l: "CMYK", v: Math.round(ck*100)+", "+Math.round(mk*100)+", "+Math.round(yk*100)+", "+Math.round(k*100) },
+            ];
+            return (
+              <div key={c.hex} style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)" }}>
+                <button onClick={() => copyHex(c.hex)} style={{ width: "100%", background: c.hex, padding: "16px 14px", border: "none", cursor: "pointer", textAlign: "left", position: "relative" }} title={"Click to copy " + c.hex}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.3)", marginBottom: 2 }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", fontFamily: "monospace" }}>{c.hex}</div>
+                  {copied === c.hex && <span style={{ position: "absolute", top: 8, right: 10, fontSize: 10, fontWeight: 700, color: "#fff", background: "rgba(0,0,0,0.4)", padding: "2px 8px", borderRadius: 10 }}>Copied!</span>}
+                </button>
+                <div style={{ padding: "8px 12px", background: "var(--bg-input)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                  {fmts.map((f) => (
+                    <button key={f.l} onClick={() => { navigator.clipboard.writeText(f.v); setCopied(c.hex + f.l); setTimeout(() => setCopied(null), 1500); }} style={{ padding: "3px 6px", background: "transparent", border: "1px solid transparent", borderRadius: 4, cursor: "pointer", textAlign: "left", fontSize: 10, color: "var(--text-muted)", transition: "all 0.1s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--border)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "transparent"} title={"Copy " + f.l}>
+                      <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{f.l}</span> <span style={{ fontFamily: "monospace" }}>{f.v}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 20 }}>
+      <div id="brand-typography" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 20, scrollMarginTop: 80 }}>
         <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Typography</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.05em" }}>Headlines</div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Museo Sans 700</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Used for headings and display text</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>Used for headings and display text</div>
+            <a href="https://fonts.adobe.com/fonts/museo-sans" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px", background: "var(--brand-light)", borderRadius: 6, color: "var(--brand)", fontSize: 11, fontWeight: 600, textDecoration: "none" }}><Download size={12} /> Get from Adobe Fonts</a>
           </div>
           <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.05em" }}>Body Copy</div>
             <div style={{ fontSize: 24, fontWeight: 400, color: "var(--text-primary)", marginBottom: 4, fontFamily: "'Montserrat', sans-serif" }}>Montserrat Regular</div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Used for body text and paragraphs</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>Used for body text and paragraphs</div>
+            <a href="https://fonts.google.com/specimen/Montserrat" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px", background: "var(--brand-light)", borderRadius: 6, color: "var(--brand)", fontSize: 11, fontWeight: 600, textDecoration: "none" }}><Download size={12} /> Get from Google Fonts</a>
           </div>
         </div>
       </div>
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+      <div id="brand-logos" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, scrollMarginTop: 80 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Logos & Icons</h3>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -635,7 +692,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
               const assetGroups = groupedByCat[catKey];
               return (
                 <div key={catKey}>
-                  {filter === "all" && <h4 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>{catInfo.label}</h4>}
+                  {filter === "all" && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: 8, marginBottom: 12 }}><h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{catInfo.label}</h4><button onClick={() => { Object.values(assetGroups).flat().forEach((f) => { const a = document.createElement("a"); a.href = f.file_url; a.download = ""; a.target = "_blank"; a.click(); }); }} style={{ padding: "3px 10px", background: "var(--brand-light)", border: "none", borderRadius: 5, fontSize: 10, fontWeight: 600, color: "var(--brand)", cursor: "pointer" }}><Download size={10} style={{display:"inline",verticalAlign:"-1px"}} /> Download all {catInfo.label}</button></div>}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
                     {Object.entries(assetGroups).map(([name, files]) => {
                       const previewFile = files.find((f) => /\.png$/i.test(f.file_url)) || files.find((f) => /\.(jpg|jpeg|webp|gif|svg)$/i.test(f.file_url)) || files[0];
@@ -651,6 +708,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
                               {files.map((f) => (
                                 <a key={f.id} href={f.file_url} download target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textDecoration: "none", textTransform: "uppercase", transition: "all 0.15s", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>{"\u2B07"} {formatExt(f.file_url)}</a>
                               ))}
+                              {files.length > 1 && <button onClick={() => files.forEach((f) => { const a = document.createElement("a"); a.href = f.file_url; a.download = ""; a.target = "_blank"; a.click(); })} style={{ padding: "3px 10px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 5, fontSize: 10, fontWeight: 700, color: "var(--brand)", cursor: "pointer" }}>All</button>}
                               {isAdmin && <button onClick={() => { if (window.confirm('Delete all formats of "' + name + '"?')) files.forEach((f) => onDeleteAsset(f.id, f.file_url)); }} style={{ padding: "3px 8px", background: "transparent", border: "1px solid #fecaca", borderRadius: 5, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
                             </div>
                           </div>
@@ -665,7 +723,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
         )}
       </div>
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20 }}>
+      <div id="brand-videos" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20, scrollMarginTop: 80 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}><Video size={16} style={{ display: "inline" }} /> Video Backgrounds</h3>
@@ -716,7 +774,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
         })()}
       </div>
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20 }}>
+      <div id="brand-templates" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20, scrollMarginTop: 80 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}><FolderOpen size={16} style={{ display: "inline" }} /> Branded Templates</h3>
@@ -778,7 +836,22 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
   const [filter, setFilter] = useState("all");
   const [editing, setEditing] = useState(null);
   const [copied, setCopied] = useState(null);
+  const [fillVars, setFillVars] = useState(null);
+  const [varValues, setVarValues] = useState({});
   const [form, setForm] = useState({ title: "", category: "email", content: "", tags: "" });
+
+  const getVars = (content) => [...new Set((content.match(/\[([A-Z_\s]+)\]/g) || []).map((m) => m.slice(1, -1)))];
+  const fillTemplate = (content, vals) => Object.entries(vals).reduce((s, [k, v]) => s.replaceAll("[" + k + "]", v || "[" + k + "]"), content);
+
+  const handleUse = (t) => {
+    const vars = getVars(t.content);
+    if (vars.length === 0) { navigator.clipboard.writeText(t.content); setCopied(t.content); setTimeout(() => setCopied(null), 1500); return; }
+    setFillVars(t); setVarValues(Object.fromEntries(vars.map((v) => [v, ""])));
+  };
+  const handleFillCopy = () => {
+    const filled = fillTemplate(fillVars.content, varValues);
+    navigator.clipboard.writeText(filled); setCopied(filled); setFillVars(null); setVarValues({}); setTimeout(() => setCopied(null), 1500);
+  };
   const [saving, setSaving] = useState(false);
 
   const CATS = {
@@ -840,12 +913,31 @@ export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: c.color, textTransform: "uppercase", background: c.color + "12", padding: "2px 8px", borderRadius: 4 }}>{c.icon} {c.label}</span>
                 <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{t.title}</span>
-                <button onClick={() => handleCopy(t.content)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : "Copy"}</button>
+                <button onClick={() => handleUse(t)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : getVars(t.content).length > 0 ? "Use" : "Copy"}</button>
                 {isAdmin && <button onClick={() => startEdit(t)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
               </div>
               <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 14, borderRadius: 8, border: "1px solid var(--border)", maxHeight: 160, overflow: "auto" }}>{t.content}</pre>
               {t.tags && t.tags.length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>{t.tags.map((tag) => <span key={tag} style={{ padding: "1px 8px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}</div>}
             </div>); })}
+        </div>
+      )}
+      {fillVars && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setFillVars(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, maxWidth: 480, width: "90%", maxHeight: "80vh", overflowY: "auto" }}>
+            <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Fill in placeholders</h3>
+            <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--text-muted)" }}>{fillVars.title}</p>
+            {getVars(fillVars.content).map((v) => (
+              <div key={v} style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>{v}</label>
+                <input value={varValues[v] || ""} onChange={(e) => setVarValues({ ...varValues, [v]: e.target.value })} placeholder={"Enter " + v.toLowerCase() + "..."} style={{ width: "100%", padding: "9px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+              </div>
+            ))}
+            <div style={{ padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", maxHeight: 120, overflowY: "auto" }}>{fillTemplate(fillVars.content, varValues)}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleFillCopy} style={{ flex: 1, padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Copy to Clipboard</button>
+              <button onClick={() => setFillVars(null)} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1086,9 +1178,23 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
     grouped[key].push(item);
   });
 
+  const [showVersions, setShowVersions] = useState(null);
+
   const handleSave = () => {
     if (!form.title.trim()) return;
-    onSave({ ...form, id: editing || undefined });
+    // If editing and file_url changed, archive the previous version
+    if (editing) {
+      const existing = items.find((i) => i.id === editing);
+      if (existing && existing.file_url && form.file_url !== existing.file_url) {
+        const prevVersions = existing.previous_versions ? [...existing.previous_versions] : [];
+        prevVersions.push({ file_url: existing.file_url, archived_at: new Date().toISOString() });
+        onSave({ ...form, previous_versions: prevVersions, id: editing });
+      } else {
+        onSave({ ...form, id: editing });
+      }
+    } else {
+      onSave({ ...form, previous_versions: [] });
+    }
     setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
     setShowForm(false); setEditing(null);
   };
@@ -1158,13 +1264,25 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
                           <span style={{ fontSize: 24 }}>{at.icon}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{at.label}</div>
+                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{at.label}{item.updated_at && <span style={{ marginLeft: 8, fontSize: 10, opacity: 0.7 }}>Updated {new Date(item.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}</div>
                             {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>{item.description}</div>}
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 12px", background: "var(--brand)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, textDecoration: "none", transition: "all 0.15s" }}>{"\u2B07\uFE0F"} Download</a>}
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 12px", background: "var(--brand)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, textDecoration: "none", transition: "all 0.15s" }}><Download size={11} /> Download</a>}
+                              {(item.previous_versions || []).length > 0 && <button onClick={(e) => { e.stopPropagation(); setShowVersions(showVersions === item.id ? null : item.id); }} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{item.previous_versions.length} older version{item.previous_versions.length !== 1 ? "s" : ""}</button>}
                               {isAdmin && <button onClick={() => startEdit(item)} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Edit</button>}
                               {isAdmin && <button onClick={() => { if (window.confirm("Delete \"" + item.title + "\"?")) onDelete(item.id); }} style={{ padding: "4px 10px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, fontSize: 11, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
                             </div>
+                            {showVersions === item.id && (item.previous_versions || []).length > 0 && (
+                              <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--bg-input)", borderRadius: 6, border: "1px solid var(--border)" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Previous Versions</div>
+                                {item.previous_versions.map((v, i) => (
+                                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", borderBottom: i < item.previous_versions.length - 1 ? "1px solid var(--border)" : "none" }}>
+                                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Archived {new Date(v.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                    <a href={v.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}>Download</a>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1296,6 +1414,9 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ title: "", category: "general", content: "", order: 0 });
+  const [ratings, setRatings] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_kb_ratings") || "{}"); } catch { return {}; } });
+  const rateArticle = (id, helpful) => { const next = { ...ratings, [id]: helpful }; setRatings(next); try { localStorage.setItem("alps_kb_ratings", JSON.stringify(next)); } catch {} };
+  const getToc = (content) => { const headings = []; (content || "").split("\n").forEach((line) => { const m = line.match(/^(#{1,3})\s+(.+)/); if (m) headings.push({ level: m[1].length, text: m[2], id: m[2].toLowerCase().replace(/[^a-z0-9]+/g, "-") }); }); return headings; };
 
   const CATEGORIES = [
     { key: "all", label: "All" },
@@ -1337,7 +1458,7 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search articles..." style={{ ...inputStyle, paddingLeft: 34 }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search titles and content..." style={{ ...inputStyle, paddingLeft: 34 }} />
         </div>
         <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
           {CATEGORIES.map((c) => <button key={c.key} onClick={() => setCategory(c.key)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: "pointer", border: "none", background: category === c.key ? "var(--brand)" : "transparent", color: category === c.key ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>{c.label}</button>)}
@@ -1371,14 +1492,29 @@ export function KnowledgeBase({ articles, isAdmin, onSave, onDelete }) {
                 <div onClick={() => setExpanded(isExp ? null : a.id)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
                   <FileText size={18} style={{color:"var(--text-muted)"}} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{a.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{cat.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(a.title, search) : a.title }}></div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{cat.label}{search.trim() && (a.content || "").toLowerCase().includes(search.toLowerCase()) && <span style={{ marginLeft: 8, fontSize: 10, color: "var(--brand)" }}>Match in content</span>}</div>
                   </div>
                   <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "transform 0.2s", transform: isExp ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
                 </div>
                 {isExp && (
                   <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border)" }}>
-                    <div style={{ margin: "14px 0", fontSize: 14, color: "var(--text-body)", lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(a.content || "") }}></div>
+                    {(() => { const toc = getToc(a.content); return toc.length > 1 ? (
+                      <div style={{ margin: "12px 0", padding: "10px 14px", background: "var(--bg-input)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Contents</div>
+                        {toc.map((h, i) => (
+                          <div key={i} style={{ paddingLeft: (h.level - 1) * 14, marginBottom: 3 }}>
+                            <button onClick={() => { const el = document.getElementById("kb-" + h.id); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 12, cursor: "pointer", padding: 0, fontWeight: h.level === 1 ? 600 : 400 }}>{h.text}</button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null; })()}
+                    <div style={{ margin: "14px 0", fontSize: 14, color: "var(--text-body)", lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: (renderMarkdown(a.content || "")).replace(/<h([1-3])[^>]*>(.*?)<\/h\1>/g, (m, lvl, txt) => '<h' + lvl + ' id="kb-' + txt.toLowerCase().replace(/[^a-z0-9]+/g, "-") + '" style="scroll-margin-top:100px">' + txt + '</h' + lvl + '>') }}></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: "1px solid var(--border)", marginTop: 10 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Was this helpful?</span>
+                      <button onClick={() => rateArticle(a.id, true)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (ratings[a.id] === true ? "#16a34a" : "var(--border)"), background: ratings[a.id] === true ? "rgba(22,163,74,0.08)" : "transparent", color: ratings[a.id] === true ? "#16a34a" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>👍 Yes</button>
+                      <button onClick={() => rateArticle(a.id, false)} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid " + (ratings[a.id] === false ? "#dc2626" : "var(--border)"), background: ratings[a.id] === false ? "rgba(220,38,38,0.08)" : "transparent", color: ratings[a.id] === false ? "#dc2626" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>👎 No</button>
+                    </div>
                     {isAdmin && <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => { setForm({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }); setEditing(a.id); setShowForm(true); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", fontSize: 11, cursor: "pointer", color: "var(--text-muted)" }}>Edit</button>
                       <button onClick={() => { if (window.confirm("Delete this article?")) onDelete(a.id); }} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #fecaca", background: "transparent", fontSize: 11, cursor: "pointer", color: "#dc2626" }}>Delete</button>
@@ -1504,7 +1640,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
           {filtered.map((img) => {
             const cat = GALLERY_CATEGORIES.find((c) => c.key === img.category) || GALLERY_CATEGORIES[1];
             return (
-              <div key={img.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => downloadImage(img)}>
+              <div key={img.id} className="hub-card-hover hub-gallery-card" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", cursor: "pointer", position: "relative" }} onClick={() => downloadImage(img)}>
                 <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", background: "var(--bg-input)" }}>
                   <img src={img.url} alt={img.filename} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.3s" }} onMouseOver={(e) => e.target.style.transform = "scale(1.05)"} onMouseOut={(e) => e.target.style.transform = "scale(1)"} />
                 </div>
@@ -1512,11 +1648,11 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{img.caption || img.filename}</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 10, color: cat.key === "all" ? "var(--text-muted)" : "var(--text-secondary)", background: "var(--bg-input)", padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>{cat.icon} {cat.label}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{"\u2B07\uFE0F"}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}><Download size={12} /></span>
                   </div>
                 </div>
                 {isAdmin && (
-                  <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this image?")) onDelete(img.id, img.storage_path); }} style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 6, background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.15s" }} onMouseOver={(e) => e.target.style.opacity = "1"} onMouseOut={(e) => e.target.style.opacity = "0"}>{"\u2715"}</button>
+                  <button className="hub-gallery-delete" onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this image?")) onDelete(img.id, img.storage_path); }} style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 6, background: "rgba(220,38,38,0.85)", border: "none", color: "#fff", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.15s" }}><Trash2 size={14} /></button>
                 )}
               </div>
             );

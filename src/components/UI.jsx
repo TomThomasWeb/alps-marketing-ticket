@@ -188,7 +188,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
       <div style={{ background: "linear-gradient(135deg, var(--brand) 0%, #3730a3 100%)", borderRadius: 16, padding: "28px 32px", marginBottom: 20, color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>{greeting}, {currentUser.name.split(" ")[0]}</h2>
-          <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.7 }}>Here's what's happening with your marketing requests.</p>
+          <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.7 }}>{myActive.length === 0 ? "You're all clear — no active tickets right now." : "You have " + myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") + (myReview.length > 0 ? " (" + myReview.length + " ready for review)" : myInProg.length > 0 ? " (" + myInProg.length + " in progress)" : "") + "."}</p>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={quickTitle} onChange={(e) => setQuickTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") doQuickSubmit(); }} placeholder="Quick submit a ticket..." style={{ flex: 1, padding: "9px 14px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, fontSize: 13, color: "#fff", outline: "none", boxSizing: "border-box", backdropFilter: "blur(4px)" }} />
             <button onClick={doQuickSubmit} disabled={!quickTitle.trim() || quickSubmitting} style={{ padding: "9px 16px", background: "#fff", border: "none", borderRadius: 8, color: "var(--brand)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: (!quickTitle.trim() || quickSubmitting) ? 0.5 : 1, whiteSpace: "nowrap" }}>{quickSubmitting ? "..." : "Submit →"}</button>
@@ -611,9 +611,22 @@ export function SignUpPage({ onSignUp, hubUsers, onGoToLogin }) {
 }
 
 
-export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNavigate, onAddComment, notifications }) {
+export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNavigate, onAddComment, notifications, onUpdateUser, hubUsers }) {
   const [commentTexts, setCommentTexts] = useState({});
   const [activeTicket, setActiveTicket] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: currentUser?.name || "", job_title: currentUser?.job_title || "", avatar_color: currentUser?.avatar_color || "var(--brand)" });
+  const [prefs, setPrefs] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_user_prefs") || "{}"); } catch { return {}; } });
+  const savePrefs = (next) => { setPrefs(next); try { localStorage.setItem("alps_user_prefs", JSON.stringify(next)); } catch {} };
+  const AVATAR_COLORS = ["#231d68", "#e64592", "#20A39E", "#FAB315", "#464B99", "#27D7F4", "#dc2626", "#16a34a", "#64748b"];
+
+  const saveProfile = () => {
+    if (!profileForm.name.trim()) return;
+    if (onUpdateUser) onUpdateUser(currentUser.id, { name: profileForm.name.trim(), job_title: profileForm.job_title.trim(), avatar_color: profileForm.avatar_color });
+    setEditingProfile(false);
+  };
+
+  const avatarColor = currentUser?.avatar_color || "var(--brand)";
 
   const myTickets = tickets.filter((t) => t.createdBy === currentUser?.id || t.name === currentUser?.name);
   const myLeads = leads.filter((l) => l.created_by === currentUser?.id || l.logged_by === currentUser?.name);
@@ -705,32 +718,96 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
 
   return (
     <div style={{ width: "100%", maxWidth: 860 }}>
-      <PageHeader
-        icon={<div style={{ width: 40, height: 40, borderRadius: 20, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 17, fontWeight: 700, flexShrink: 0 }}>{currentUser?.name?.charAt(0)?.toUpperCase() || "?"}</div>}
-        title={currentUser?.name}
-        subtitle={"@" + currentUser?.username + " · " + currentUser?.role}
-      />
+      {/* Profile header */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px", marginBottom: 20, display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ width: 56, height: 56, borderRadius: 28, background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 22, fontWeight: 700, flexShrink: 0 }}>{currentUser?.name?.charAt(0)?.toUpperCase() || "?"}</div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          {editingProfile ? (<>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Display Name</label><input value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Job Title</label><input value={profileForm.job_title} onChange={(e) => setProfileForm({ ...profileForm, job_title: e.target.value })} placeholder="e.g. Account Manager" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>Avatar Colour</label>
+              <div style={{ display: "flex", gap: 6 }}>{AVATAR_COLORS.map((c) => <button key={c} onClick={() => setProfileForm({ ...profileForm, avatar_color: c })} style={{ width: 28, height: 28, borderRadius: 14, background: c, border: "2px solid " + (profileForm.avatar_color === c ? "#fff" : "transparent"), outline: profileForm.avatar_color === c ? "2px solid var(--brand)" : "none", cursor: "pointer" }}></button>)}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveProfile} style={{ padding: "7px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+              <button onClick={() => setEditingProfile(false)} style={{ padding: "7px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+            </div>
+          </>) : (<>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{currentUser?.name}</h2>
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--text-muted)" }}>@{currentUser?.username} · {currentUser?.role}{currentUser?.job_title && <span> · {currentUser.job_title}</span>}</p>
+            {currentUser?.last_seen_at && <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-muted)", opacity: 0.7 }}>Last active {fmtAgo(currentUser.last_seen_at)}</p>}
+          </>)}
+        </div>
+        {!editingProfile && <button onClick={() => { setProfileForm({ name: currentUser?.name || "", job_title: currentUser?.job_title || "", avatar_color: currentUser?.avatar_color || "var(--brand)" }); setEditingProfile(true); }} style={{ padding: "7px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Edit Profile</button>}
+      </div>
 
-      <div className="hub-profile-stats" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "var(--brand)" }}>{myTickets.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Total</div>
+      {/* Stats + personal trend */}
+      <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 14, marginBottom: 20 }} className="hub-profile-stats">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+          {[
+            { v: myTickets.length, l: "Total", c: "var(--brand)" },
+            { v: myActiveTickets.length, l: "Active", c: "#ca8a04" },
+            { v: myReviewTickets.length, l: "Review", c: "#8b5cf6" },
+            { v: myCompletedTickets.length, l: "Completed", c: "#16a34a" },
+            { v: myLeads.length, l: "Leads", c: "#0284c7" },
+          ].map((s) => (
+            <div key={s.l} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.l}</div>
+            </div>
+          ))}
         </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#ca8a04" }}>{myActiveTickets.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Active</div>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px" }}>
+          {(() => {
+            const now = new Date();
+            const weeks = []; for (let i = 5; i >= 0; i--) { const ws = new Date(now); ws.setDate(now.getDate() - (i * 7 + now.getDay())); ws.setHours(0,0,0,0); const we = new Date(ws); we.setDate(ws.getDate() + 6); we.setHours(23,59,59,999); weeks.push({ label: ws.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), count: myTickets.filter((t) => { const d = new Date(t.createdAt); return d >= ws && d <= we; }).length }); }
+            const maxW = Math.max(...weeks.map((w) => w.count), 1);
+            const ct = myCompletedTickets.filter((t) => t.completedAt && t.createdAt);
+            const avgH = ct.length > 0 ? ct.reduce((s, t) => s + (new Date(t.completedAt) - new Date(t.createdAt)) / 3600000, 0) / ct.length : 0;
+            const fmtH = (h) => h === 0 ? "—" : h < 24 ? Math.round(h) + "h" : (h / 24).toFixed(1) + "d";
+            return (<>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Your submissions (6 weeks)</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)" }}>Avg turnaround: {fmtH(avgH)}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 48 }}>
+                {weeks.map((w, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                    <div style={{ width: "70%", background: "var(--brand)", borderRadius: "2px 2px 0 0", height: (w.count / maxW * 36) + "px", minHeight: w.count > 0 ? 3 : 0, opacity: 0.6 }} title={w.count + " tickets"}></div>
+                    <span style={{ fontSize: 8, color: "var(--text-muted)" }}>{w.label}</span>
+                  </div>
+                ))}
+              </div>
+            </>);
+          })()}
         </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#8b5cf6" }}>{myReviewTickets.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Review</div>
-        </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>{myCompletedTickets.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Completed</div>
-        </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#0284c7" }}>{myLeads.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Leads</div>
+      </div>
+
+      {/* Preferences */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Preferences</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Default Priority</label>
+            <select value={prefs.defaultPriority || "medium"} onChange={(e) => savePrefs({ ...prefs, defaultPriority: e.target.value })} style={{ width: "100%", padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none" }}>
+              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Notifications</label>
+            <select value={prefs.notifLevel || "all"} onChange={(e) => savePrefs({ ...prefs, notifLevel: e.target.value })} style={{ width: "100%", padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none" }}>
+              <option value="all">All notifications</option><option value="mentions">Mentions only</option><option value="completions">Completions only</option><option value="none">None</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Email Digest</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input type="checkbox" checked={prefs.emailDigest || false} onChange={(e) => savePrefs({ ...prefs, emailDigest: e.target.checked })} style={{ accentColor: "var(--brand)" }} /> Weekly summary
+            </label>
+          </div>
         </div>
       </div>
 
@@ -754,6 +831,39 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
             ))}
           </div>
         ) : null;
+      })()}
+
+      {/* Activity timeline */}
+      {(() => {
+        const events = [];
+        myTickets.forEach((t) => {
+          events.push({ type: "submit", label: "Submitted " + (t.ref || t.id) + ": " + t.title, time: t.createdAt, color: "#6366f1" });
+          if (t.completedAt) events.push({ type: "complete", label: "Completed " + (t.ref || t.id) + ": " + t.title, time: t.completedAt, color: "#16a34a" });
+          (t.notes || []).filter((n) => !n.auto && n.author === currentUser?.name).forEach((n) => {
+            events.push({ type: "comment", label: "Commented on " + (t.ref || t.id) + ": " + n.text.slice(0, 60), time: n.timestamp, color: "#0284c7" });
+          });
+        });
+        myLeads.forEach((l) => { events.push({ type: "lead", label: "Logged lead: " + l.broker + " — " + l.enquiry, time: l.created_at, color: "#0d9488" }); });
+        events.sort((a, b) => new Date(b.time) - new Date(a.time));
+        const recent = events.slice(0, 12);
+        if (recent.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Your Activity</h3>
+            <div style={{ position: "relative", paddingLeft: 20 }}>
+              <div style={{ position: "absolute", left: 6, top: 4, bottom: 4, width: 2, background: "var(--border)" }}></div>
+              {recent.map((ev, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10, position: "relative" }}>
+                  <div style={{ position: "absolute", left: -17, top: 4, width: 8, height: 8, borderRadius: 4, background: ev.color, border: "2px solid var(--bg-card)", zIndex: 1 }}></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</div>
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{fmtAgo(ev.time)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
       })()}
 
       {myReviewTickets.length > 0 && renderTicketSection("Ready for Review", "◎", myReviewTickets, "")}

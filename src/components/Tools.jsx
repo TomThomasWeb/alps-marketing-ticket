@@ -272,7 +272,9 @@ export function FileConverter() {
 
 
 export function QRCodeGenerator() {
+  const [mode, setMode] = useState("url");
   const [url, setUrl] = useState("");
+  const [vcard, setVcard] = useState({ name: "", phone: "", email: "", company: "Alps Ltd", title: "" });
   const [size, setSize] = useState(300);
   const [color, setColor] = useState("231D68");
   const [bgColor, setBgColor] = useState("ffffff");
@@ -289,10 +291,18 @@ export function QRCodeGenerator() {
     { label: "Black", hex: "000000" },
   ];
 
+  const getVcardString = () => {
+    const parts = vcard.name.trim().split(" ");
+    const last = parts.length > 1 ? parts.pop() : "";
+    const first = parts.join(" ");
+    return ["BEGIN:VCARD", "VERSION:3.0", "N:" + last + ";" + first + ";;;", "FN:" + vcard.name.trim(), vcard.company ? "ORG:" + vcard.company : "", vcard.title ? "TITLE:" + vcard.title : "", vcard.phone ? "TEL:" + vcard.phone : "", vcard.email ? "EMAIL:" + vcard.email : "", "END:VCARD"].filter(Boolean).join("\n");
+  };
+
   const generate = () => {
-    if (!url.trim()) return;
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encodeURIComponent(url.trim()) + "&color=" + color + "&bgcolor=" + bgColor + "&format=png&margin=1";
-    setGenerated({ url: qrUrl, inputUrl: url.trim() });
+    const data = mode === "vcard" ? getVcardString() : url.trim();
+    if (!data) return;
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encodeURIComponent(data) + "&color=" + color + "&bgcolor=" + bgColor + "&format=png&margin=1";
+    setGenerated({ url: qrUrl, inputUrl: data });
   };
 
   const handleLogo = (e) => {
@@ -355,10 +365,25 @@ export function QRCodeGenerator() {
       <PageHeader icon={<QrCode size={22} color="#0284c7" />} title="QR Code Generator" subtitle="Create branded QR codes with custom colours" />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>URL or Text *</label>
-          <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" onKeyDown={(e) => e.key === "Enter" && generate()} />
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
+          <button onClick={() => setMode("url")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: mode === "url" ? "var(--brand)" : "transparent", color: mode === "url" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>URL / Text</button>
+          <button onClick={() => setMode("vcard")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: mode === "vcard" ? "var(--brand)" : "transparent", color: mode === "vcard" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>vCard Contact</button>
         </div>
+
+        {mode === "url" ? (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>URL or Text *</label>
+            <input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" onKeyDown={(e) => e.key === "Enter" && generate()} />
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Full Name *</label><input style={inputStyle} value={vcard.name} onChange={(e) => setVcard({ ...vcard, name: e.target.value })} placeholder="John Smith" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Job Title</label><input style={inputStyle} value={vcard.title} onChange={(e) => setVcard({ ...vcard, title: e.target.value })} placeholder="Account Manager" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Phone</label><input style={inputStyle} value={vcard.phone} onChange={(e) => setVcard({ ...vcard, phone: e.target.value })} placeholder="+44 1onal 234567" /></div>
+            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Email</label><input style={inputStyle} value={vcard.email} onChange={(e) => setVcard({ ...vcard, email: e.target.value })} placeholder="john@alpsltd.co.uk" /></div>
+            <div style={{ gridColumn: "1 / -1" }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Company</label><input style={inputStyle} value={vcard.company} onChange={(e) => setVcard({ ...vcard, company: e.target.value })} /></div>
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
           <div>
@@ -1174,6 +1199,27 @@ export function SocialPreview() {
   const [desc, setDesc] = useState("");
   const [img, setImg] = useState("");
   const [site, setSite] = useState("Alps Ltd");
+  const [fetching, setFetching] = useState(false);
+
+  const fetchMeta = async () => {
+    if (!url.trim()) return;
+    setFetching(true);
+    try {
+      const fullUrl = url.startsWith("http") ? url : "https://" + url;
+      const res = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(fullUrl));
+      const html = await res.text();
+      const getTag = (prop) => { const m = html.match(new RegExp('<meta[^>]*(?:property|name)=["\']' + prop + '["\'][^>]*content=["\']([^"\']*)["\']', 'i')) || html.match(new RegExp('<meta[^>]*content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' + prop + '["\']', 'i')); return m ? m[1] : ""; };
+      const ogTitle = getTag("og:title") || getTag("twitter:title") || (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || "";
+      const ogDesc = getTag("og:description") || getTag("twitter:description") || getTag("description") || "";
+      const ogImg = getTag("og:image") || getTag("twitter:image") || "";
+      const ogSite = getTag("og:site_name") || "";
+      if (ogTitle) setTitle(ogTitle.trim());
+      if (ogDesc) setDesc(ogDesc.trim());
+      if (ogImg) setImg(ogImg.trim());
+      if (ogSite) setSite(ogSite.trim());
+    } catch { /* silently fail - user can fill manually */ }
+    setFetching(false);
+  };
 
   return (
     <div style={{ width: "100%", maxWidth: 640 }}>
@@ -1181,7 +1227,11 @@ export function SocialPreview() {
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7", marginBottom: 20 }}>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Page URL</label>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://alpsltd.co.uk/page" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fetchMeta()} placeholder="https://alpsltd.co.uk/page" style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            <button onClick={fetchMeta} disabled={fetching || !url.trim()} style={{ padding: "10px 16px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: fetching ? "wait" : "pointer", opacity: url.trim() ? 1 : 0.4, whiteSpace: "nowrap" }}>{fetching ? "Fetching..." : "Auto-fill"}</button>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Paste a URL and click Auto-fill to read its meta tags, or fill in manually below.</div>
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Title <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({title.length}/70 chars)</span></label>
