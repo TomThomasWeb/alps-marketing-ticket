@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PRIORITIES, BRAND_COLORS, ALPS_LOGO_REVERSED } from "../constants.js";
 import { supabase } from "../supabaseClient.js";
+import jsPDF from "jspdf";
 import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
@@ -1296,6 +1297,265 @@ export function SocialPreview() {
           </div>
         </div>
       </>)}
+    </div>
+  );
+}
+
+export function LargePrintGenerator() {
+  const [file, setFile] = useState(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const [addHeader, setAddHeader] = useState(true);
+  const [pageCount, setPageCount] = useState(null);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  const PRESETS = [
+    { label: "Standard Large Print", size: 16, desc: "1.5x normal size" },
+    { label: "Large", size: 18, desc: "Good for most requests" },
+    { label: "Extra Large", size: 20, desc: "Significantly larger" },
+    { label: "Very Large", size: 24, desc: "Maximum readability" },
+  ];
+
+  const loadPdfJs = () => {
+    return new Promise((resolve) => {
+      if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      document.head.appendChild(script);
+    });
+  };
+
+  const handleFile = async (e) => {
+    const f = e.target.files[0];
+    if (!f || f.type !== "application/pdf") { setError("Please upload a PDF file."); return; }
+    setFile(f); setError(null); setExtracted(null); setPageCount(null); setExtracting(true);
+
+    try {
+      const pdfjsLib = await loadPdfJs();
+      const arrayBuffer = await f.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      setPageCount(pdf.numPages);
+
+      const pages = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const items = content.items;
+
+        // Group text items into lines by Y position
+        const lines = [];
+        let currentLine = { y: null, items: [], fontSize: 0 };
+
+        items.forEach((item) => {
+          const y = Math.round(item.transform[5]);
+          const fs = Math.round(item.height || item.transform[0] || 12);
+          if (currentLine.y === null || Math.abs(y - currentLine.y) > 3) {
+            if (currentLine.items.length > 0) lines.push({ ...currentLine });
+            currentLine = { y, items: [item.str], fontSize: fs };
+          } else {
+            currentLine.items.push(item.str);
+          }
+        });
+        if (currentLine.items.length > 0) lines.push({ ...currentLine });
+
+        // Detect headings (larger font or all-caps short lines)
+        const avgFontSize = lines.reduce((s, l) => s + l.fontSize, 0) / (lines.length || 1);
+        const parsed = lines.map((l) => {
+          const text = l.items.join("").trim();
+          const isHeading = l.fontSize > avgFontSize * 1.15 || (text.length < 80 && text === text.toUpperCase() && text.length > 2 && !/^\d+$/.test(text));
+          return { text, isHeading };
+        }).filter((l) => l.text.length > 0);
+
+        pages.push(parsed);
+      }
+
+      setExtracted(pages);
+    } catch (err) {
+      setError("Failed to extract text from this PDF. It may be scanned or image-based.");
+      console.error(err);
+    }
+    setExtracting(false);
+  };
+
+  const generateLargePrint = () => {
+    if (!extracted) return;
+    setGenerating(true);
+
+    const doc = new jsPDF("p", "mm", "a4");
+
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const usableW = pageW - margin * 2;
+    const lineHeight = fontSize * 0.45;
+    const headingSize = Math.round(fontSize * 1.25);
+    const headingLineHeight = headingSize * 0.45;
+    let y = margin;
+    let pageNum = 1;
+
+    const newPage = () => {
+      // Footer on current page
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
+      doc.text("Page " + pageNum, pageW / 2, pageH - 10, { align: "center" });
+      if (addHeader) { doc.text("LARGE PRINT VERSION", pageW - margin, pageH - 10, { align: "right" }); }
+      doc.addPage();
+      pageNum++;
+      y = margin;
+      if (addHeader) {
+        doc.setFontSize(8); doc.setTextColor(150, 150, 150); doc.setFont("helvetica", "italic");
+        doc.text("Large Print Version — " + fontSize + "pt", margin, y);
+        y += 8;
+        doc.setTextColor(0, 0, 0);
+      }
+    };
+
+    // Title page if header enabled
+    if (addHeader) {
+      doc.setFillColor(35, 29, 104);
+      doc.rect(0, 0, pageW, 50, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24); doc.setFont("helvetica", "bold");
+      doc.text("LARGE PRINT", margin, 25);
+      doc.setFontSize(12); doc.setFont("helvetica", "normal");
+      doc.text("Version", margin, 35);
+      doc.setFontSize(10);
+      doc.text(fontSize + "pt font · Generated " + new Date().toLocaleDateString("en-GB"), margin, 44);
+      y = 65;
+      doc.setTextColor(0, 0, 0);
+      if (file) {
+        doc.setFontSize(14); doc.setFont("helvetica", "bold");
+        doc.text(file.name.replace(/\.pdf$/i, ""), margin, y);
+        y += 12;
+      }
+      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 100, 100);
+      doc.text("Original: " + pageCount + " pages · This version may have more pages due to larger text.", margin, y);
+      y += 16;
+      doc.setTextColor(0, 0, 0);
+    }
+
+    extracted.forEach((page, pi) => {
+      if (pi > 0 && !addHeader) { newPage(); }
+      page.forEach((line) => {
+        const isH = line.isHeading;
+        const fs = isH ? headingSize : fontSize;
+        const lh = isH ? headingLineHeight : lineHeight;
+
+        doc.setFontSize(fs);
+        doc.setFont("helvetica", isH ? "bold" : "normal");
+        const wrapped = doc.splitTextToSize(line.text, usableW);
+
+        // Check if we need a new page
+        if (y + wrapped.length * lh > pageH - 20) { newPage(); }
+
+        if (isH && y > margin + 10) { y += lh * 0.5; }
+
+        wrapped.forEach((wl) => {
+          if (y > pageH - 20) { newPage(); }
+          doc.text(wl, margin, y);
+          y += lh;
+        });
+
+        if (isH) { y += lh * 0.3; }
+      });
+    });
+
+    // Final page footer
+    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(150, 150, 150);
+    doc.text("Page " + pageNum, pageW / 2, pageH - 10, { align: "center" });
+
+    const baseName = file ? file.name.replace(/\.pdf$/i, "") : "document";
+    doc.save(baseName + "-large-print-" + fontSize + "pt.pdf");
+    setGenerating(false);
+  };
+
+  const totalLines = extracted ? extracted.reduce((s, p) => s + p.length, 0) : 0;
+  const totalHeadings = extracted ? extracted.reduce((s, p) => s + p.filter((l) => l.isHeading).length, 0) : 0;
+
+  return (
+    <div style={{ width: "100%", maxWidth: 600 }}>
+      <PageHeader icon={<Type size={22} color="#0284c7" />} title="Large Print Generator" subtitle="Convert policy wordings to large print PDFs" />
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
+        {/* Upload */}
+        {!extracted ? (
+          <div>
+            <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 20px", border: "2px dashed var(--border)", borderRadius: 12, cursor: "pointer", background: "var(--bg-input)", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+              {extracting ? (<>
+                <div style={{ width: 32, height: 32, border: "3px solid var(--border)", borderTopColor: "var(--brand)", borderRadius: 16, animation: "spin 0.8s linear infinite" }}></div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Extracting text from PDF...</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>This may take a moment for large documents</div>
+              </>) : (<>
+                <div style={{ opacity: 0.3 }}><FileText size={40} /></div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>{file ? file.name : "Click to upload a PDF"}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Policy wording PDFs work best</div>
+              </>)}
+              <input ref={fileRef} type="file" accept=".pdf" onChange={handleFile} style={{ display: "none" }} disabled={extracting} />
+            </label>
+            {error && <div style={{ marginTop: 12, padding: "10px 14px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 8, fontSize: 12, color: "#dc2626" }}>{error}</div>}
+          </div>
+        ) : (
+          <div>
+            {/* Extraction summary */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 10, marginBottom: 20 }}>
+              <CheckCircle2 size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>Text extracted successfully</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{file.name} · {pageCount} pages · {totalLines} lines · {totalHeadings} headings detected</div>
+              </div>
+              <button onClick={() => { setExtracted(null); setFile(null); setPageCount(null); if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "5px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Change file</button>
+            </div>
+
+            {/* Font size selection */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Select Font Size</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {PRESETS.map((p) => (
+                  <button key={p.size} onClick={() => setFontSize(p.size)} style={{ padding: "12px 14px", background: fontSize === p.size ? "var(--brand-light)" : "var(--bg-input)", border: "1.5px solid " + (fontSize === p.size ? "var(--brand)" : "var(--border)"), borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: fontSize === p.size ? "var(--brand)" : "var(--text-primary)" }}>{p.label}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{p.size}pt · {p.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Custom:</span>
+                <input type="range" min="14" max="32" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ flex: 1, accentColor: "var(--brand)" }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", minWidth: 36, textAlign: "right" }}>{fontSize}pt</span>
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div style={{ marginBottom: 20, padding: "16px 20px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 8 }}>Preview at {fontSize}pt</div>
+              {extracted[0] && extracted[0].slice(0, 4).map((line, i) => (
+                <div key={i} style={{ fontSize: line.isHeading ? fontSize * 1.25 : fontSize, fontWeight: line.isHeading ? 700 : 400, color: "#1a1d2e", lineHeight: 1.4, marginBottom: line.isHeading ? 8 : 4, fontFamily: "serif" }}>{line.text.slice(0, 100)}{line.text.length > 100 ? "..." : ""}</div>
+              ))}
+            </div>
+
+            {/* Options */}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 20 }}>
+              <input type="checkbox" checked={addHeader} onChange={(e) => setAddHeader(e.target.checked)} style={{ accentColor: "var(--brand)" }} />
+              Add "Large Print Version" title page and page headers
+            </label>
+
+            {/* Generate button */}
+            <button onClick={generateLargePrint} disabled={generating} style={{ width: "100%", padding: "12px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer", transition: "all 0.2s" }}>
+              {generating ? "Generating PDF..." : "Generate Large Print PDF"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Notice */}
+      <div style={{ marginTop: 16, padding: "12px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
+        <strong style={{ color: "var(--text-secondary)" }}>A note on accuracy:</strong> Text extraction from PDFs isn't always perfect — some PDFs encode text in unusual ways. For standard policy wording documents from known templates, it should work consistently. If a particular PDF doesn't extract well, you may see garbled or missing text in the output. In that case, the large print version would need to be done manually for that document.
+      </div>
     </div>
   );
 }

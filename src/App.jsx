@@ -5,11 +5,11 @@ import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, ren
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
 import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, CampaignTracker, KnowledgeBase, AlpsGallery } from "./components/Resources.jsx";
-import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, MeetingNotesToTicket, ContentRepurposer, EmailSignatureGenerator, ContrastChecker, SocialPreview, FirstPolicySold } from "./components/Tools.jsx";
+import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, MeetingNotesToTicket, ContentRepurposer, EmailSignatureGenerator, ContrastChecker, SocialPreview, FirstPolicySold, LargePrintGenerator } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/meeting-notes': 'meeting_notes', '/repurposer': 'repurposer', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/social-preview': 'social_preview', '/first-policy': 'first_policy', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/campaigns': 'campaigns', '/knowledge-base': 'knowledge_base', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/meeting-notes': 'meeting_notes', '/repurposer': 'repurposer', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/social-preview': 'social_preview', '/first-policy': 'first_policy', '/large-print': 'large_print', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/campaigns': 'campaigns', '/knowledge-base': 'knowledge_base', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -786,7 +786,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", signatures: "Email Signatures", contrast_checker: "Contrast Checker", social_preview: "Social Preview", first_policy: "1st Policy Sold", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", signatures: "Email Signatures", contrast_checker: "Contrast Checker", social_preview: "Social Preview", first_policy: "1st Policy Sold", large_print: "Large Print", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -822,6 +822,7 @@ const handleAddComment = async (id, author, text) => {
     { id: "contrast_checker", label: "Contrast Checker", group: "tools" },
     { id: "social_preview", label: "Social Preview", group: "tools" },
     { id: "first_policy", label: "1st Policy Sold", group: "tools" },
+    { id: "large_print", label: "Large Print", group: "tools" },
     ...(currentUser ? [
       { id: "templates", label: "Content Templates", group: "tools" },
       { id: "meeting_notes", label: "Notes to Tickets", group: "tools" },
@@ -847,7 +848,7 @@ const handleAddComment = async (id, author, text) => {
     repurposer: <Repeat size={17} />, templates: <FileText size={17} />, meeting_notes: <ClipboardList size={17} />,
     knowledge_base: <BookOpen size={17} />, dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
     analytics: <PieChart size={17} />, activity: <Clock size={17} />, admin: <Settings size={17} />,
-    signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, social_preview: <Image size={17} />, first_policy: <Wand2 size={17} />,
+    signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, social_preview: <Image size={17} />, first_policy: <Wand2 size={17} />, large_print: <FileText size={17} />,
   };
 
   const SidebarLink = ({ id, label, badge }) => {
@@ -959,6 +960,7 @@ const handleAddComment = async (id, author, text) => {
           <SidebarLink id="contrast_checker" label="Contrast Checker" />
           <SidebarLink id="social_preview" label="Social Preview" />
           <SidebarLink id="first_policy" label="1st Policy Sold" />
+          <SidebarLink id="large_print" label="Large Print" />
           {currentUser && <SidebarLink id="templates" label="Content Templates" />}
           {currentUser && <SidebarLink id="meeting_notes" label="Notes to Tickets" />}
           {currentUser && <SidebarLink id="knowledge_base" label="Knowledge Base" />}
@@ -1253,6 +1255,8 @@ const handleAddComment = async (id, author, text) => {
           <SocialPreview />
         ) : view === "first_policy" ? (
           <FirstPolicySold isAdmin={isAdmin} />
+        ) : view === "large_print" ? (
+          <LargePrintGenerator />
         ) : view === "calendar" ? (
           <ContentCalendar events={calendarEvents} isAdmin={isAdmin} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
         ) : view === "gallery" ? (
@@ -1333,6 +1337,7 @@ const handleAddComment = async (id, author, text) => {
             { id: "contrast_checker", icon: <Target size={20} />, label: "Contrast" },
             { id: "social_preview", icon: <Image size={20} />, label: "Preview" },
             { id: "first_policy", icon: <Wand2 size={20} />, label: "1st Policy" },
+            { id: "large_print", icon: <FileText size={20} />, label: "Large Print" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
               { id: "calendar", icon: <CalendarDays size={20} />, label: "Calendar" },
