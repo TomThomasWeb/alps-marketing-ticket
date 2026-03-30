@@ -1385,14 +1385,15 @@ export function FirstPolicySold({ isAdmin }) {
         const dy = (rightH - dh) / 2;
         ctx.drawImage(personImg, dx, dy, dw, dh);
 
-        // White panel on LEFT with soft fade edge
+        // White panel on LEFT with smooth fade - no hard edge
         ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.fillRect(0, 0, W * 0.5, H);
-        const grad = ctx.createLinearGradient(W * 0.48, 0, W * 0.56, 0);
-        grad.addColorStop(0, "rgba(255,255,255,0.7)");
+        ctx.fillRect(0, 0, W * 0.38, H);
+        const grad = ctx.createLinearGradient(W * 0.35, 0, W * 0.58, 0);
+        grad.addColorStop(0, "rgba(255,255,255,0.92)");
+        grad.addColorStop(0.5, "rgba(255,255,255,0.5)");
         grad.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = grad;
-        ctx.fillRect(W * 0.48, 0, W * 0.08, H);
+        ctx.fillRect(W * 0.35, 0, W * 0.23, H);
 
         // "1st" - properly spaced
         ctx.fillStyle = "#231d68";
