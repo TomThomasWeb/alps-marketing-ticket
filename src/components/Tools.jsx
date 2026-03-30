@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PRIORITIES, BRAND_COLORS, ALPS_LOGO_REVERSED } from "../constants.js";
+import { supabase } from "../supabaseClient.js";
 import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
@@ -1295,6 +1296,229 @@ export function SocialPreview() {
           </div>
         </div>
       </>)}
+    </div>
+  );
+}
+
+export function FirstPolicySold({ isAdmin }) {
+  const [brokerName, setBrokerName] = useState("");
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [generated, setGenerated] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showManage, setShowManage] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhoto, setNewPhoto] = useState(null);
+  const [newPhotoPreview, setNewPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const canvasRef = useRef(null);
+  const addFileRef = useRef(null);
+
+  // Load team members from Supabase app_settings
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from("app_settings").select("value").eq("key", "policy_team_members").single();
+      if (data?.value) { try { setTeamMembers(JSON.parse(data.value)); } catch {} }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const saveMembers = async (list) => {
+    setTeamMembers(list);
+    await supabase.from("app_settings").upsert({ key: "policy_team_members", value: JSON.stringify(list) });
+  };
+
+  const handleAddPhoto = (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setNewPhoto(f);
+    const reader = new FileReader();
+    reader.onload = (ev) => setNewPhotoPreview(ev.target.result);
+    reader.readAsDataURL(f);
+  };
+
+  const addMember = async () => {
+    if (!newName.trim() || !newPhoto) return;
+    setUploading(true);
+    const ext = newPhoto.name.split(".").pop();
+    const path = "policy-team/" + Date.now() + "-" + newName.trim().toLowerCase().replace(/\s+/g, "-") + "." + ext;
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, newPhoto);
+    if (error) { setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+    const member = { id: Date.now().toString(), name: newName.trim(), photo_url: urlData.publicUrl, storage_path: path };
+    await saveMembers([...teamMembers, member]);
+    setNewName(""); setNewPhoto(null); setNewPhotoPreview(null); setUploading(false);
+    if (addFileRef.current) addFileRef.current.value = "";
+  };
+
+  const removeMember = async (id) => {
+    const member = teamMembers.find((m) => m.id === id);
+    if (member?.storage_path) await supabase.storage.from("ticket-attachments").remove([member.storage_path]);
+    await saveMembers(teamMembers.filter((m) => m.id !== id));
+    if (selectedMember?.id === id) setSelectedMember(null);
+  };
+
+  const generateImage = () => {
+    if (!selectedMember || !brokerName.trim()) return;
+    setGenerating(true);
+    const canvas = canvasRef.current;
+    const W = 1200, H = 627;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    const personImg = new window.Image();
+    personImg.crossOrigin = "anonymous";
+    personImg.onload = () => {
+      const pAspect = personImg.width / personImg.height;
+      const cAspect = W / H;
+      let sx = 0, sy = 0, sw = personImg.width, sh = personImg.height;
+      if (pAspect > cAspect) { sw = personImg.height * cAspect; sx = (personImg.width - sw) / 2; }
+      else { sh = personImg.width / cAspect; sy = (personImg.height - sh) / 2; }
+      ctx.drawImage(personImg, sx, sy, sw, sh, 0, 0, W, H);
+
+      ctx.fillStyle = "rgba(0,0,0,0.1)";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      ctx.fillRect(0, 0, 520, H);
+      const grad = ctx.createLinearGradient(460, 0, 560, 0);
+      grad.addColorStop(0, "rgba(255,255,255,0.6)");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(460, 0, 100, H);
+
+      ctx.fillStyle = "#231d68";
+      ctx.font = "bold 140px 'Inter', 'Segoe UI', sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText("1", 50, 80);
+      const oneW = ctx.measureText("1").width;
+      ctx.font = "bold 60px 'Inter', 'Segoe UI', sans-serif";
+      ctx.fillText("st", 50 + oneW, 80);
+      ctx.font = "bold 110px 'Inter', 'Segoe UI', sans-serif";
+      ctx.fillText("Policy", 50, 180);
+      ctx.fillText("Sold!", 50, 290);
+
+      ctx.fillStyle = "#1a1d2e";
+      ctx.font = "500 44px 'Inter', 'Segoe UI', sans-serif";
+      const words = brokerName.trim().split(" ");
+      let line = "", lineY = 440;
+      words.forEach((word) => {
+        const test = line + (line ? " " : "") + word;
+        if (ctx.measureText(test).width > 420 && line) { ctx.fillText(line, 55, lineY); lineY += 52; line = word; }
+        else { line = test; }
+      });
+      ctx.fillText(line, 55, lineY);
+
+      const confettiColors = ["#dc2626", "#2563eb", "#16a34a", "#eab308", "#8b5cf6", "#ec4899", "#f97316"];
+      for (let i = 0; i < 80; i++) {
+        const cx = Math.random() * W, cy = Math.random() * H * 0.7;
+        const w = 6 + Math.random() * 14, h = 2 + Math.random() * 6;
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.random() * Math.PI * 2);
+        ctx.fillStyle = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+        ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+        if (Math.random() > 0.5) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(w * 0.5, h * 2, w, 0); ctx.quadraticCurveTo(w * 0.5, -h * 2, 0, 0); ctx.fill(); }
+        else { ctx.fillRect(-w / 2, -h / 2, w, h); }
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      setGenerated(canvas.toDataURL("image/png"));
+      setGenerating(false);
+    };
+    personImg.onerror = () => setGenerating(false);
+    personImg.src = selectedMember.photo_url;
+  };
+
+  const downloadImage = () => {
+    if (!generated) return;
+    const a = document.createElement("a");
+    a.href = generated;
+    a.download = "1st-Policy-Sold-" + brokerName.trim().replace(/\s+/g, "-") + ".png";
+    a.click();
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 640 }}>
+      <PageHeader icon={<Wand2 size={22} color="#0284c7" />} title="1st Policy Sold Generator" subtitle="Create celebration images for broker milestones" action={isAdmin && <button onClick={() => setShowManage(!showManage)} style={{ padding: "7px 14px", background: showManage ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showManage ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showManage ? "Done" : "Manage Team"}</button>} />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
+      {/* Admin: manage team members */}
+      {showManage && isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>Team Members ({teamMembers.length})</div>
+          {teamMembers.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
+              {teamMembers.map((m) => (
+                <div key={m.id} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+                  <img src={m.photo_url} alt={m.name} style={{ width: "100%", height: 100, objectFit: "cover" }} />
+                  <div style={{ padding: "8px 10px", fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{m.name}</div>
+                  <button onClick={() => { if (window.confirm("Remove " + m.name + "?")) removeMember(m.id); }} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 6, background: "rgba(220,38,38,0.85)", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Name</label>
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Sarah Jones" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Photo</label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "8px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                <Upload size={12} /> {newPhotoPreview ? "Change" : "Choose"}
+                <input ref={addFileRef} type="file" accept="image/*" onChange={handleAddPhoto} style={{ display: "none" }} />
+              </label>
+            </div>
+            {newPhotoPreview && <img src={newPhotoPreview} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", border: "1px solid var(--border)" }} />}
+            <button onClick={addMember} disabled={uploading || !newName.trim() || !newPhoto} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: (newName.trim() && newPhoto) ? 1 : 0.4 }}>{uploading ? "Adding..." : "Add"}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Generator */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
+        {loading ? <div style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading...</div> : teamMembers.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px 20px" }}>
+            <Wand2 size={36} style={{ color: "var(--text-muted)", opacity: 0.3, marginBottom: 10 }} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>No team members added yet</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{isAdmin ? "Click \"Manage Team\" above to add team member photos." : "Ask an admin to add team members to get started."}</div>
+          </div>
+        ) : (<>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Select Team Member <span style={{ color: "#dc2626" }}>*</span></label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+              {teamMembers.map((m) => (
+                <button key={m.id} onClick={() => { setSelectedMember(m); setGenerated(null); }} style={{ background: "var(--bg-input)", border: "2px solid " + (selectedMember?.id === m.id ? "var(--brand)" : "var(--border)"), borderRadius: 10, overflow: "hidden", cursor: "pointer", padding: 0, transition: "all 0.15s" }}>
+                  <img src={m.photo_url} alt={m.name} style={{ width: "100%", height: 80, objectFit: "cover" }} />
+                  <div style={{ padding: "6px 8px", fontSize: 11, fontWeight: 600, color: selectedMember?.id === m.id ? "var(--brand)" : "var(--text-primary)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Broker Name <span style={{ color: "#dc2626" }}>*</span></label>
+            <input value={brokerName} onChange={(e) => { setBrokerName(e.target.value); setGenerated(null); }} placeholder="e.g. Howden Reading" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 15, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          </div>
+
+          <button onClick={generateImage} disabled={generating || !selectedMember || !brokerName.trim()} style={{ width: "100%", padding: "12px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer", opacity: (selectedMember && brokerName.trim()) ? 1 : 0.4, transition: "all 0.2s" }}>
+            {generating ? "Generating..." : "Generate Image"}
+          </button>
+        </>)}
+      </div>
+
+      {generated && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
+            <img src={generated} alt="1st Policy Sold" style={{ width: "100%", display: "block" }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={downloadImage} style={{ flex: 1, padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Download size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> Download PNG</button>
+            <button onClick={() => setGenerated(null)} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>Regenerate</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
