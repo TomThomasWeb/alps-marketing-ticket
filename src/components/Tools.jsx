@@ -1348,29 +1348,39 @@ export function LargePrintGenerator() {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         const items = content.items;
+        const viewport = page.getViewport({ scale: 1 });
+        const pageHeight = viewport.height;
 
-        // Group text items into lines by Y position
+        // Group text items into lines by Y position, capturing font info
         const lines = [];
-        let currentLine = { y: null, items: [], fontSize: 0 };
+        let currentLine = { y: null, items: [], fontSize: 0, fontNames: [] };
 
         items.forEach((item) => {
           const y = Math.round(item.transform[5]);
           const fs = Math.round(item.height || item.transform[0] || 12);
+          const fn = item.fontName || "";
           if (currentLine.y === null || Math.abs(y - currentLine.y) > 3) {
             if (currentLine.items.length > 0) lines.push({ ...currentLine });
-            currentLine = { y, items: [item.str], fontSize: fs };
+            currentLine = { y, items: [item.str], fontSize: fs, fontNames: [fn] };
           } else {
             currentLine.items.push(item.str);
+            currentLine.fontNames.push(fn);
           }
         });
         if (currentLine.items.length > 0) lines.push({ ...currentLine });
 
-        // Detect headings (larger font or all-caps short lines)
+        // Detect headings, bold/italic, and footers
         const avgFontSize = lines.reduce((s, l) => s + l.fontSize, 0) / (lines.length || 1);
+        // Footer zone: bottom 12% of page
+        const footerThreshold = pageHeight * 0.12;
+
         const parsed = lines.map((l) => {
           const text = l.items.join("").trim();
+          const isBold = l.fontNames.some((fn) => /bold/i.test(fn));
+          const isItalic = l.fontNames.some((fn) => /italic|oblique/i.test(fn));
           const isHeading = l.fontSize > avgFontSize * 1.15 || (text.length < 80 && text === text.toUpperCase() && text.length > 2 && !/^\d+$/.test(text));
-          return { text, isHeading };
+          const isFooter = l.y < footerThreshold;
+          return { text, isHeading, isBold: isBold || isHeading, isItalic, isFooter, originalSize: l.fontSize };
         }).filter((l) => l.text.length > 0);
 
         pages.push(parsed);
@@ -1442,18 +1452,21 @@ export function LargePrintGenerator() {
 
     extracted.forEach((page, pi) => {
       if (pi > 0 && !addHeader) { newPage(); }
-      page.forEach((line) => {
+      // Separate footer lines from body lines
+      const bodyLines = page.filter((l) => !l.isFooter);
+      const footerLines = page.filter((l) => l.isFooter);
+
+      bodyLines.forEach((line) => {
         const isH = line.isHeading;
         const fs = isH ? headingSize : fontSize;
         const lh = isH ? headingLineHeight : lineHeight;
+        const fontStyle = line.isBold && line.isItalic ? "bolditalic" : line.isBold ? "bold" : line.isItalic ? "italic" : "normal";
 
         doc.setFontSize(fs);
-        doc.setFont("helvetica", isH ? "bold" : "normal");
+        doc.setFont("helvetica", fontStyle);
         const wrapped = doc.splitTextToSize(line.text, usableW);
 
-        // Check if we need a new page
         if (y + wrapped.length * lh > pageH - 20) { newPage(); }
-
         if (isH && y > margin + 10) { y += lh * 0.5; }
 
         wrapped.forEach((wl) => {
@@ -1464,6 +1477,20 @@ export function LargePrintGenerator() {
 
         if (isH) { y += lh * 0.3; }
       });
+
+      // Render footer lines at their original size (not enlarged)
+      if (footerLines.length > 0) {
+        footerLines.forEach((fl) => {
+          const flSize = Math.max(fl.originalSize * 0.35, 7);
+          doc.setFontSize(flSize);
+          doc.setFont("helvetica", fl.isItalic ? "italic" : "normal");
+          doc.setTextColor(120, 120, 120);
+          const flWrapped = doc.splitTextToSize(fl.text, usableW);
+          const footerY = pageH - 18 - (footerLines.indexOf(fl)) * (flSize * 0.4);
+          flWrapped.forEach((fwl, fi) => { doc.text(fwl, margin, footerY + fi * (flSize * 0.4)); });
+          doc.setTextColor(0, 0, 0);
+        });
+      }
     });
 
     // Final page footer
@@ -1475,8 +1502,10 @@ export function LargePrintGenerator() {
     setGenerating(false);
   };
 
-  const totalLines = extracted ? extracted.reduce((s, p) => s + p.length, 0) : 0;
+  const totalLines = extracted ? extracted.reduce((s, p) => s + p.filter((l) => !l.isFooter).length, 0) : 0;
   const totalHeadings = extracted ? extracted.reduce((s, p) => s + p.filter((l) => l.isHeading).length, 0) : 0;
+  const totalBold = extracted ? extracted.reduce((s, p) => s + p.filter((l) => l.isBold && !l.isHeading).length, 0) : 0;
+  const totalFooter = extracted ? extracted.reduce((s, p) => s + p.filter((l) => l.isFooter).length, 0) : 0;
 
   return (
     <div style={{ width: "100%", maxWidth: 600 }}>
@@ -1507,7 +1536,7 @@ export function LargePrintGenerator() {
               <CheckCircle2 size={18} style={{ color: "#16a34a", flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#16a34a" }}>Text extracted successfully</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{file.name} · {pageCount} pages · {totalLines} lines · {totalHeadings} headings detected</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{file.name} · {pageCount} pages · {totalLines} lines · {totalHeadings} headings · {totalBold} bold lines{totalFooter > 0 && " · " + totalFooter + " footer lines (kept at original size)"}</div>
               </div>
               <button onClick={() => { setExtracted(null); setFile(null); setPageCount(null); if (fileRef.current) fileRef.current.value = ""; }} style={{ padding: "5px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Change file</button>
             </div>
@@ -1533,8 +1562,8 @@ export function LargePrintGenerator() {
             {/* Preview */}
             <div style={{ marginBottom: 20, padding: "16px 20px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 8 }}>Preview at {fontSize}pt</div>
-              {extracted[0] && extracted[0].slice(0, 4).map((line, i) => (
-                <div key={i} style={{ fontSize: line.isHeading ? fontSize * 1.25 : fontSize, fontWeight: line.isHeading ? 700 : 400, color: "#1a1d2e", lineHeight: 1.4, marginBottom: line.isHeading ? 8 : 4, fontFamily: "serif" }}>{line.text.slice(0, 100)}{line.text.length > 100 ? "..." : ""}</div>
+              {extracted[0] && extracted[0].filter((l) => !l.isFooter).slice(0, 5).map((line, i) => (
+                <div key={i} style={{ fontSize: line.isHeading ? fontSize * 1.25 : fontSize, fontWeight: line.isBold ? 700 : 400, fontStyle: line.isItalic ? "italic" : "normal", color: "#1a1d2e", lineHeight: 1.4, marginBottom: line.isHeading ? 8 : 4, fontFamily: "serif" }}>{line.text.slice(0, 100)}{line.text.length > 100 ? "..." : ""}</div>
               ))}
             </div>
 
@@ -1554,7 +1583,7 @@ export function LargePrintGenerator() {
 
       {/* Notice */}
       <div style={{ marginTop: 16, padding: "12px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
-        <strong style={{ color: "var(--text-secondary)" }}>A note on accuracy:</strong> Text extraction from PDFs isn't always perfect — some PDFs encode text in unusual ways. For standard policy wording documents from known templates, it should work consistently. If a particular PDF doesn't extract well, you may see garbled or missing text in the output. In that case, the large print version would need to be done manually for that document.
+        <strong style={{ color: "var(--text-secondary)" }}>A note on accuracy:</strong> This tool preserves bold and italic formatting and keeps page footers at their original size. Text extraction from PDFs isn't always perfect — some PDFs encode text in unusual ways. For standard policy wording documents from known templates, it should work consistently. If a particular PDF doesn't extract well, you may see garbled or missing text in the output. In that case, the large print version would need to be done manually for that document.
       </div>
     </div>
   );
