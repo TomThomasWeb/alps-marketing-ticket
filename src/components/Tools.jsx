@@ -1319,16 +1319,22 @@ export function FirstPolicySold({ isAdmin }) {
 
   useEffect(() => {
     async function load() {
-      const { data: members } = await supabase.from("app_settings").select("value").eq("key", "policy_team_members").single();
+      const { data: members } = await supabase.from("app_settings").select("value").eq("key", "policy_team_members").maybeSingle();
       if (members?.value) { try { setTeamMembers(JSON.parse(members.value)); } catch {} }
-      const { data: bg } = await supabase.from("app_settings").select("value").eq("key", "policy_bg_url").single();
+      const { data: bg } = await supabase.from("app_settings").select("value").eq("key", "policy_bg_url").maybeSingle();
       if (bg?.value) setBgUrl(bg.value);
       setLoading(false);
     }
     load();
   }, []);
 
-  const saveMembers = async (list) => { setTeamMembers(list); await supabase.from("app_settings").upsert({ key: "policy_team_members", value: JSON.stringify(list) }); };
+  const saveMembers = async (list) => {
+    setTeamMembers(list);
+    const val = JSON.stringify(list);
+    const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "policy_team_members").maybeSingle();
+    if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "policy_team_members"); }
+    else { await supabase.from("app_settings").insert({ key: "policy_team_members", value: val }); }
+  };
   const handleAddPhoto = (e) => { const f = e.target.files[0]; if (!f || !f.type.startsWith("image/")) return; setNewPhoto(f); const reader = new FileReader(); reader.onload = (ev) => setNewPhotoPreview(ev.target.result); reader.readAsDataURL(f); };
 
   const addMember = async () => {
@@ -1358,7 +1364,9 @@ export function FirstPolicySold({ isAdmin }) {
     await supabase.storage.from("ticket-attachments").upload(path, f);
     const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
     setBgUrl(data.publicUrl);
-    await supabase.from("app_settings").upsert({ key: "policy_bg_url", value: data.publicUrl });
+    const { data: existingBg } = await supabase.from("app_settings").select("key").eq("key", "policy_bg_url").maybeSingle();
+    if (existingBg) { await supabase.from("app_settings").update({ value: data.publicUrl }).eq("key", "policy_bg_url"); }
+    else { await supabase.from("app_settings").insert({ key: "policy_bg_url", value: data.publicUrl }); }
     setUploading(false);
   };
 
@@ -1385,15 +1393,13 @@ export function FirstPolicySold({ isAdmin }) {
         const dy = (rightH - dh) / 2;
         ctx.drawImage(personImg, dx, dy, dw, dh);
 
-        // White panel on LEFT with smooth fade - no hard edge
-        ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.fillRect(0, 0, W * 0.38, H);
-        const grad = ctx.createLinearGradient(W * 0.35, 0, W * 0.58, 0);
-        grad.addColorStop(0, "rgba(255,255,255,0.92)");
-        grad.addColorStop(0.5, "rgba(255,255,255,0.5)");
+        // White panel on LEFT - single gradient, no hard edge
+        const grad = ctx.createLinearGradient(0, 0, W * 0.58, 0);
+        grad.addColorStop(0, "rgba(255,255,255,0.93)");
+        grad.addColorStop(0.75, "rgba(255,255,255,0.93)");
         grad.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = grad;
-        ctx.fillRect(W * 0.35, 0, W * 0.23, H);
+        ctx.fillRect(0, 0, W * 0.58, H);
 
         // "1st" - properly spaced
         ctx.fillStyle = "#231d68";
