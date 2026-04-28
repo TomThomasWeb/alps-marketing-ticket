@@ -675,9 +675,11 @@ const handleAddComment = async (id, author, text) => {
 
 
   const handleArchiveSave = async (data) => {
+    const clean = { ...data };
+    if (!clean.file_url) delete clean.file_url;
     let error;
-    if (editArchiveEntry && editArchiveEntry !== "new") { ({ error } = await supabase.from("archive_entries").update(data).eq("id", editArchiveEntry)); }
-    else { ({ error } = await supabase.from("archive_entries").insert(data)); }
+    if (editArchiveEntry && editArchiveEntry !== "new") { ({ error } = await supabase.from("archive_entries").update(clean).eq("id", editArchiveEntry)); }
+    else { ({ error } = await supabase.from("archive_entries").insert(clean)); }
     if (error) { toast("Failed to save archive entry", "error"); return; }
     toast("Archive entry saved", "success");
     setEditArchiveEntry(null); setView("archive");
