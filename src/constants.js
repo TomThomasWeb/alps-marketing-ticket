@@ -30,14 +30,37 @@ export const TEMPLATES = [
 ];
 
 
-export const ARCHIVE_TYPES = {
-  email: { label: "Email Campaign", icon: "\u{1F4E7}", color: "#6366f1" },
-  social: { label: "Social Post", icon: "\u{1F4F1}", color: "#0284c7" },
-  print: { label: "Print Material", icon: "\u{1F5A8}", color: "#ca8a04" },
-  video: { label: "Video/Photo", icon: "\u{1F3AC}", color: "#dc2626" },
-  presentation: { label: "Presentation", icon: "\u{1F4CA}", color: "#16a34a" },
-  other: { label: "Other", icon: "\u{1F4CC}", color: "#64748b" },
+export const DEFAULT_ARCHIVE_TYPES = {
+  email: { label: "Email Campaign", icon: "📧", color: "#6366f1" },
+  social: { label: "Social Post", icon: "📱", color: "#0284c7" },
+  print: { label: "Print Material", icon: "🖨", color: "#ca8a04" },
+  video: { label: "Video/Photo", icon: "🎬", color: "#dc2626" },
+  presentation: { label: "Presentation", icon: "📊", color: "#16a34a" },
+  other: { label: "Other", icon: "📌", color: "#64748b" },
 };
+
+export const ARCHIVE_TYPES = { ...DEFAULT_ARCHIVE_TYPES };
+
+export async function loadArchiveTypes() {
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "archive_types").maybeSingle();
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value);
+      // Clear and repopulate
+      Object.keys(ARCHIVE_TYPES).forEach((k) => { if (!parsed[k]) delete ARCHIVE_TYPES[k]; });
+      Object.keys(parsed).forEach((k) => { ARCHIVE_TYPES[k] = parsed[k]; });
+    } catch {}
+  }
+}
+
+export async function saveArchiveTypes(types) {
+  Object.keys(ARCHIVE_TYPES).forEach((k) => delete ARCHIVE_TYPES[k]);
+  Object.keys(types).forEach((k) => { ARCHIVE_TYPES[k] = types[k]; });
+  const val = JSON.stringify(types);
+  const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "archive_types").maybeSingle();
+  if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "archive_types"); }
+  else { await supabase.from("app_settings").insert({ key: "archive_types", value: val }); }
+}
 
 export const LEAD_SOURCES = {
   phone: { label: "Phone", icon: "\u{1F4DE}", color: "#6366f1" },

@@ -438,7 +438,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
 
 
 
-export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog, onSaveSla }) {
+export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog, onSaveSla, onSaveArchiveTypes }) {
   const [adminTab, setAdminTab] = useState("overview");
   const [returnDate, setReturnDate] = useState(oooReturnDate || "");
   const [showSummary, setShowSummary] = useState(false);
@@ -458,6 +458,12 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
   const [slaForm, setSlaForm] = useState({ critical: SLA_TARGETS.critical?.days || 1, high: SLA_TARGETS.high?.days || 2, medium: SLA_TARGETS.medium?.days || 5, low: SLA_TARGETS.low?.days || 7 });
   const [slaSaved, setSlaSaved] = useState(false);
   const handleSlaSave = () => { const targets = {}; Object.entries(slaForm).forEach(([key, days]) => { targets[key] = { days: Number(days), hours: Number(days) * 8, label: days + " day" + (days !== 1 ? "s" : "") }; }); if (onSaveSla) onSaveSla(targets); setSlaSaved(true); setTimeout(() => setSlaSaved(false), 2000); };
+  const [archTypes, setArchTypes] = useState(() => JSON.parse(JSON.stringify(ARCHIVE_TYPES)));
+  const [newType, setNewType] = useState({ key: "", label: "", icon: "📄", color: "#6366f1" });
+  const [archTypesSaved, setArchTypesSaved] = useState(false);
+  const handleArchTypeSave = () => { if (onSaveArchiveTypes) onSaveArchiveTypes({ ...archTypes }); setArchTypesSaved(true); setTimeout(() => setArchTypesSaved(false), 2000); };
+  const addArchType = () => { if (!newType.key.trim() || !newType.label.trim()) return; const k = newType.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); setArchTypes({ ...archTypes, [k]: { label: newType.label.trim(), icon: newType.icon, color: newType.color } }); setNewType({ key: "", label: "", icon: "📄", color: "#6366f1" }); };
+  const removeArchType = (k) => { const next = { ...archTypes }; delete next[k]; setArchTypes(next); };
 
   useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
 
@@ -675,6 +681,43 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
             </div>
             <button onClick={handleSlaSave} style={{ padding: "7px 14px", background: slaSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{slaSaved ? "✓ Saved" : "Save SLA Targets"}</button>
           </div>
+        </div>
+
+        {/* Content Types */}
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Library size={16} style={{ display: "inline" }} /> Content Types</h3>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Manage the content types available in the Marketing Archive.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+            {Object.entries(archTypes).map(([key, t]) => (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderLeft: "4px solid " + t.color, borderRadius: 8 }}>
+                <span style={{ fontSize: 18 }}>{t.icon}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
+                <span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-muted)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: 4 }}>{key}</span>
+                <input type="color" value={t.color} onChange={(e) => setArchTypes({ ...archTypes, [key]: { ...t, color: e.target.value } })} style={{ width: 24, height: 24, border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer", padding: 1 }} />
+                {key !== "other" && <button onClick={() => removeArchType(key)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap", padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, border: "1px solid var(--border)", marginBottom: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Key</label>
+              <input value={newType.key} onChange={(e) => setNewType({ ...newType, key: e.target.value })} placeholder="e.g. podcast" style={{ width: 90, padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 12, color: "var(--text-primary)", outline: "none" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 100 }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Label</label>
+              <input value={newType.label} onChange={(e) => setNewType({ ...newType, label: e.target.value })} placeholder="e.g. Podcast Episode" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Icon</label>
+              <input value={newType.icon} onChange={(e) => setNewType({ ...newType, icon: e.target.value })} style={{ width: 40, padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 5, fontSize: 14, textAlign: "center", outline: "none" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Colour</label>
+              <input type="color" value={newType.color} onChange={(e) => setNewType({ ...newType, color: e.target.value })} style={{ width: 32, height: 28, border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer", padding: 1 }} />
+            </div>
+            <button onClick={addArchType} disabled={!newType.key.trim() || !newType.label.trim()} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 5, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: (newType.key.trim() && newType.label.trim()) ? 1 : 0.4 }}>Add</button>
+          </div>
+          <button onClick={handleArchTypeSave} style={{ padding: "7px 14px", background: archTypesSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{archTypesSaved ? "✓ Saved" : "Save Content Types"}</button>
         </div>
       </>)}
 
