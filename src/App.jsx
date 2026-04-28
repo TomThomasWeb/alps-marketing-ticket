@@ -179,18 +179,6 @@ export default function App() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  useEffect(() => {
-    fca();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
-
-  // Load knowledge base articles
-  useEffect(() => {
-    async function fkb() { const { data } = await supabase.from("kb_articles").select("*").order("order", { ascending: true }); if (data) setKbArticles(data); }
-    fkb();
-    const ch = supabase.channel("kb-rt").on("postgres_changes", { event: "*", schema: "public", table: "kb_articles" }, () => { fkb(); }).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
 
   // Load team goals
   useEffect(() => {
