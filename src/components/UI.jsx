@@ -51,10 +51,10 @@ export function FilePreview({ files }) {
 
 export function PageHeader({ title, subtitle, action, icon }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, gap: 16, flexWrap: "wrap" }}>
       <div>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 10 }}>{icon && <span style={{ display: "flex" }}>{icon}</span>}{title}</h2>
-        {subtitle && <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{subtitle}</p>}
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", display: "flex", alignItems: "center", gap: 10 }}>{icon && <span style={{ display: "flex" }}>{icon}</span>}{title}</h2>
+        {subtitle && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{subtitle}</p>}
       </div>
       {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>

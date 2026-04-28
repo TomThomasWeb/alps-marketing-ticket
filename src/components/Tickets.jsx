@@ -61,6 +61,8 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
   const [hasDraft, setHasDraft] = useState(() => { try { return !!localStorage.getItem("alps_ticket_draft"); } catch { return false; } });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const fileRef = useRef();
   useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
   useEffect(() => {
@@ -70,7 +72,6 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
     }
   }, [duplicateData]);
 
-  // Auto-save draft
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (form.title.trim() || form.description.trim()) {
@@ -81,152 +82,175 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
   }, [form.title, form.description, form.priority, form.deadline]);
 
   const clearDraft = () => { try { localStorage.removeItem("alps_ticket_draft"); } catch {} setHasDraft(false); };
-
-  const update = (field, value) => {
-    setForm((f) => ({ ...f, [field]: value }));
-    if (errors[field]) setErrors((e) => ({ ...e, [field]: null }));
-  };
-
-  const handleFiles = (e) => {
-    const newFiles = Array.from(e.target.files);
-    setForm((f) => ({ ...f, files: [...f.files, ...newFiles].slice(0, 5) }));
-    e.target.value = "";
-  };
-
+  const update = (field, value) => { setForm((f) => ({ ...f, [field]: value })); if (errors[field]) setErrors((e) => ({ ...e, [field]: null })); };
+  const handleFiles = (e) => { const newFiles = Array.from(e.target.files); setForm((f) => ({ ...f, files: [...f.files, ...newFiles].slice(0, 5) })); e.target.value = ""; };
   const removeFile = (idx) => setForm((f) => ({ ...f, files: f.files.filter((_, i) => i !== idx) }));
 
-  const validate = () => {
-    const e = {};
-    if (!currentUser && !form.name.trim()) e.name = "Name is required";
-    if (!form.title.trim()) e.title = "Task title is required";
-    if (!form.description.trim()) e.description = "Description is required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+  const validate = () => { const e = {}; if (!currentUser && !form.name.trim()) e.name = "Required"; if (!form.title.trim()) e.title = "Required"; if (!form.description.trim()) e.description = "Required"; setErrors(e); return Object.keys(e).length === 0; };
 
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
     await onSubmit({ ...form, actualFiles: form.files });
-    setForm({ name: "", title: "", description: "", priority: "medium", deadline: "", files: [] });
-    clearDraft();
     setSubmitting(false);
+    setSubmitted(true);
+    clearDraft();
+    setTimeout(() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); setSelectedTemplate(null); setSubmitted(false); }, 3000);
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const inputStyle = (field) => ({ width: "100%", padding: "12px 14px", background: "var(--bg-input)", border: "1.5px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 10, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box", fontFamily: "inherit" });
+  const inputStyle = (field) => ({ width: "100%", padding: "12px 16px", background: "var(--bg-input)", border: "1.5px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 10, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box", fontFamily: "inherit" });
   const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, letterSpacing: "0.02em" };
 
+  // Progress
+  const hasName = currentUser || form.name.trim();
+  const hasTitle = form.title.trim();
+  const hasDesc = form.description.trim();
+  const hasPriority = true;
+  const steps = [hasName, hasTitle, hasDesc, hasPriority].filter(Boolean).length;
+  const pct = Math.round(steps / 4 * 100);
+
+  // Submitted animation
+  if (submitted) return (
+    <div style={{ maxWidth: 560, width: "100%", textAlign: "center", padding: "80px 20px" }}>
+      <div style={{ width: 80, height: 80, borderRadius: 40, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "scaleIn 0.4s ease" }}>
+        <CheckCircle2 size={40} style={{ color: "#16a34a" }} />
+      </div>
+      <h2 style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>Request Submitted!</h2>
+      <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)" }}>We've got your request and will get started on it shortly.</p>
+    </div>
+  );
+
+  const lastUsed = (() => { try { return localStorage.getItem("alps_last_template"); } catch { return null; } })();
+
   return (
-    <div style={{ maxWidth: 560, width: "100%" }}>
-      <PageHeader icon={<PenSquare size={22} color="#6366f1" />} title="Submit a Request" subtitle="Fill in the form below and the marketing team will get right on it." />
+    <div style={{ maxWidth: 580, width: "100%" }}>
+      {/* Branded header */}
+      <div style={{ background: "linear-gradient(135deg, #231d68 0%, #464B99 100%)", borderRadius: 16, padding: "32px 28px 28px", marginBottom: 24, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.06)" }}></div>
+        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 80, height: 80, borderRadius: 40, background: "rgba(255,255,255,0.04)" }}></div>
+        <PenSquare size={28} style={{ opacity: 0.6, marginBottom: 12 }} />
+        <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em" }}>Submit a Request</h1>
+        <p style={{ margin: 0, fontSize: 14, opacity: 0.7 }}>Tell us what you need and we'll get it done.</p>
+        {/* Progress bar */}
+        <div style={{ marginTop: 20, background: "rgba(255,255,255,0.15)", borderRadius: 4, height: 6, overflow: "hidden" }}>
+          <div style={{ height: "100%", background: "#fff", borderRadius: 4, width: pct + "%", transition: "width 0.4s ease", opacity: 0.9 }}></div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, opacity: 0.5 }}>
+          <span>{pct === 100 ? "Ready to submit" : steps + "/4 fields completed"}</span>
+          <span>{pct}%</span>
+        </div>
+      </div>
 
       {hasDraft && form.title.trim() && !duplicateData && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
-          <span style={{ fontSize: 14 }}><Save size={14} style={{display:"inline"}} /></span>
+          <Save size={14} style={{ color: "var(--brand)" }} />
           <span style={{ color: "var(--text-primary)", flex: 1 }}>Draft saved</span>
-          <button onClick={() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); clearDraft(); }} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Discard</button>
+          <button onClick={() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); clearDraft(); setSelectedTemplate(null); }} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Discard</button>
         </div>
       )}
 
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ ...labelStyle, marginBottom: 8 }}>Quick Templates</label>
-        <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-          {(() => { const lastUsed = (() => { try { return localStorage.getItem("alps_last_template"); } catch { return null; } })(); return TEMPLATES.map((tmpl, i) => (
-            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = addBusinessDays(new Date(), sla.days); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} }} style={{ padding: "10px 8px", background: "var(--bg-input)", border: "1px solid " + (lastUsed === tmpl.label ? "var(--brand)" : "var(--border)"), borderRadius: 8, cursor: "pointer", transition: "all 0.2s", textAlign: "center", fontSize: 11, fontWeight: 600, color: "var(--text-body)", lineHeight: 1.3, position: "relative" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = lastUsed === tmpl.label ? "var(--brand)" : "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}>
-              <div style={{ fontSize: 18, marginBottom: 4 }}>{tmpl.icon}</div>
-              {tmpl.label}
-              {lastUsed === tmpl.label && <span style={{ position: "absolute", top: 4, right: 4, fontSize: 8, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Last used</span>}
+      {/* Visual template picker */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ ...labelStyle, fontSize: 13, marginBottom: 10 }}>What do you need?</label>
+        <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {TEMPLATES.map((tmpl, i) => (
+            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = addBusinessDays(new Date(), sla.days); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} setSelectedTemplate(i); }} style={{ padding: "14px 10px", background: selectedTemplate === i ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (selectedTemplate === i ? "var(--brand)" : "var(--border)"), borderRadius: 12, cursor: "pointer", transition: "all 0.2s", textAlign: "center", position: "relative" }} onMouseOver={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--border)"; }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>{tmpl.icon}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: selectedTemplate === i ? "var(--brand)" : "var(--text-primary)", marginBottom: 2 }}>{tmpl.label}</div>
+              {lastUsed === tmpl.label && selectedTemplate !== i && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 7, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Recent</span>}
+              {selectedTemplate === i && <span style={{ position: "absolute", top: 6, right: 6 }}><CheckCircle2 size={14} style={{ color: "var(--brand)" }} /></span>}
             </button>
-          )); })()}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        {currentUser ? (
-          <div>
-            <label style={labelStyle}>Submitting as</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}>
-              <span style={{ width: 24, height: 24, borderRadius: 12, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{currentUser.name}</span>
-            </div>
-          </div>
-        ) : (
-          <div>
-        <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
-        <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-          </div>
-        )}
-        {errors.name && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.name}</span>}
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
-        <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-        {errors.title && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.title}</span>}
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
-        <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
-          {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "—", md: "\n- ", title: "Bullet list" }, { label: "🔗", md: "[", title: "Link" }].map((btn) => (
-            <button key={btn.label} type="button" title={btn.title} onClick={() => {
-              const ta = document.querySelector("textarea[placeholder*='Describe']");
-              if (!ta) return;
-              const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
-              let ins;
-              if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
-              else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
-              else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
-              const next = form.description.slice(0, start) + ins + form.description.slice(end);
-              update("description", next);
-              setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
-            }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
           ))}
         </div>
-        <textarea rows={4} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need - include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-        {errors.description && <span style={{ fontSize: 12, color: "#ef4444", marginTop: 4, display: "block" }}>{errors.description}</span>}
-        <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>Supports **bold**, *italic*, `code`, - bullet lists, and [links](url)</span>
       </div>
 
-      <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        <div>
-          <label style={labelStyle}>Priority</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {Object.entries(PRIORITIES).map(([key, p]) => (
-              <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "8px 4px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "1.5px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
-                <span style={{ display: "block", fontSize: 14, marginBottom: 2 }}>{p.icon}</span>
-                {p.label}
-              </button>
+      {/* Form card */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px 24px 20px" }}>
+        <div style={{ marginBottom: 18 }}>
+          {currentUser ? (
+            <div>
+              <label style={labelStyle}>Submitting as</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 12, background: currentUser.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{currentUser.name}</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
+              <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+              {errors.name && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.name}</span>}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
+          <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+          {errors.title && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.title}</span>}
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
+          <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
+            {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "—", md: "\n- ", title: "Bullet list" }, { label: "🔗", md: "[", title: "Link" }].map((btn) => (
+              <button key={btn.label} type="button" title={btn.title} onClick={() => {
+                const ta = document.querySelector("textarea[placeholder*='Describe']");
+                if (!ta) return;
+                const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
+                let ins;
+                if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
+                else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
+                else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
+                const next = form.description.slice(0, start) + ins + form.description.slice(end);
+                update("description", next);
+                setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
+              }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
-            {"\u23F1"} Expected turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color || "var(--text-primary)" }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong>
+          <textarea rows={5} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need — include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+          {errors.description && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.description}</span>}
+        </div>
+
+        <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+          <div>
+            <label style={labelStyle}>Priority</label>
+            <div style={{ display: "flex", gap: 6 }}>
+              {Object.entries(PRIORITIES).map(([key, p]) => (
+                <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "2px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
+                  <span style={{ display: "block", fontSize: 16, marginBottom: 2 }}>{p.icon}</span>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong></div>
+          </div>
+          <div>
+            <label style={labelStyle}>Deadline</label>
+            <input type="date" min={today} style={{ ...inputStyle(null), cursor: "pointer" }} value={form.deadline} onChange={(e) => update("deadline", e.target.value)} />
           </div>
         </div>
-        <div>
-          <label style={labelStyle}>Deadline</label>
-          <input type="date" min={today} style={{ ...inputStyle(null), cursor: "pointer" }} value={form.deadline} onChange={(e) => update("deadline", e.target.value)} />
+
+        <div style={{ marginBottom: 24 }}>
+          <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
+          <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
+          <button onClick={() => fileRef.current?.click()} style={{ padding: "12px 18px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 10, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.background = "var(--brand-light)"; e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "var(--bg-input)"; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}>
+            <Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files
+          </button>
+          {form.files.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {form.files.map((f, i) => <FileChip key={i} name={f.name} onRemove={() => removeFile(i)} />)}
+            </div>
+          )}
         </div>
-      </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
-        <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
-        <button onClick={() => fileRef.current?.click()} style={{ padding: "10px 18px", background: "var(--bg-input)", border: "1px dashed var(--border)", borderRadius: 8, color: "var(--text-secondary)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.target.style.background = "var(--brand-light)"; e.target.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { e.target.style.background = "var(--bg-input)"; e.target.style.borderColor = "var(--border)"; }}>
-          <><Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files</>
-        </button>
-        {form.files.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-            {form.files.map((f, i) => <FileChip key={i} name={f.name} onRemove={() => removeFile(i)} />)}
-          </div>
-        )}
+        {/* Submit button */}
+        {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
+        <button onClick={handleSubmit} disabled={submitting || !ready} style={{ width: "100%", padding: "16px", background: ready ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 800, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", transition: "all 0.3s", letterSpacing: "0.02em", boxShadow: ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none", opacity: ready ? 1 : 0.5, transform: "translateY(0)" }} onMouseOver={(e) => { if (ready) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(35,29,104,0.3)"; } }} onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none"; }}>
+          {submitting ? "Submitting..." : "Submit Request →"}
+        </button>); })()}
       </div>
-
-      {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
-      <button onClick={handleSubmit} disabled={submitting || !ready} style={{ width: "100%", padding: "13px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", transition: "all 0.2s", letterSpacing: "0.02em", boxShadow: ready ? "0 4px 14px var(--brand-glow)" : "none", opacity: ready ? 1 : 0.5 }}>
-        {submitting ? "Submitting\u2026" : "Submit Ticket \u2192"}
-      </button>); })()}
     </div>
   );
 }
