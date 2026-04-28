@@ -4,12 +4,12 @@ import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
-import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, AlpsGallery } from "./components/Resources.jsx";
+import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, BrokerToolkit, AlpsGallery } from "./components/Resources.jsx";
 import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, EmailSignatureGenerator, ContrastChecker, FirstPolicySold } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -35,7 +35,6 @@ export default function App() {
   const [editArchiveEntry, setEditArchiveEntry] = useState(null);
   const [leads, setLeads] = useState([]);
   const [brandAssets, setBrandAssets] = useState([]);
-  const [contentTemplates, setContentTemplates] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [galleryImages, setGalleryImages] = useState([]);
   const [brokerToolkitItems, setBrokerToolkitItems] = useState([]);
@@ -148,13 +147,6 @@ export default function App() {
   }, []);
 
 
-  // Load content templates
-  useEffect(() => {
-    async function ft() { const { data } = await supabase.from("content_templates").select("*").order("title", { ascending: true }); if (data) setContentTemplates(data); }
-    ft();
-    const ch = supabase.channel("templates-rt").on("postgres_changes", { event: "*", schema: "public", table: "content_templates" }, () => { ft(); }).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
 
   // Load calendar events
   useEffect(() => {
@@ -710,11 +702,6 @@ const handleAddComment = async (id, author, text) => {
     await supabase.from("brand_assets").delete().eq("id", id);
   };
 
-  const handleTemplateSave = async (data, id) => {
-    if (id) { await supabase.from("content_templates").update(data).eq("id", id); }
-    else { await supabase.from("content_templates").insert(data); }
-  };
-  const handleTemplateDelete = async (id) => { await supabase.from("content_templates").delete().eq("id", id); };
 
   const handleCalendarSave = async (event) => {
     if (event.id) {
@@ -751,7 +738,7 @@ const handleAddComment = async (id, author, text) => {
   const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
   const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
   const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
-  const loginRequired = ["templates", "calendar", "lead_form", "archive", "brand_assets", "gallery", "signatures", "first_policy"];
+  const loginRequired = ["lead_form", "archive", "brand_assets", "gallery", "signatures", "first_policy"];
   const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"];
   const nav = (v) => {
     if (adminOnly.includes(v) && !isAdmin) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
@@ -763,7 +750,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "1st Policy Sold", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "1st Policy Sold", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -787,7 +774,6 @@ const handleAddComment = async (id, author, text) => {
     { id: "brand_assets", label: "Brand Assets", group: "resources" },
     { id: "gallery", label: "Alps Gallery", group: "resources" },
     ...(currentUser ? [
-      { id: "calendar", label: "Content Calendar", group: "resources" },
       { id: "broker_toolkit", label: "Broker Toolkit", group: "resources" },
     ] : []),
     { id: "converter", label: "File Converter", group: "tools" },
@@ -797,7 +783,6 @@ const handleAddComment = async (id, author, text) => {
     { id: "contrast_checker", label: "Contrast Checker", group: "tools" },
     { id: "first_policy", label: "1st Policy Sold", group: "tools" },
     ...(currentUser ? [
-      { id: "templates", label: "Content Templates", group: "tools" },
     ] : []),
     ...(isAdmin ? [
       { id: "dashboard", label: "Ticket Dashboard", group: "admin" },
@@ -814,9 +799,9 @@ const handleAddComment = async (id, author, text) => {
     hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
     profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
     archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
-    calendar: <CalendarDays size={17} />, broker_toolkit: <Briefcase size={17} />,
+    broker_toolkit: <Briefcase size={17} />,
     converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
-    templates: <FileText size={17} />,
+   
     dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
     analytics: <PieChart size={17} />, activity: <Clock size={17} />, admin: <Settings size={17} />,
     signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
@@ -918,7 +903,6 @@ const handleAddComment = async (id, author, text) => {
           {currentUser && <SidebarLink id="archive" label="Marketing Archive" />}
           {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
           {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
-          {currentUser && <SidebarLink id="calendar" label="Content Calendar" />}
           {currentUser && <SidebarLink id="broker_toolkit" label="Broker Toolkit" />}
           {!currentUser && !sideCollapsed && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>Log in to access resources</div>}
         </SidebarGroup>
@@ -929,7 +913,6 @@ const handleAddComment = async (id, author, text) => {
           {currentUser && <SidebarLink id="signatures" label="Email Signatures" />}
           <SidebarLink id="contrast_checker" label="Contrast Checker" />
           {currentUser && <SidebarLink id="first_policy" label="1st Policy Sold" />}
-          {currentUser && <SidebarLink id="templates" label="Content Templates" />}
           <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
             {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
@@ -1206,8 +1189,6 @@ const handleAddComment = async (id, author, text) => {
           <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
         ) : view === "brand_assets" ? (
           <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
-        ) : view === "templates" ? (
-          <ContentTemplates templates={contentTemplates} isAdmin={isAdmin} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
         ) : view === "converter" ? (
           <FileConverter />
         ) : view === "qr_generator" ? (
@@ -1220,8 +1201,6 @@ const handleAddComment = async (id, author, text) => {
           <ContrastChecker />
         ) : view === "first_policy" ? (
           <FirstPolicySold isAdmin={isAdmin} />
-        ) : view === "calendar" ? (
-          <ContentCalendar events={calendarEvents} isAdmin={isAdmin} onSave={handleCalendarSave} onDelete={handleCalendarDelete} onReschedule={handleCalendarReschedule} tickets={tickets} />
         ) : view === "gallery" ? (
           <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "broker_toolkit" ? (
@@ -1296,8 +1275,6 @@ const handleAddComment = async (id, author, text) => {
             { id: "first_policy", icon: <Wand2 size={20} />, label: "1st Policy" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
-              { id: "calendar", icon: <CalendarDays size={20} />, label: "Calendar" },
-              { id: "templates", icon: <FileText size={20} />, label: "Templates" },
               { id: "broker_toolkit", icon: <Briefcase size={20} />, label: "Broker" },
             ] : []),
             ...(isAdmin ? [

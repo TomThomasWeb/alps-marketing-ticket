@@ -58,6 +58,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
             {entry.tags && entry.tags.length > 0 && entry.tags.map((tag) => <span key={tag} style={{ padding: "1px 6px", borderRadius: 4, background: "var(--bg-input)", color: "var(--text-muted)" }}>{tag}</span>)}
           </div>
         </div>
+        {entry.file_url && <a href={entry.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "rgba(22,163,74,0.08)", border: "none", borderRadius: 6, color: "#16a34a", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}><Download size={12} style={{display:"inline",verticalAlign:"-1px"}} /> File</a>}
         {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ padding: "6px 12px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none", flexShrink: 0 }}><ExternalLink size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Link</a>}
         {isAdmin && <button onClick={() => onManage(entry.id)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>Edit</button>}
         {previewId === entry.id && entry.description && (
@@ -145,10 +146,21 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
 
 
 export function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
-  const [form, setForm] = useState(entry ? { title: entry.title, type: entry.type, description: entry.description || "", date: entry.date || "", link: entry.link || "", tags: (entry.tags || []).join(", "), campaign: entry.campaign || "", performance: entry.performance || "" } : { title: "", type: "social_post", description: "", date: "", link: "", tags: "", campaign: "", performance: "" });
+  const [form, setForm] = useState(entry ? { title: entry.title, type: entry.type, description: entry.description || "", date: entry.date || "", link: entry.link || "", tags: (entry.tags || []).join(", "), campaign: entry.campaign || "", performance: entry.performance || "", file_url: entry.file_url || "" } : { title: "", type: "social_post", description: "", date: "", link: "", tags: "", campaign: "", performance: "", file_url: "" });
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
-  const handleSave = async () => { if (!form.title.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), type: form.type, description: form.description.trim(), date: form.date || null, link: form.link.trim() || null, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean), campaign: form.campaign.trim() || null, performance: form.performance || null }, entry?.id); setSaving(false); };
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+  const handleFileUpload = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setUploading(true);
+    const path = "archive/" + Date.now() + "-" + f.name.replace(/\s+/g, "-");
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, f);
+    if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); setForm({ ...form, file_url: data.publicUrl }); }
+    setUploading(false);
+  };
+  const handleSave = async () => { if (!form.title.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), type: form.type, description: form.description.trim(), date: form.date || null, link: form.link.trim() || null, file_url: form.file_url || null, tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean), campaign: form.campaign.trim() || null, performance: form.performance || null }, entry?.id); setSaving(false); };
   const inputStyle = { width: "100%", padding: "11px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none" };
   const labelStyle = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 };
   const PERF = [{ value: "", label: "Not tracked" }, { value: "strong", label: "● Strong" }, { value: "average", label: "● Average" }, { value: "weak", label: "● Weak" }];
@@ -166,7 +178,23 @@ export function ArchiveForm({ entry, onSave, onCancel, onDelete }) {
           <div><label style={labelStyle}>Campaign <span style={{ fontWeight: 400, opacity: 0.6 }}>(group)</span></label><input style={inputStyle} value={form.campaign} onChange={(e) => setForm({ ...form, campaign: e.target.value })} placeholder="e.g. Q1 Motor Push" /></div>
           <div><label style={labelStyle}>Performance</label><select value={form.performance} onChange={(e) => setForm({ ...form, performance: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{PERF.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
         </div>
-        <div style={{ marginBottom: 16 }}><label style={labelStyle}>Link / URL</label><input style={inputStyle} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div><label style={labelStyle}>Link / URL</label><input style={inputStyle} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://..." /></div>
+          <div>
+            <label style={labelStyle}>File Attachment</label>
+            {form.file_url ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 12, color: "#16a34a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✓ File attached</span>
+                <button onClick={() => setForm({ ...form, file_url: "" })} style={{ padding: "4px 8px", background: "none", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>Remove</button>
+              </div>
+            ) : (
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                <Upload size={13} /> {uploading ? "Uploading..." : "Choose file"}
+                <input ref={fileRef} type="file" onChange={handleFileUpload} style={{ display: "none" }} disabled={uploading} />
+              </label>
+            )}
+          </div>
+        </div>
         <div style={{ marginBottom: 24 }}><label style={labelStyle}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label><input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. social, motor, q1" /></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button onClick={handleSave} disabled={saving || !form.title.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : entry ? "Update Entry" : "Add to Archive"}</button>
@@ -596,7 +624,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
       </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-        {[{ id: "brand-colours", label: "Colours", icon: "🎨" }, { id: "brand-typography", label: "Typography", icon: "Aa" }, { id: "brand-logos", label: "Logos & Icons", icon: "◆" }, { id: "brand-videos", label: "Video Backgrounds", icon: "▶" }, { id: "brand-templates", label: "Templates", icon: "📄" }].map((s) => (
+        {[{ id: "brand-colours", label: "Colours", icon: "🎨" }, { id: "brand-typography", label: "Typography", icon: "Aa" }, { id: "brand-logos", label: "Logos & Icons", icon: "◆" }, { id: "brand-videos", label: "Video Backgrounds", icon: "▶" }, { id: "brand-templates", label: "Templates", icon: "📄" }, { id: "brand-signatures", label: "Signatures", icon: "✉" }].map((s) => (
           <button key={s.id} onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}>
             <span>{s.icon}</span>{s.label}
           </button>
@@ -825,323 +853,31 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
           );
         })()}
       </div>
+
+      {/* Email Signatures */}
+      <div id="brand-signatures" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20, scrollMarginTop: 80 }}>
+        <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Email Signatures</h3>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-muted)" }}>Create your branded email signature using our signature builders.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <a href="https://alpsltd.signature.email" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+            <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "#231d68"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#231d68", marginBottom: 4 }}>Alps Ltd</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>Insurance services</div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", background: "#231d68", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Open Builder <ExternalLink size={11} /></span>
+            </div>
+          </a>
+          <a href="https://alpslegal.signature.email" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+            <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px", textAlign: "center", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "#e64592"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#e64592", marginBottom: 4 }}>Alps Legal</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>Legal services</div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 14px", background: "#e64592", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>Open Builder <ExternalLink size={11} /></span>
+            </div>
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
-
-
-
-export function ContentTemplates({ templates, isAdmin, onSave, onDelete }) {
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [editing, setEditing] = useState(null);
-  const [copied, setCopied] = useState(null);
-  const [fillVars, setFillVars] = useState(null);
-  const [varValues, setVarValues] = useState({});
-  const [form, setForm] = useState({ title: "", category: "email", content: "", tags: "" });
-
-  const getVars = (content) => [...new Set((content.match(/\[([A-Z_\s]+)\]/g) || []).map((m) => m.slice(1, -1)))];
-  const fillTemplate = (content, vals) => Object.entries(vals).reduce((s, [k, v]) => s.replaceAll("[" + k + "]", v || "[" + k + "]"), content);
-
-  const handleUse = (t) => {
-    const vars = getVars(t.content);
-    if (vars.length === 0) { navigator.clipboard.writeText(t.content); setCopied(t.content); setTimeout(() => setCopied(null), 1500); return; }
-    setFillVars(t); setVarValues(Object.fromEntries(vars.map((v) => [v, ""])));
-  };
-  const handleFillCopy = () => {
-    const filled = fillTemplate(fillVars.content, varValues);
-    navigator.clipboard.writeText(filled); setCopied(filled); setFillVars(null); setVarValues({}); setTimeout(() => setCopied(null), 1500);
-  };
-  const [saving, setSaving] = useState(false);
-
-  const CATS = {
-    email: { label: "Email", icon: "✉", color: "#6366f1" },
-    social: { label: "Social", icon: "📱", color: "#0284c7" },
-    product: { label: "Product Copy", icon: "📦", color: "#16a34a" },
-    broker: { label: "Broker Comms", icon: "🤝", color: "#ea580c" },
-    internal: { label: "Internal", icon: "🏢", color: "#8b5cf6" },
-    other: { label: "Other", icon: "📌", color: "#64748b" },
-  };
-
-  const filtered = templates.filter((t) => {
-    if (filter !== "all" && t.category !== filter) return false;
-    if (search.trim()) { const q = search.toLowerCase(); return t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q) || (t.tags || []).some((tag) => tag.toLowerCase().includes(q)); }
-    return true;
-  });
-
-  const handleCopy = (content) => { navigator.clipboard.writeText(content); setCopied(content); setTimeout(() => setCopied(null), 1500); };
-  const startEdit = (t) => { setEditing(t ? t.id : "new"); setForm(t ? { title: t.title, category: t.category, content: t.content, tags: (t.tags || []).join(", ") } : { title: "", category: "email", content: "", tags: "" }); };
-  const handleSave = async () => { if (!form.title.trim() || !form.content.trim()) return; setSaving(true); await onSave({ title: form.title.trim(), category: form.category, content: form.content.trim(), tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean) }, editing !== "new" ? editing : null); setSaving(false); setEditing(null); };
-  const handleDelete = async (id) => { await onDelete(id); setEditing(null); };
-
-  const inputStyle = { width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" };
-
-  if (editing !== null) {
-    const entry = editing !== "new" ? templates.find((t) => t.id === editing) : null;
-    return (
-      <div style={{ maxWidth: 600, width: "100%" }}><div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-        <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>{entry ? <><Pencil size={18} style={{ display: "inline" }} /> Edit Template</> : <><FileText size={18} style={{ display: "inline" }} /> New Template</>}</h2>
-        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Title *</label><input style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. New Broker Welcome Email" /></div>
-        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Category</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, cursor: "pointer" }}>{Object.entries(CATS).map(([k, c]) => <option key={k} value={k}>{c.icon} {c.label}</option>)}</select></div>
-        <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Content *</label><textarea rows={8} style={{ ...inputStyle, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} placeholder="Template content... Use [BROKER], [PRODUCT], [NAME] as placeholders" /></div>
-        <div style={{ marginBottom: 24 }}><label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Tags <span style={{ fontWeight: 400, opacity: 0.6 }}>(comma separated)</span></label><input style={inputStyle} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. welcome, onboarding" /></div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={handleSave} disabled={saving || !form.title.trim() || !form.content.trim()} style={{ flex: 1, padding: "12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: form.title.trim() && form.content.trim() ? 1 : 0.5 }}>{saving ? "Saving..." : entry ? "Update" : "Save Template"}</button>
-          <button onClick={() => setEditing(null)} style={{ padding: "12px 20px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-          {entry && <button onClick={() => handleDelete(entry.id)} style={{ padding: "12px 16px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Delete</button>}
-        </div>
-      </div></div>
-    );
-  }
-
-  return (
-    <div style={{ width: "100%" }}>
-      <PageHeader icon={<FileText size={22} color="#20A39E" />} title="Content Templates" subtitle="Reusable copy snippets, emails, and social captions. Use [BROKER], [PRODUCT], [NAME] as placeholders." action={isAdmin && <button onClick={() => startEdit(null)} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />New Template</button>} />
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 180 }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search templates..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
-        <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
-          <button onClick={() => setFilter("all")} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === "all" ? "var(--brand)" : "transparent", color: filter === "all" ? "#fff" : "var(--text-secondary)" }}>All</button>
-          {Object.entries(CATS).map(([k, c]) => (<button key={k} onClick={() => setFilter(k)} style={{ padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: "pointer", border: "none", background: filter === k ? c.color : "transparent", color: filter === k ? "#fff" : "var(--text-secondary)" }}>{c.icon} {c.label}</button>))}
-        </div>
-      </div>
-      {filtered.length === 0 ? (
-        <div className="hub-empty"><div className="hub-empty-icon"><FileText size={40} /></div><p className="hub-empty-title">{search.trim() ? "No matching templates" : "No templates yet"}</p><p className="hub-empty-desc">{search.trim() ? "Try a different search" : "Create reusable copy templates for emails, social posts, and more"}</p></div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {filtered.map((t) => { const c = CATS[t.category] || CATS.other; return (
-            <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, transition: "all 0.2s" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: c.color, textTransform: "uppercase", background: c.color + "12", padding: "2px 8px", borderRadius: 4 }}>{c.icon} {c.label}</span>
-                <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>{t.title}</span>
-                <button onClick={() => handleUse(t)} style={{ padding: "6px 12px", background: copied === t.content ? "#16a34a" : "var(--brand-light)", border: "none", borderRadius: 6, color: copied === t.content ? "#fff" : "var(--brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>{copied === t.content ? "\u2713 Copied" : getVars(t.content).length > 0 ? "Use" : "Copy"}</button>
-                {isAdmin && <button onClick={() => startEdit(t)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u270E"}</button>}
-              </div>
-              <pre style={{ margin: 0, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", background: "var(--bg-input)", padding: 14, borderRadius: 8, border: "1px solid var(--border)", maxHeight: 160, overflow: "auto" }}>{t.content}</pre>
-              {t.tags && t.tags.length > 0 && <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>{t.tags.map((tag) => <span key={tag} style={{ padding: "1px 8px", borderRadius: 4, background: "var(--brand-light)", color: "var(--brand)", fontSize: 10, fontWeight: 600 }}>{tag}</span>)}</div>}
-            </div>); })}
-        </div>
-      )}
-      {fillVars && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setFillVars(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, maxWidth: 480, width: "90%", maxHeight: "80vh", overflowY: "auto" }}>
-            <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--brand)" }}>Fill in placeholders</h3>
-            <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--text-muted)" }}>{fillVars.title}</p>
-            {getVars(fillVars.content).map((v) => (
-              <div key={v} style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>{v}</label>
-                <input value={varValues[v] || ""} onChange={(e) => setVarValues({ ...varValues, [v]: e.target.value })} placeholder={"Enter " + v.toLowerCase() + "..."} style={{ width: "100%", padding: "9px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
-              </div>
-            ))}
-            <div style={{ padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "monospace", maxHeight: 120, overflowY: "auto" }}>{fillTemplate(fillVars.content, varValues)}</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={handleFillCopy} style={{ flex: 1, padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Copy to Clipboard</button>
-              <button onClick={() => setFillVars(null)} style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-export function ContentCalendar({ events, isAdmin, onSave, onDelete, onReschedule, tickets }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ title: "", type: "social", description: "", createTicket: false, status: "planned" });
-  const [viewMode, setViewMode] = useState("month");
-  const [dragItem, setDragItem] = useState(null);
-
-  const EVENT_TYPES = {
-    social: { label: "Social Post", color: "#2563eb", icon: "📱" },
-    email: { label: "Email Campaign", color: "#16a34a", icon: "\u2709\uFE0F" },
-    event: { label: "Event", color: "#8b5cf6", icon: "🎉" },
-    deadline: { label: "Deadline", color: "#dc2626", icon: "\u23F0" },
-    survey: { label: "Survey", color: "#ca8a04", icon: "📋" },
-  };
-
-  const EVENT_STATUS = {
-    planned: { label: "Planned", color: "#64748b" },
-    in_progress: { label: "In Progress", color: "#ca8a04" },
-    published: { label: "Published", color: "#16a34a" },
-  };
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-  const monthLabel = currentDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const startOffset = firstDay === 0 ? 6 : firstDay - 1;
-
-  // Merge calendar events with ticket deadlines
-  const allEvents = (() => {
-    const merged = [...events.map((e) => ({ ...e, source: "calendar" }))];
-    if (tickets) {
-      tickets.filter((t) => t.deadline && t.status !== "completed").forEach((t) => {
-        const already = events.some((e) => e.ticket_ref === t.ref || e.ticket_ref === t.id);
-        if (!already) merged.push({ id: "ticket-" + t.id, title: (t.ref || "Ticket") + ": " + t.title, date: t.deadline.substring(0, 10), type: "deadline", description: "Ticket deadline", source: "ticket", ticketRef: t.ref || t.id });
-      });
-    }
-    return merged;
-  })();
-
-  const getEventsForDay = (day) => {
-    const dateStr = "" + year + "-" + String(month + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
-    return allEvents.filter((e) => e.date === dateStr);
-  };
-
-  const handleSave = () => {
-    if (!form.title.trim() || !selectedDate) return;
-    const dateStr = "" + year + "-" + String(month + 1).padStart(2, "0") + "-" + String(selectedDate).padStart(2, "0");
-    onSave({ ...form, date: dateStr, id: editing || undefined, status: form.status });
-    setForm({ title: "", type: "social", description: "", createTicket: false, status: "planned" });
-    setEditing(null);
-  };
-
-  const handleDrop = (day) => {
-    if (!dragItem) return;
-    const newDate = "" + year + "-" + String(month + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
-    if (dragItem.source === "ticket") {
-      if (onReschedule) onReschedule(dragItem.id, newDate, dragItem.ticketRef);
-    } else {
-      if (onReschedule) onReschedule(dragItem.id, newDate);
-    }
-    setDragItem(null);
-  };
-
-  const prevPeriod = () => viewMode === "month" ? setCurrentDate(new Date(year, month - 1, 1)) : setCurrentDate(new Date(currentDate.getTime() - 7 * 86400000));
-  const nextPeriod = () => viewMode === "month" ? setCurrentDate(new Date(year, month + 1, 1)) : setCurrentDate(new Date(currentDate.getTime() + 7 * 86400000));
-  const isToday = (day) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-
-  // Week view helpers
-  const weekStart = (() => { const d = new Date(currentDate); const day = d.getDay(); d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); d.setHours(0,0,0,0); return d; })();
-  const weekDays = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(d.getDate() + i); return d; });
-  const weekLabel = weekDays[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " \u2013 " + weekDays[6].toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const getEventsForDate = (d) => { const ds = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); return allEvents.filter((e) => e.date === ds); };
-
-  const inputStyle = { padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, outline: "none", width: "100%" };
-
-  const renderDayCell = (day, dateObj) => {
-    const dayEvents = dateObj ? getEventsForDate(dateObj) : getEventsForDay(day);
-    const isTodayCell = dateObj ? (dateObj.toDateString() === today.toDateString()) : isToday(day);
-    const selDay = dateObj ? dateObj.getDate() : day;
-    const selMonth = dateObj ? dateObj.getMonth() : month;
-    const sel = selectedDate === selDay && (dateObj ? dateObj.getMonth() === month : true);
-    const busyLevel = dayEvents.length === 0 ? "" : dayEvents.length <= 2 ? "rgba(35,29,104,0.02)" : dayEvents.length <= 4 ? "rgba(35,29,104,0.05)" : "rgba(35,29,104,0.08)";
-    const tooltipText = dayEvents.length > 0 ? dayEvents.map((ev) => (EVENT_TYPES[ev.type] || EVENT_TYPES.social).icon + " " + ev.title).join("\n") : "";
-    return (
-      <div key={day} onClick={() => { setSelectedDate(selDay); if (dateObj) setCurrentDate(new Date(dateObj.getFullYear(), dateObj.getMonth(), 1)); }}
-        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = "var(--brand-light)"; }}
-        onDragLeave={(e) => { e.currentTarget.style.background = ""; }}
-        onDrop={(e) => { e.preventDefault(); e.currentTarget.style.background = ""; handleDrop(selDay); }}
-        title={tooltipText}
-        style={{ minHeight: viewMode === "week" ? 120 : 80, padding: "4px 6px", borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", cursor: "pointer", background: sel ? "var(--brand-light)" : isTodayCell ? "rgba(34,197,94,0.04)" : busyLevel, transition: "background 0.15s" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-          <span style={{ fontSize: 12, fontWeight: isTodayCell ? 800 : 500, color: isTodayCell ? "#22c55e" : "var(--text-primary)" }}>{dateObj ? dateObj.getDate() : day}</span>
-          {dayEvents.length > 0 && viewMode === "month" && <span style={{ width: 6, height: 6, borderRadius: 3, background: dayEvents.length > 3 ? "#dc2626" : dayEvents.length > 1 ? "#ca8a04" : "var(--brand)", flexShrink: 0 }}></span>}
-        </div>
-        {dayEvents.slice(0, viewMode === "week" ? 6 : 3).map((ev, j) => {
-          const t = EVENT_TYPES[ev.type] || EVENT_TYPES.social;
-          return <div key={j} draggable={isAdmin} onDragStart={() => setDragItem(ev)} style={{ fontSize: 10, padding: "2px 4px", marginBottom: 2, borderRadius: 3, background: t.color + "18", color: t.color, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isAdmin ? "grab" : "default", borderLeft: ev.source === "ticket" ? "2px solid " + t.color : "none" }}>{t.icon} {ev.title}</div>;
-        })}
-        {dayEvents.length > (viewMode === "week" ? 6 : 3) && <div style={{ fontSize: 9, color: "var(--text-muted)" }}>+{dayEvents.length - (viewMode === "week" ? 6 : 3)} more</div>}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ width: "100%", maxWidth: 900 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-        <div>
-          <PageHeader icon={<CalendarDays size={22} color="#20A39E" />} title="Content Calendar" />
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>Plan and track marketing output. {isAdmin ? "Drag events to reschedule." : ""}</p>
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)", marginRight: 8 }}>
-            <button onClick={() => setViewMode("month")} style={{ padding: "5px 12px", borderRadius: 4, fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "month" ? "var(--brand)" : "transparent", color: viewMode === "month" ? "#fff" : "var(--text-muted)" }}>Month</button>
-            <button onClick={() => setViewMode("week")} style={{ padding: "5px 12px", borderRadius: 4, fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "week" ? "var(--brand)" : "transparent", color: viewMode === "week" ? "#fff" : "var(--text-muted)" }}>Week</button>
-          </div>
-          <button onClick={prevPeriod} style={{ padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>{"\u2190"}</button>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", minWidth: 160, textAlign: "center" }}>{viewMode === "month" ? monthLabel : weekLabel}</span>
-          <button onClick={nextPeriod} style={{ padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>{"\u2192"}</button>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {Object.entries(EVENT_TYPES).map(([k, v]) => (
-          <span key={k} style={{ padding: "4px 10px", borderRadius: 20, background: v.color + "18", color: v.color, fontSize: 11, fontWeight: 600 }}>{v.icon} {v.label}</span>
-        ))}
-        <span style={{ padding: "4px 10px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626", fontSize: 11, fontWeight: 600, borderLeft: "2px solid #dc2626" }}>From tickets</span>
-      </div>
-
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div key={d} style={{ padding: "10px 8px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{d}</div>
-          ))}
-        </div>
-        {viewMode === "month" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-            {Array.from({ length: startOffset }, (_, i) => (
-              <div key={"e" + i} style={{ minHeight: 80, borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)", background: "var(--bg-input)" }}></div>
-            ))}
-            {Array.from({ length: daysInMonth }, (_, i) => renderDayCell(i + 1, null))}
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-            {weekDays.map((d, i) => renderDayCell(i, d))}
-          </div>
-        )}
-      </div>
-
-      {selectedDate && (
-        <div style={{ marginTop: 16, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{selectedDate} {monthLabel}</h3>
-          {getEventsForDay(selectedDate).length > 0 ? (
-            <div style={{ marginBottom: isAdmin ? 16 : 0 }}>
-              {getEventsForDay(selectedDate).map((ev) => {
-                const t = EVENT_TYPES[ev.type] || EVENT_TYPES.social;
-                return (
-                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "var(--bg-input)", borderRadius: 8, borderLeft: "3px solid " + t.color }}>
-                    <span style={{ fontSize: 16 }}>{t.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{ev.title}</div>
-                      {ev.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{ev.description}</div>}
-                    </div>
-                    <span style={{ fontSize: 10, color: t.color, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: t.color + "18" }}>{ev.source === "ticket" ? "Ticket" : t.label}</span>
-                    {isAdmin && ev.source !== "ticket" && <button onClick={(e) => { e.stopPropagation(); setForm({ title: ev.title, type: ev.type, description: ev.description || "", createTicket: false }); setEditing(ev.id); }} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Edit</button>}
-                    {isAdmin && ev.source !== "ticket" && <button onClick={(e) => { e.stopPropagation(); onDelete(ev.id); }} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11, color: "#ef4444", cursor: "pointer" }}>Del</button>}
-                  </div>
-                );
-              })}
-            </div>
-          ) : <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>No events scheduled</p>}
-          {isAdmin && (
-            <div style={{ borderTop: getEventsForDay(selectedDate).length > 0 ? "1px solid var(--border)" : "none", paddingTop: getEventsForDay(selectedDate).length > 0 ? 12 : 0 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginBottom: 8 }}>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" style={inputStyle} />
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, width: "auto", cursor: "pointer" }}>
-                  {Object.entries(EVENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-                </select>
-              </div>
-              <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description (optional)" style={{ ...inputStyle, marginBottom: 8 }} />
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button onClick={handleSave} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update" : "Add Event"}</button>
-                <div style={{ marginBottom: 8 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Status</label><div style={{ display: "flex", gap: 4 }}>{Object.entries(EVENT_STATUS).map(([k, v]) => <button key={k} onClick={() => setForm({ ...form, status: k })} style={{ flex: 1, padding: "5px", borderRadius: 4, border: "1px solid " + (form.status === k ? v.color : "var(--border)"), background: form.status === k ? v.color + "18" : "transparent", fontSize: 10, fontWeight: 600, cursor: "pointer", color: form.status === k ? v.color : "var(--text-muted)" }}>{v.label}</button>)}</div></div>
-                {!editing && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={form.createTicket} onChange={(e) => setForm({ ...form, createTicket: e.target.checked })} style={{ accentColor: "var(--brand)" }} />Also create a ticket</label>}
-                {editing && <button onClick={() => { setEditing(null); setForm({ title: "", type: "social", description: "", createTicket: false, status: "planned" }); }} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "var(--text-secondary)" }}>Cancel</button>}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 
 
 export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
