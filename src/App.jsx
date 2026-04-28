@@ -1153,8 +1153,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          {(() => { const wideViews = ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "activity", "broker_toolkit"]; const mw = wideViews.includes(view) ? 1200 : 1000; return (
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: mw, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "activity", "broker_toolkit"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1246,7 +1245,7 @@ const handleAddComment = async (id, author, text) => {
             )}
           </div>
         )}
-          </main>); })()}
+          </main>
 
           {/* Global quick-add FAB */}
           {view !== "form" && view !== "lead_form" && view !== "archive_add" && (

@@ -455,6 +455,9 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
   const [memo, setMemo] = useState("");
   const [memoSaved, setMemoSaved] = useState(false);
   const [memoLoaded, setMemoLoaded] = useState(false);
+  const [slaForm, setSlaForm] = useState({ critical: SLA_TARGETS.critical?.days || 1, high: SLA_TARGETS.high?.days || 2, medium: SLA_TARGETS.medium?.days || 5, low: SLA_TARGETS.low?.days || 7 });
+  const [slaSaved, setSlaSaved] = useState(false);
+  const handleSlaSave = () => { const targets = {}; Object.entries(slaForm).forEach(([key, days]) => { targets[key] = { days: Number(days), hours: Number(days) * 8, label: days + " day" + (days !== 1 ? "s" : "") }; }); if (onSaveSla) onSaveSla(targets); setSlaSaved(true); setTimeout(() => setSlaSaved(false), 2000); };
 
   useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
 
@@ -658,39 +661,20 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         <div style={card}>
           <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><Clock size={16} style={{ display: "inline" }} /> SLA Targets</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Set turnaround time targets per priority level. Weekends are excluded from the count automatically.</p>
-          {(() => {
-            const [slaForm, setSlaForm] = useState({
-              critical: SLA_TARGETS.critical?.days || 1,
-              high: SLA_TARGETS.high?.days || 2,
-              medium: SLA_TARGETS.medium?.days || 5,
-              low: SLA_TARGETS.low?.days || 7,
-            });
-            const [slaSaved, setSlaSaved] = useState(false);
-            const handleSlaSave = () => {
-              const targets = {};
-              Object.entries(slaForm).forEach(([key, days]) => {
-                targets[key] = { days: Number(days), hours: Number(days) * 8, label: days + " day" + (days !== 1 ? "s" : "") };
-              });
-              if (onSaveSla) onSaveSla(targets);
-              setSlaSaved(true); setTimeout(() => setSlaSaved(false), 2000);
-            };
-            return (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
-                  {Object.entries(PRIORITIES).map(([key, p]) => (
-                    <div key={key}>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: p.color, marginBottom: 4 }}>{p.icon} {p.label}</label>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <input type="number" min="1" max="30" value={slaForm[key]} onChange={(e) => setSlaForm({ ...slaForm, [key]: parseInt(e.target.value) || 1 })} style={{ width: 50, padding: "7px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 14, fontWeight: 700, color: "var(--text-primary)", outline: "none", textAlign: "center" }} />
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>business days</span>
-                      </div>
-                    </div>
-                  ))}
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
+              {Object.entries(PRIORITIES).map(([key, p]) => (
+                <div key={key}>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: p.color, marginBottom: 4 }}>{p.icon} {p.label}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="number" min="1" max="30" value={slaForm[key]} onChange={(e) => setSlaForm({ ...slaForm, [key]: parseInt(e.target.value) || 1 })} style={{ width: 50, padding: "7px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 14, fontWeight: 700, color: "var(--text-primary)", outline: "none", textAlign: "center" }} />
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>business days</span>
+                  </div>
                 </div>
-                <button onClick={handleSlaSave} style={{ padding: "7px 14px", background: slaSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{slaSaved ? "✓ Saved" : "Save SLA Targets"}</button>
-              </div>
-            );
-          })()}
+              ))}
+            </div>
+            <button onClick={handleSlaSave} style={{ padding: "7px 14px", background: slaSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{slaSaved ? "✓ Saved" : "Save SLA Targets"}</button>
+          </div>
         </div>
       </>)}
 
