@@ -4,69 +4,6 @@ import { supabase } from "../supabaseClient.js";
 import { ArrowLeftRight, QrCode, Crop, Image, Type, Droplet, Download, Upload, Trash2, Plus, Copy, Wand2, ClipboardList, Repeat, FileText, Mail, MessageSquare, Twitter, Hash, CheckCircle2, ExternalLink } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
-export function SelfServiceGuide() {
-  const [open, setOpen] = useState(null);
-  const toggle = (id) => setOpen(open === id ? null : id);
-
-  const sections = [
-    { id: "sizes", title: "Image & Asset Sizes", items: [
-      { q: "Social media image sizes", a: "LinkedIn: 1200x627px (post), 1584x396px (cover)\nFacebook: 1200x630px (post), 820x312px (cover)\nInstagram: 1080x1080px (post), 1080x1920px (story)\nX/Twitter: 1600x900px (post), 1500x500px (header)" },
-      { q: "Email banner size", a: "Standard email banner: 600px wide, 200-300px tall. Keep file size under 200KB for fast loading." },
-      { q: "Print material specs", a: "A4 flyer: 210x297mm (3mm bleed)\nA5 flyer: 148x210mm (3mm bleed)\nDL leaflet: 99x210mm\nBusiness card: 85x55mm\nAlways supply at 300dpi with CMYK colour." },
-      { q: "PowerPoint slide dimensions", a: "Standard: 16:9 (33.867cm x 19.05cm)\nWe use widescreen by default. Fonts should be minimum 18pt for body text on slides." },
-    ]},
-    { id: "brand", title: "Brand & Logo Usage", items: [
-      { q: "Where do I find Alps logos?", a: "Go to Brand Assets in the Marketing Hub. You can download logos in PNG, SVG, JPG, and PDF formats." },
-      { q: "Can I edit the Alps logo?", a: "No. The logo should not be stretched, recoloured, rotated, or modified in any way. Always use the approved versions from the Brand Assets page." },
-      { q: "What fonts does Alps use?", a: "Headlines: Museo Sans 700\nBody copy: Montserrat Regular\nThese are listed in the Brand Assets section with the full colour palette." },
-      { q: "How do I use the brand colours?", a: "Main: #231D68\nMotor: #E64592\nCommercial: #20A39E\nLet: #FAB315\nPersonal: #464B99\nAlt Man: #27D7F4\nClick any colour in Brand Assets to copy the hex code." },
-    ]},
-    { id: "requests", title: "Marketing Requests", items: [
-      { q: "How do I request marketing work?", a: "Use the Submit a Ticket feature on the Marketing Hub homepage. Fill in the form with as much detail as possible, and select the appropriate template and priority." },
-      { q: "What's the typical turnaround?", a: "Low priority: 5-7 working days\nMedium priority: 3-5 working days\nHigh priority: 1-2 working days\nCritical/urgent: Same day where possible\nThese are estimates and depend on current workload." },
-      { q: "How do I track my request?", a: "Use Track a Ticket on the Hub homepage. Enter the reference number (e.g. M001) you received when you submitted. You can also add comments to your ticket and edit it if needed." },
-      { q: "What if I need changes to completed work?", a: "Add a note to your existing ticket via the tracker. If it's a new piece of work, submit a new ticket referencing the original." },
-    ]},
-    { id: "content", title: "Content & Campaigns", items: [
-      { q: "How do I get content published?", a: "Submit a ticket with the content, target audience, channel, and any deadlines. Include all copy, images, and links needed." },
-      { q: "What's the approvals process?", a: "All external-facing content goes through marketing review before publishing. Allow at least 1 working day for review and revisions." },
-      { q: "How do I log a marketing lead?", a: "Use Log a Lead on the Hub homepage. Fill in the broker name, what the enquiry is about, the source channel, and set next steps." },
-    ]},
-    { id: "tools", title: "Tools & Access", items: [
-      { q: "What can I do without logging in?", a: "Anyone can: submit tickets, track tickets, log leads, browse the archive, view brand assets, and read this guide. The dashboard, analytics, and admin features require a user account." },
-      { q: "How do I get an account?", a: "Click Sign Up to create an account. Your account will be pending until an admin approves it. Once approved, you can log in and access dashboards, analytics, and commenting features." },
-    ]},
-  ];
-
-  return (
-    <div style={{ width: "100%", maxWidth: 720 }}>
-      <PageHeader icon={<FileText size={22} color="#0284c7" />} title="Self-Service Guide" subtitle="Image sizes, file formats, and frequently asked questions" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {sections.map((section) => (
-          <div key={section.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-            <button onClick={() => toggle(section.id)} style={{ width: "100%", padding: "16px 20px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}>
-              <span style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{section.title}</span>
-              <span style={{ fontSize: 18, color: "var(--text-muted)", transition: "transform 0.2s", transform: open === section.id ? "rotate(180deg)" : "none" }}>{"\u25BC"}</span>
-            </button>
-            {open === section.id && (
-              <div style={{ padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {section.items.map((item, i) => (
-                  <div key={i} style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>{item.q}</div>
-                    <pre style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{item.a}</pre>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
-
 export function FileConverter() {
   const [files, setFiles] = useState([]);
   const [outputFormat, setOutputFormat] = useState("png");
@@ -274,6 +211,7 @@ export function FileConverter() {
 
 export function QRCodeGenerator() {
   const [mode, setMode] = useState("url");
+  const [qrTitle, setQrTitle] = useState("");
   const [url, setUrl] = useState("");
   const [vcard, setVcard] = useState({ name: "", phone: "", email: "", company: "Alps Ltd", title: "" });
   const [size, setSize] = useState(300);
@@ -282,6 +220,9 @@ export function QRCodeGenerator() {
   const [generated, setGenerated] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [tab, setTab] = useState("create");
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const canvasRef = useRef(null);
   const logoRef = useRef(null);
 
@@ -292,6 +233,25 @@ export function QRCodeGenerator() {
     { label: "Black", hex: "000000" },
   ];
 
+  // Load history
+  useEffect(() => {
+    async function loadHistory() {
+      setHistoryLoading(true);
+      const { data } = await supabase.from("app_settings").select("value").eq("key", "qr_history").maybeSingle();
+      if (data?.value) { try { setHistory(JSON.parse(data.value)); } catch {} }
+      setHistoryLoading(false);
+    }
+    loadHistory();
+  }, []);
+
+  const saveHistory = async (list) => {
+    setHistory(list);
+    const val = JSON.stringify(list);
+    const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "qr_history").maybeSingle();
+    if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "qr_history"); }
+    else { await supabase.from("app_settings").insert({ key: "qr_history", value: val }); }
+  };
+
   const getVcardString = () => {
     const parts = vcard.name.trim().split(" ");
     const last = parts.length > 1 ? parts.pop() : "";
@@ -299,11 +259,16 @@ export function QRCodeGenerator() {
     return ["BEGIN:VCARD", "VERSION:3.0", "N:" + last + ";" + first + ";;;", "FN:" + vcard.name.trim(), vcard.company ? "ORG:" + vcard.company : "", vcard.title ? "TITLE:" + vcard.title : "", vcard.phone ? "TEL:" + vcard.phone : "", vcard.email ? "EMAIL:" + vcard.email : "", "END:VCARD"].filter(Boolean).join("\n");
   };
 
+  const canGenerate = mode === "vcard" ? vcard.name.trim() : url.trim();
+
   const generate = () => {
     const data = mode === "vcard" ? getVcardString() : url.trim();
     if (!data) return;
     const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encodeURIComponent(data) + "&color=" + color + "&bgcolor=" + bgColor + "&format=png&margin=1";
     setGenerated({ url: qrUrl, inputUrl: data });
+    // Save to history
+    const entry = { id: Date.now().toString(), title: qrTitle.trim() || (mode === "vcard" ? vcard.name.trim() : url.trim().substring(0, 50)), mode, data: mode === "vcard" ? vcard.name.trim() : url.trim(), qrUrl, color, size, created: new Date().toISOString() };
+    saveHistory([entry, ...history].slice(0, 50));
   };
 
   const handleLogo = (e) => {
@@ -367,6 +332,34 @@ export function QRCodeGenerator() {
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
+          <button onClick={() => setTab("create")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: tab === "create" ? "var(--brand)" : "transparent", color: tab === "create" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Create</button>
+          <button onClick={() => setTab("history")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: tab === "history" ? "var(--brand)" : "transparent", color: tab === "history" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Saved ({history.length})</button>
+        </div>
+
+        {tab === "history" ? (
+          <div>
+            {historyLoading ? <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>Loading...</div> : history.length === 0 ? <div style={{ textAlign: "center", padding: "24px 16px", color: "var(--text-muted)", fontSize: 13 }}>No QR codes generated yet. Create one to see it here.</div> : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {history.map((h) => (
+                  <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                    <img src={h.qrUrl} alt="" style={{ width: 48, height: 48, borderRadius: 6, border: "1px solid var(--border)" }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.title}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{h.mode === "vcard" ? "vCard" : "URL"} · {new Date(h.created).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                    </div>
+                    <a href={h.qrUrl} download={"qr-" + h.title.replace(/\s+/g, "-") + ".png"} style={{ padding: "5px 10px", background: "var(--brand-light)", border: "none", borderRadius: 6, color: "var(--brand)", fontSize: 11, fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>Download</a>
+                    <button onClick={() => saveHistory(history.filter((x) => x.id !== h.id))} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (<>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--brand)", marginBottom: 6 }}>Title</label>
+          <input style={inputStyle} value={qrTitle} onChange={(e) => setQrTitle(e.target.value)} placeholder="Give this QR code a name (optional)" />
+        </div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
           <button onClick={() => setMode("url")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: mode === "url" ? "var(--brand)" : "transparent", color: mode === "url" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>URL / Text</button>
           <button onClick={() => setMode("vcard")} style={{ flex: 1, padding: "7px", borderRadius: 6, border: "none", background: mode === "vcard" ? "var(--brand)" : "transparent", color: mode === "vcard" ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>vCard Contact</button>
         </div>
@@ -424,7 +417,7 @@ export function QRCodeGenerator() {
           {logoPreview && <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}><img src={logoPreview} alt="Logo" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "contain", background: "#fff", border: "1px solid var(--border)" }} /><span style={{ fontSize: 11, color: "var(--text-muted)" }}>Logo will appear at ~22% of QR size</span></div>}
         </div>
 
-        <button onClick={generate} disabled={!url.trim()} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: url.trim() ? 1 : 0.5, marginBottom: generated ? 16 : 0, transition: "opacity 0.2s" }}>Generate QR Code</button>
+        <button onClick={generate} disabled={!canGenerate} style={{ width: "100%", padding: "14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: canGenerate ? 1 : 0.5, marginBottom: generated ? 16 : 0, transition: "opacity 0.2s" }}>Generate QR Code</button>
 
         {generated && (
           <div style={{ textAlign: "center" }}>
@@ -438,11 +431,11 @@ export function QRCodeGenerator() {
             </div>
           </div>
         )}
+        </>)}
       </div>
     </div>
   );
 }
-
 
 
 

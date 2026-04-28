@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
 import { supabase } from "../supabaseClient.js";
-import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, getDueBadge, daysUntil, formatDate, renderMarkdown } from "../constants.js";
+import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, TEMPLATES, getDueBadge, daysUntil, formatDate, renderMarkdown } from "../constants.js";
 import { BarChart3, PieChart, CalendarDays, FileText, ClipboardList, TrendingUp, Mail, Download, Database, Users, Shield, Clock, Megaphone, Pin, Activity, Lock, ChevronDown, Repeat, Pause, Play, Trash2, Edit, Plus, Target, CheckCircle2, AlertCircle, Library } from "lucide-react";
 import { PageHeader } from "./UI.jsx";
 
@@ -438,7 +438,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
 
 
 
-export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog, onSaveSla, onSaveArchiveTypes }) {
+export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo, tickets, leads, archiveEntries, oooSummaryDismissed, onDismissSummary, calendarEvents, dashboardPassword, onChangePassword, announcement, onUpdateAnnouncement, recurringSchedules, onCreateRecurring, onUpdateRecurring, onDeleteRecurring, onPauseRecurring, teamGoals, onGoalSave, onGoalDelete, galleryImages, kbArticles, hubUsers, onAddUser, onUpdateUser, onDeleteUser, auditLog, onSaveSla, onSaveArchiveTypes, onSaveTemplates }) {
   const [adminTab, setAdminTab] = useState("overview");
   const [returnDate, setReturnDate] = useState(oooReturnDate || "");
   const [showSummary, setShowSummary] = useState(false);
@@ -464,6 +464,14 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
   const handleArchTypeSave = () => { if (onSaveArchiveTypes) onSaveArchiveTypes({ ...archTypes }); setArchTypesSaved(true); setTimeout(() => setArchTypesSaved(false), 2000); };
   const addArchType = () => { if (!newType.key.trim() || !newType.label.trim()) return; const k = newType.key.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); setArchTypes({ ...archTypes, [k]: { label: newType.label.trim(), icon: newType.icon, color: newType.color } }); setNewType({ key: "", label: "", icon: "📄", color: "#6366f1" }); };
   const removeArchType = (k) => { const next = { ...archTypes }; delete next[k]; setArchTypes(next); };
+  const [tplList, setTplList] = useState(() => [...TEMPLATES]);
+  const [editTpl, setEditTpl] = useState(null);
+  const [newTpl, setNewTpl] = useState({ label: "", icon: "📋", title: "", description: "", priority: "medium" });
+  const [tplSaved, setTplSaved] = useState(false);
+  const handleTplSave = () => { if (onSaveTemplates) onSaveTemplates([...tplList]); setTplSaved(true); setTimeout(() => setTplSaved(false), 2000); };
+  const addTpl = () => { if (!newTpl.label.trim() || !newTpl.title.trim()) return; setTplList([...tplList, { ...newTpl }]); setNewTpl({ label: "", icon: "📋", title: "", description: "", priority: "medium" }); };
+  const removeTpl = (i) => setTplList(tplList.filter((_, idx) => idx !== i));
+  const updateTpl = (i, field, value) => { const next = [...tplList]; next[i] = { ...next[i], [field]: value }; setTplList(next); };
 
   useEffect(() => { setAnnText(announcement?.text || ""); setAnnActive(announcement?.active || false); setAnnLink(announcement?.link || ""); }, [announcement]);
 
@@ -718,6 +726,47 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
             <button onClick={addArchType} disabled={!newType.key.trim() || !newType.label.trim()} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 5, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: (newType.key.trim() && newType.label.trim()) ? 1 : 0.4 }}>Add</button>
           </div>
           <button onClick={handleArchTypeSave} style={{ padding: "7px 14px", background: archTypesSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{archTypesSaved ? "✓ Saved" : "Save Content Types"}</button>
+        </div>
+
+        {/* Ticket Templates */}
+        <div style={card}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}><ClipboardList size={16} style={{ display: "inline" }} /> Ticket Templates</h3>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Manage the quick templates shown on the ticket submission form.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+            {tplList.map((t, i) => (
+              <div key={i} style={{ padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8 }}>
+                {editTpl === i ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Icon</label><input value={t.icon} onChange={(e) => updateTpl(i, "icon", e.target.value)} style={{ width: 36, padding: "6px", textAlign: "center", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 14, outline: "none" }} /></div>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Label</label><input value={t.label} onChange={(e) => updateTpl(i, "label", e.target.value)} style={{ width: "100%", padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Title (pre-fill)</label><input value={t.title} onChange={(e) => updateTpl(i, "title", e.target.value)} style={{ width: "100%", padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+                      <select value={t.priority} onChange={(e) => updateTpl(i, "priority", e.target.value)} style={{ padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 11, color: "var(--text-primary)", outline: "none" }}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select>
+                    </div>
+                    <textarea value={t.description} onChange={(e) => updateTpl(i, "description", e.target.value)} rows={3} style={{ width: "100%", padding: "8px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-primary)", outline: "none", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} placeholder="Pre-filled description..." />
+                    <button onClick={() => setEditTpl(null)} style={{ alignSelf: "flex-start", padding: "4px 12px", background: "var(--brand)", border: "none", borderRadius: 5, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Done</button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{t.icon}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.label}</span>
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "var(--bg-card)", color: "var(--text-muted)" }}>{t.priority}</span>
+                    <button onClick={() => setEditTpl(i)} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600, padding: 0 }}>Edit</button>
+                    <button onClick={() => removeTpl(i)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 14, padding: 0 }}>✕</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, border: "1px solid var(--border)", marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+              <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Icon</label><input value={newTpl.icon} onChange={(e) => setNewTpl({ ...newTpl, icon: e.target.value })} style={{ width: 36, padding: "6px", textAlign: "center", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 14, outline: "none" }} /></div>
+              <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Label</label><input value={newTpl.label} onChange={(e) => setNewTpl({ ...newTpl, label: e.target.value })} placeholder="e.g. Event Promo" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 3 }}>Title</label><input value={newTpl.title} onChange={(e) => setNewTpl({ ...newTpl, title: e.target.value })} placeholder="Pre-filled ticket title" style={{ width: "100%", padding: "6px 8px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <button onClick={addTpl} disabled={!newTpl.label.trim() || !newTpl.title.trim()} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 5, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: (newTpl.label.trim() && newTpl.title.trim()) ? 1 : 0.4 }}>Add</button>
+            </div>
+          </div>
+          <button onClick={handleTplSave} style={{ padding: "7px 14px", background: tplSaved ? "#16a34a" : "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{tplSaved ? "✓ Saved" : "Save Templates"}</button>
         </div>
       </>)}
 

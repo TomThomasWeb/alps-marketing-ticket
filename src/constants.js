@@ -20,14 +20,36 @@ export const STATUS = {
   completed: { label: "Completed", color: "#16a34a", bg: "rgba(22,163,74,0.1)" },
 };
 
-export const TEMPLATES = [
-  { label: "Social Media Post", icon: "\u{1F4F1}", title: "Social media post", description: "Please create a social media post for the following:\n\n**Platform(s):** \n**Topic/message:** \n**Tone:** \n**Any specific images or links to include:** ", priority: "medium" },
-  { label: "Email Campaign", icon: "\u{1F4E7}", title: "Email campaign", description: "Please design an email campaign for:\n\n**Purpose/goal:** \n**Target audience:** \n**Key message:** \n**Call to action:** \n**Send date:** ", priority: "medium" },
-  { label: "Print Material", icon: "\u{1F5A8}", title: "Print material design", description: "Please create print material:\n\n**Type:** *(flyer/brochure/poster/banner)*\n**Size/dimensions:** \n**Content/copy:** \n**Brand or broker:** \n**Delivery date needed:** ", priority: "medium" },
-  { label: "PowerPoint Design", icon: "\u{1F4CA}", title: "PowerPoint presentation", description: "Please design a PowerPoint presentation:\n\n**Topic/purpose:** \n**Number of slides (approx):** \n**Key content/sections:**\n- Slide 1: \n- Slide 2: \n- Slide 3: \n\n**Audience:** \n**Brand or broker:** ", priority: "medium" },
-  { label: "Website Update", icon: "\u{1F310}", title: "Website update", description: "Please make the following website change:\n\n**Page/URL:** \n**What needs updating:** \n**New content/copy:** \n**Any new images needed:** ", priority: "medium" },
-  { label: "Video/Photo", icon: "\u{1F3AC}", title: "Video or photo request", description: "Please produce the following:\n\n**Type:** *(video/photo/both)*\n**Purpose:** \n**Location/setting:** \n**Duration or quantity:** \n**Deadline:** ", priority: "high" },
+export const DEFAULT_TEMPLATES = [
+  { label: "Social Media Post", icon: "📱", title: "Social media post", description: "Please create a social media post for the following:\n\n**Platform(s):** \n**Topic/message:** \n**Tone:** \n**Any specific images or links to include:** ", priority: "medium" },
+  { label: "Email Campaign", icon: "✉", title: "Email campaign", description: "Please design an email campaign for:\n\n**Purpose/goal:** \n**Target audience:** \n**Key message:** \n**Call to action:** \n**Send date:** ", priority: "medium" },
+  { label: "Print Material", icon: "🖨", title: "Print material design", description: "Please create print material:\n\n**Type:** *(flyer/brochure/poster/banner)*\n**Size/dimensions:** \n**Content/copy:** \n**Brand or broker:** \n**Delivery date needed:** ", priority: "medium" },
+  { label: "PowerPoint Design", icon: "📊", title: "PowerPoint presentation", description: "Please design a PowerPoint presentation:\n\n**Topic/purpose:** \n**Number of slides (approx):** \n**Key content/sections:**\n- Slide 1: \n- Slide 2: \n- Slide 3: \n\n**Audience:** \n**Brand or broker:** ", priority: "medium" },
+  { label: "Website Update", icon: "🌐", title: "Website update", description: "Please make the following website change:\n\n**Page/URL:** \n**What needs updating:** \n**New content/copy:** \n**Any new images needed:** ", priority: "medium" },
+  { label: "Video/Photo", icon: "🎬", title: "Video or photo request", description: "Please produce the following:\n\n**Type:** *(video/photo/both)*\n**Purpose:** \n**Location/setting:** \n**Duration or quantity:** \n**Deadline:** ", priority: "high" },
 ];
+
+export const TEMPLATES = [...DEFAULT_TEMPLATES];
+
+export async function loadTemplates() {
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "ticket_templates").maybeSingle();
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value);
+      TEMPLATES.length = 0;
+      parsed.forEach((t) => TEMPLATES.push(t));
+    } catch {}
+  }
+}
+
+export async function saveTemplates(templates) {
+  TEMPLATES.length = 0;
+  templates.forEach((t) => TEMPLATES.push(t));
+  const val = JSON.stringify(templates);
+  const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "ticket_templates").maybeSingle();
+  if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "ticket_templates"); }
+  else { await supabase.from("app_settings").insert({ key: "ticket_templates", value: val }); }
+}
 
 
 export const DEFAULT_ARCHIVE_TYPES = {
