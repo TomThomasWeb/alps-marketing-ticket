@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2 } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
-import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown } from "./constants.js";
+import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
-import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, CampaignTracker, KnowledgeBase, AlpsGallery } from "./components/Resources.jsx";
-import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, MeetingNotesToTicket, ContentRepurposer, EmailSignatureGenerator, ContrastChecker, SocialPreview, FirstPolicySold } from "./components/Tools.jsx";
+import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, ContentTemplates, ContentCalendar, BrokerToolkit, AlpsGallery } from "./components/Resources.jsx";
+import { SelfServiceGuide, FileConverter, QRCodeGenerator, ImageEditor, EmailSignatureGenerator, ContrastChecker, FirstPolicySold } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/meeting-notes': 'meeting_notes', '/repurposer': 'repurposer', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/social-preview': 'social_preview', '/first-policy': 'first_policy', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/campaigns': 'campaigns', '/knowledge-base': 'knowledge_base', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/templates': 'templates', '/guide': 'guide', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/calendar': 'calendar', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -46,7 +46,6 @@ export default function App() {
   const [oooSummaryDismissed, setOooSummaryDismissed] = useState(false);
   const [dashPassword, setDashPassword] = useState("Sunnyside!");
   const [announcement, setAnnouncement] = useState({ text: "", active: false, link: "" });
-  const [campaigns, setCampaigns] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
   const [teamGoals, setTeamGoals] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -65,6 +64,7 @@ export default function App() {
     supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data, error }) => {
       if (data && !error) setNotifications(data);
     }).catch(() => {});
+    loadSlaSettings();
   }, []);
 
   const addNotification = async (icon, title, body, action, forUser) => {
@@ -179,11 +179,8 @@ export default function App() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  // Load campaigns
   useEffect(() => {
-    async function fca() { const { data } = await supabase.from("campaigns").select("*").order("created_at", { ascending: false }); if (data) setCampaigns(data); }
     fca();
-    const ch = supabase.channel("campaigns-rt").on("postgres_changes", { event: "*", schema: "public", table: "campaigns" }, () => { fca(); }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -442,19 +439,6 @@ export default function App() {
     if (error) toast("Failed to update", "error"); else toast(paused ? "Schedule paused" : "Schedule resumed", "success");
   };
 
-  // Campaign handlers
-  const handleCampaignSave = async (c) => {
-    if (c.id) { await supabase.from("campaigns").update({ name: c.name, description: c.description, status: c.status, start_date: c.start_date || null, end_date: c.end_date || null }).eq("id", c.id); toast("Campaign updated", "success"); }
-    else { await supabase.from("campaigns").insert({ name: c.name, description: c.description, status: c.status, start_date: c.start_date || null, end_date: c.end_date || null }); toast("Campaign created", "success"); }
-  };
-  const handleCampaignDelete = async (id) => { await supabase.from("campaigns").delete().eq("id", id); toast("Campaign deleted", "success"); };
-
-  // Knowledge Base handlers
-  const handleKbSave = async (a) => {
-    if (a.id) { await supabase.from("kb_articles").update({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }).eq("id", a.id); toast("Article updated", "success"); }
-    else { await supabase.from("kb_articles").insert({ title: a.title, category: a.category, content: a.content, order: a.order || 0 }); toast("Article published", "success"); }
-  };
-  const handleKbDelete = async (id) => { await supabase.from("kb_articles").delete().eq("id", id); toast("Article deleted", "success"); };
 
   // Team Goals handlers
   const handleGoalSave = async (g) => {
@@ -786,7 +770,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", meeting_notes: "Meeting Notes", repurposer: "Content Repurposer", signatures: "Email Signatures", contrast_checker: "Contrast Checker", social_preview: "Social Preview", first_policy: "1st Policy Sold", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", campaigns: "Campaigns", knowledge_base: "Knowledge Base", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", templates: "Content Templates", guide: "Knowledge Base", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "1st Policy Sold", calendar: "Content Calendar", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -812,20 +796,15 @@ const handleAddComment = async (id, author, text) => {
     ...(currentUser ? [
       { id: "calendar", label: "Content Calendar", group: "resources" },
       { id: "broker_toolkit", label: "Broker Toolkit", group: "resources" },
-      { id: "campaigns", label: "Campaigns", group: "resources" },
     ] : []),
     { id: "converter", label: "File Converter", group: "tools" },
     { id: "qr_generator", label: "QR Generator", group: "tools" },
     { id: "image_editor", label: "Image Editor", group: "tools" },
-    { id: "repurposer", label: "Content Repurposer", group: "tools" },
     { id: "signatures", label: "Email Signatures", group: "tools" },
     { id: "contrast_checker", label: "Contrast Checker", group: "tools" },
-    { id: "social_preview", label: "Social Preview", group: "tools" },
     { id: "first_policy", label: "1st Policy Sold", group: "tools" },
     ...(currentUser ? [
       { id: "templates", label: "Content Templates", group: "tools" },
-      { id: "meeting_notes", label: "Notes to Tickets", group: "tools" },
-      { id: "knowledge_base", label: "Knowledge Base", group: "tools" },
     ] : []),
     ...(isAdmin ? [
       { id: "dashboard", label: "Ticket Dashboard", group: "admin" },
@@ -842,18 +821,18 @@ const handleAddComment = async (id, author, text) => {
     hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
     profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
     archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
-    calendar: <CalendarDays size={17} />, broker_toolkit: <Briefcase size={17} />, campaigns: <Target size={17} />,
+    calendar: <CalendarDays size={17} />, broker_toolkit: <Briefcase size={17} />,
     converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
-    repurposer: <Repeat size={17} />, templates: <FileText size={17} />, meeting_notes: <ClipboardList size={17} />,
-    knowledge_base: <BookOpen size={17} />, dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
+    templates: <FileText size={17} />,
+    dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
     analytics: <PieChart size={17} />, activity: <Clock size={17} />, admin: <Settings size={17} />,
-    signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, social_preview: <Image size={17} />, first_policy: <Wand2 size={17} />,
+    signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
   };
 
   const SidebarLink = ({ id, label, badge }) => {
     const active = view === id;
     const recent = !active && recentPages.includes(id);
-    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "7px 0" : "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
       <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
       {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
       {!sideCollapsed && recent && <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--brand)", opacity: 0.35, flexShrink: 0 }}></span>}
@@ -948,20 +927,15 @@ const handleAddComment = async (id, author, text) => {
           <SidebarLink id="gallery" label="Alps Gallery" />
           {currentUser && <SidebarLink id="calendar" label="Content Calendar" />}
           {currentUser && <SidebarLink id="broker_toolkit" label="Broker Toolkit" />}
-          {currentUser && <SidebarLink id="campaigns" label="Campaigns" />}
         </SidebarGroup>
         <SidebarGroup id="tools" label="Tools">
           <SidebarLink id="converter" label="File Converter" />
           <SidebarLink id="qr_generator" label="QR Generator" />
           <SidebarLink id="image_editor" label="Image Editor" />
-          <SidebarLink id="repurposer" label="Content Repurposer" />
           <SidebarLink id="signatures" label="Email Signatures" />
           <SidebarLink id="contrast_checker" label="Contrast Checker" />
-          <SidebarLink id="social_preview" label="Social Preview" />
           <SidebarLink id="first_policy" label="1st Policy Sold" />
           {currentUser && <SidebarLink id="templates" label="Content Templates" />}
-          {currentUser && <SidebarLink id="meeting_notes" label="Notes to Tickets" />}
-          {currentUser && <SidebarLink id="knowledge_base" label="Knowledge Base" />}
           <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
             {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
@@ -1179,7 +1153,8 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          {(() => { const wideViews = ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "activity", "broker_toolkit"]; const mw = wideViews.includes(view) ? 1200 : 1000; return (
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: mw, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1198,7 +1173,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "password" || id === "signup") { setView(id); return; } const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"]; if (adminOnly.includes(id) && !isAdmin) { setView("password"); return; } const loginRequired = ["templates", "meeting_notes", "knowledge_base", "calendar", "campaigns", "lead_form"]; if (loginRequired.includes(id) && !currentUser) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
+          <HubHome onNavigate={(id) => { if (id === "password" || id === "signup") { setView(id); return; } const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"]; if (adminOnly.includes(id) && !isAdmin) { setView("password"); return; } const loginRequired = ["templates", "calendar", "lead_form"]; if (loginRequired.includes(id) && !currentUser) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
@@ -1233,24 +1208,16 @@ const handleAddComment = async (id, author, text) => {
           <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
         ) : view === "templates" ? (
           <ContentTemplates templates={contentTemplates} isAdmin={isAdmin} onSave={handleTemplateSave} onDelete={handleTemplateDelete} />
-        ) : view === "guide" ? (
-          <KnowledgeBase articles={kbArticles} isAdmin={isAdmin} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "converter" ? (
           <FileConverter />
         ) : view === "qr_generator" ? (
           <QRCodeGenerator />
         ) : view === "image_editor" ? (
           <ImageEditor />
-        ) : view === "meeting_notes" ? (
-          <MeetingNotesToTicket currentUser={currentUser} onCreateTicket={(data) => { setDuplicateData({ title: data.title, description: data.description, priority: data.priority, deadline: "" }); setView("form"); toast("Ticket pre-filled from meeting notes", "info"); }} onDirectCreate={async (data) => { const ref = await getNextRef(); const { error } = await supabase.from("tickets").insert({ ref, name: currentUser?.name || "Meeting Notes", title: data.title, description: data.description, priority: data.priority, status: "open", created_by: currentUser?.id || null, file_names: [], notes: [] }); if (!error) toast("Ticket " + ref + " created", "success"); else toast("Failed to create ticket", "error"); }} />
-        ) : view === "repurposer" ? (
-          <ContentRepurposer />
         ) : view === "signatures" ? (
           <EmailSignatureGenerator />
         ) : view === "contrast_checker" ? (
           <ContrastChecker />
-        ) : view === "social_preview" ? (
-          <SocialPreview />
         ) : view === "first_policy" ? (
           <FirstPolicySold isAdmin={isAdmin} />
         ) : view === "calendar" ? (
@@ -1259,14 +1226,10 @@ const handleAddComment = async (id, author, text) => {
           <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "broker_toolkit" ? (
           <BrokerToolkit items={brokerToolkitItems} isAdmin={isAdmin} onSave={handleBrokerToolkitSave} onDelete={handleBrokerToolkitDelete} />
-        ) : view === "campaigns" ? (
-          <CampaignTracker campaigns={campaigns} tickets={tickets} archiveEntries={archiveEntries} leads={leads} calendarEvents={calendarEvents} isAdmin={isAdmin} onSave={handleCampaignSave} onDelete={handleCampaignDelete} />
-        ) : view === "knowledge_base" ? (
-          <KnowledgeBase articles={kbArticles} isAdmin={isAdmin} onSave={handleKbSave} onDelete={handleKbDelete} />
         ) : view === "profile" ? (
           <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} onUpdateUser={handleUpdateUser} hubUsers={hubUsers} />
         ) : view === "admin" ? (
-          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} onSaveSla={saveSlaSettings} />
         ) : (
           <div style={{ width: "100%" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
@@ -1283,7 +1246,7 @@ const handleAddComment = async (id, author, text) => {
             )}
           </div>
         )}
-          </main>
+          </main>); })()}
 
           {/* Global quick-add FAB */}
           {view !== "form" && view !== "lead_form" && view !== "archive_add" && (
@@ -1328,17 +1291,13 @@ const handleAddComment = async (id, author, text) => {
             { id: "converter", icon: <ArrowLeftRight size={20} />, label: "Convert" },
             { id: "qr_generator", icon: <QrCode size={20} />, label: "QR" },
             { id: "image_editor", icon: <Crop size={20} />, label: "Edit" },
-            { id: "repurposer", icon: <Repeat size={20} />, label: "Repurpose" },
             { id: "signatures", icon: <ExternalLink size={20} />, label: "Signatures" },
             { id: "contrast_checker", icon: <Target size={20} />, label: "Contrast" },
-            { id: "social_preview", icon: <Image size={20} />, label: "Preview" },
             { id: "first_policy", icon: <Wand2 size={20} />, label: "1st Policy" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
               { id: "calendar", icon: <CalendarDays size={20} />, label: "Calendar" },
               { id: "templates", icon: <FileText size={20} />, label: "Templates" },
-              { id: "knowledge_base", icon: <BookOpen size={20} />, label: "KB" },
-              { id: "campaigns", icon: <Target size={20} />, label: "Campaigns" },
               { id: "broker_toolkit", icon: <Briefcase size={20} />, label: "Broker" },
             ] : []),
             ...(isAdmin ? [

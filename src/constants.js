@@ -60,27 +60,68 @@ export const BRAND_COLORS = [
   { name: "Alt Man", hex: "#27D7F4" },
 ];
 
-export const SLA_TARGETS = {
-  critical: { hours: 8, label: "Same day" },
-  high: { hours: 48, label: "2 days" },
-  medium: { hours: 120, label: "5 days" },
-  low: { hours: 168, label: "7 days" },
+export let SLA_TARGETS = {
+  critical: { days: 1, hours: 8, label: "1 day" },
+  high: { days: 2, hours: 16, label: "2 days" },
+  medium: { days: 5, hours: 40, label: "5 days" },
+  low: { days: 7, hours: 56, label: "7 days" },
 };
+
+export async function loadSlaSettings() {
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "sla_targets").maybeSingle();
+  if (data?.value) {
+    try {
+      const parsed = JSON.parse(data.value);
+      SLA_TARGETS = { ...SLA_TARGETS, ...parsed };
+    } catch {}
+  }
+}
+
+export async function saveSlaSettings(targets) {
+  SLA_TARGETS = { ...SLA_TARGETS, ...targets };
+  const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "sla_targets").maybeSingle();
+  const val = JSON.stringify(targets);
+  if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "sla_targets"); }
+  else { await supabase.from("app_settings").insert({ key: "sla_targets", value: val }); }
+}
+
+// Business hours between two dates (8h/day, skip weekends)
+export function businessHoursBetween(start, end) {
+  const s = new Date(start); const e = new Date(end);
+  let hours = 0; const d = new Date(s);
+  while (d < e) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) { // Not weekend
+      const dayEnd = new Date(d); dayEnd.setHours(23, 59, 59, 999);
+      const remaining = Math.min(e - d, dayEnd - d) / 3600000;
+      hours += Math.min(remaining, 8);
+    }
+    d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0);
+  }
+  return hours;
+}
+
+// Add business days to a date (skip weekends)
+export function addBusinessDays(date, days) {
+  const d = new Date(date); let added = 0;
+  while (added < days) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) added++; }
+  return d;
+}
 
 export function getSlaStatus(ticket) {
   if (ticket.status === "completed" && ticket.completedAt && ticket.createdAt) {
-    const hours = (new Date(ticket.completedAt) - new Date(ticket.createdAt)) / 3600000;
+    const bizHours = businessHoursBetween(ticket.createdAt, ticket.completedAt);
     const target = SLA_TARGETS[ticket.priority];
     if (!target) return null;
-    return { met: hours <= target.hours, hours: Math.round(hours), target: target.hours, label: target.label };
+    return { met: bizHours <= target.hours, hours: Math.round(bizHours), target: target.hours, label: target.label };
   }
   if (ticket.status === "completed") return null;
   if (!ticket.createdAt) return null;
-  const elapsed = (Date.now() - new Date(ticket.createdAt)) / 3600000;
+  const bizHours = businessHoursBetween(ticket.createdAt, new Date());
   const target = SLA_TARGETS[ticket.priority];
   if (!target) return null;
-  const pct = Math.min(elapsed / target.hours, 1.5);
-  return { active: true, elapsed: Math.round(elapsed), target: target.hours, pct, label: target.label, breached: elapsed > target.hours };
+  const pct = Math.min(bizHours / target.hours, 1.5);
+  return { active: true, elapsed: Math.round(bizHours), target: target.hours, pct, label: target.label, breached: bizHours > target.hours };
 }
 export function renderMarkdown(text) {
   if (!text) return "";
