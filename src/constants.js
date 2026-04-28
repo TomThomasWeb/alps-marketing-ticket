@@ -60,7 +60,7 @@ export const BRAND_COLORS = [
   { name: "Alt Man", hex: "#27D7F4" },
 ];
 
-export let SLA_TARGETS = {
+export const SLA_TARGETS = {
   critical: { days: 1, hours: 8, label: "1 day" },
   high: { days: 2, hours: 16, label: "2 days" },
   medium: { days: 5, hours: 40, label: "5 days" },
@@ -72,13 +72,13 @@ export async function loadSlaSettings() {
   if (data?.value) {
     try {
       const parsed = JSON.parse(data.value);
-      SLA_TARGETS = { ...SLA_TARGETS, ...parsed };
+      Object.keys(parsed).forEach((k) => { SLA_TARGETS[k] = parsed[k]; });
     } catch {}
   }
 }
 
 export async function saveSlaSettings(targets) {
-  SLA_TARGETS = { ...SLA_TARGETS, ...targets };
+  Object.keys(targets).forEach((k) => { SLA_TARGETS[k] = targets[k]; });
   const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "sla_targets").maybeSingle();
   const val = JSON.stringify(targets);
   if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "sla_targets"); }

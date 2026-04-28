@@ -64,7 +64,7 @@ export default function App() {
     supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data, error }) => {
       if (data && !error) setNotifications(data);
     }).catch(() => {});
-    loadSlaSettings();
+    loadSlaSettings().catch(() => {});
   }, []);
 
   const addNotification = async (icon, title, body, action, forUser) => {
