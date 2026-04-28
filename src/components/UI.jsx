@@ -108,15 +108,17 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
               <User size={18} style={{ color: "var(--brand)" }} />
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Create a free account</h3>
             </div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>Sign up to get more out of the Marketing Hub. It takes 30 seconds and gives you access to:</p>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>Sign up to get more out of the Marketing Hub. It takes 30 seconds and unlocks:</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
               {[
-                { text: "Your name auto-filled on tickets", icon: <Sparkles size={14} /> },
-                { text: "Track all your tickets in one place", icon: <ClipboardList size={14} /> },
-                { text: "Get notified when tickets update", icon: <Inbox size={14} /> },
-                { text: "Approve or request changes on work", icon: <ExtLink size={14} /> },
-                { text: "Access content calendar & campaigns", icon: <Globe size={14} /> },
-                { text: "Use templates & meeting notes tools", icon: <Palette size={14} /> },
+                { text: "Browse the Marketing Archive", icon: <ClipboardList size={14} /> },
+                { text: "Access Brand Assets & guidelines", icon: <Palette size={14} /> },
+                { text: "Browse the Alps Gallery", icon: <Globe size={14} /> },
+                { text: "Generate email signatures", icon: <Sparkles size={14} /> },
+                { text: "Create 1st Policy Sold images", icon: <Inbox size={14} /> },
+                { text: "Content calendar & templates", icon: <ExtLink size={14} /> },
+                { text: "Track your tickets & get notified", icon: <ClipboardList size={14} /> },
+                { text: "Approve or request changes on work", icon: <Lock size={14} /> },
               ].map((b, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0" }}>
                   <span style={{ color: "var(--brand)", flexShrink: 0, marginTop: 1 }}>{b.icon}</span>

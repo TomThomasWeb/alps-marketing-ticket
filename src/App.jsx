@@ -750,7 +750,11 @@ const handleAddComment = async (id, author, text) => {
   const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
   const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
   const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
+  const loginRequired = ["templates", "calendar", "lead_form", "archive", "brand_assets", "gallery", "signatures", "first_policy"];
+  const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"];
   const nav = (v) => {
+    if (adminOnly.includes(v) && !isAdmin) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
+    if (loginRequired.includes(v) && !currentUser) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
     setView(v); setMobileNav(false); setMobileMore(false);
     if (v !== "hub" && v !== "password" && v !== "signup") {
       setRecentPages((prev) => { const next = [v, ...prev.filter((p) => p !== v)].slice(0, 3); try { localStorage.setItem("alps_recent_pages", JSON.stringify(next)); } catch {} return next; });
@@ -1160,7 +1164,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => { if (id === "password" || id === "signup") { setView(id); return; } const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"]; if (adminOnly.includes(id) && !isAdmin) { setView("password"); return; } const loginRequired = ["templates", "calendar", "lead_form"]; if (loginRequired.includes(id) && !currentUser) { setView("password"); return; } setView(id); }} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
+          <HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
