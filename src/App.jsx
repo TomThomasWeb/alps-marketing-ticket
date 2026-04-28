@@ -915,19 +915,20 @@ const handleAddComment = async (id, author, text) => {
       {/* Groups */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <SidebarGroup id="resources" label="Resources">
-          <SidebarLink id="archive" label="Marketing Archive" />
-          <SidebarLink id="brand_assets" label="Brand Assets" />
-          <SidebarLink id="gallery" label="Alps Gallery" />
+          {currentUser && <SidebarLink id="archive" label="Marketing Archive" />}
+          {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
+          {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
           {currentUser && <SidebarLink id="calendar" label="Content Calendar" />}
           {currentUser && <SidebarLink id="broker_toolkit" label="Broker Toolkit" />}
+          {!currentUser && !sideCollapsed && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>Log in to access resources</div>}
         </SidebarGroup>
         <SidebarGroup id="tools" label="Tools">
           <SidebarLink id="converter" label="File Converter" />
           <SidebarLink id="qr_generator" label="QR Generator" />
           <SidebarLink id="image_editor" label="Image Editor" />
-          <SidebarLink id="signatures" label="Email Signatures" />
+          {currentUser && <SidebarLink id="signatures" label="Email Signatures" />}
           <SidebarLink id="contrast_checker" label="Contrast Checker" />
-          <SidebarLink id="first_policy" label="1st Policy Sold" />
+          {currentUser && <SidebarLink id="first_policy" label="1st Policy Sold" />}
           {currentUser && <SidebarLink id="templates" label="Content Templates" />}
           <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
@@ -943,6 +944,13 @@ const handleAddComment = async (id, author, text) => {
             <SidebarLink id="activity" label="Activity Log" />
             <SidebarLink id="admin" label="Admin Panel" />
           </SidebarGroup>
+        )}
+        {!currentUser && !sideCollapsed && (
+          <div style={{ margin: "12px 10px", padding: "14px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid rgba(99,102,241,0.15)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 6 }}>Create a free account</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>Unlock the Archive, Brand Assets, Gallery, Email Signatures, Templates, and more.</div>
+            <button onClick={() => nav("signup")} style={{ width: "100%", padding: "7px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sign Up Free</button>
+          </div>
         )}
       </div>
     </>)}
