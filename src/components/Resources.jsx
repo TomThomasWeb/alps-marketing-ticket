@@ -885,6 +885,8 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
   const [editing, setEditing] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const toolkitFileRef = useRef(null);
 
   const PRODUCTS = [
     { key: "all", label: "All", icon: "📦" },
@@ -961,7 +963,30 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
             <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>{Object.entries(ASSET_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
-            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>File URL (optional)</label><input value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="https://..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>File</label>
+              {form.file_url ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: "#16a34a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✓ File attached</span>
+                  <button onClick={() => setForm({ ...form, file_url: "" })} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>Remove</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <label style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                    <Upload size={13} /> {uploading ? "Uploading..." : "Upload file"}
+                    <input ref={toolkitFileRef} type="file" onChange={async (e) => {
+                      const f = e.target.files[0]; if (!f) return;
+                      setUploading(true);
+                      const path = "broker-toolkit/" + Date.now() + "-" + f.name.replace(/\s+/g, "-");
+                      const { error } = await supabase.storage.from("ticket-attachments").upload(path, f);
+                      if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); setForm({ ...form, file_url: data.publicUrl }); }
+                      setUploading(false);
+                    }} style={{ display: "none" }} disabled={uploading} />
+                  </label>
+                  <input value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="or paste URL" style={{ flex: 1, padding: "10px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of this asset..." rows={2} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }} /></div>
           <button onClick={handleSave} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update Asset" : "Add Asset"}</button>
