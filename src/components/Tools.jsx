@@ -922,7 +922,10 @@ export function ContrastChecker() {
 
 export function FirstPolicySold({ isAdmin }) {
   const [brokerName, setBrokerName] = useState("");
+  const [subtitle, setSubtitle] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
+  const [celebration, setCelebration] = useState("1st_policy");
+  const [outputSize, setOutputSize] = useState("linkedin");
   const [generated, setGenerated] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -933,9 +936,28 @@ export function FirstPolicySold({ isAdmin }) {
   const [newPhoto, setNewPhoto] = useState(null);
   const [newPhotoPreview, setNewPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [photoZoom, setPhotoZoom] = useState(100);
+  const [photoY, setPhotoY] = useState(50);
   const canvasRef = useRef(null);
   const addFileRef = useRef(null);
   const bgFileRef = useRef(null);
+
+  const CELEBRATIONS = [
+    { id: "1st_policy", title: "1st", subtitle: "Policy\nSold!", color: "#231d68", accent: "#e64592" },
+    { id: "10th_policy", title: "10th", subtitle: "Policy\nSold!", color: "#231d68", accent: "#FAB315" },
+    { id: "50th_policy", title: "50", subtitle: "Policies\nSold!", color: "#231d68", accent: "#20A39E" },
+    { id: "100th_policy", title: "100", subtitle: "Policies\nSold!", color: "#231d68", accent: "#e64592" },
+    { id: "new_broker", title: "New", subtitle: "Broker\nSigned!", color: "#20A39E", accent: "#231d68" },
+    { id: "top_performer", title: "Top", subtitle: "Performer!", color: "#e64592", accent: "#231d68" },
+  ];
+
+  const SIZES = [
+    { id: "linkedin", label: "LinkedIn (1200×627)", w: 1200, h: 627 },
+    { id: "square", label: "Square (1080×1080)", w: 1080, h: 1080 },
+  ];
+
+  const celeb = CELEBRATIONS.find((c) => c.id === celebration) || CELEBRATIONS[0];
+  const sizeObj = SIZES.find((s) => s.id === outputSize) || SIZES[0];
 
   useEffect(() => {
     async function load() {
@@ -948,13 +970,7 @@ export function FirstPolicySold({ isAdmin }) {
     load();
   }, []);
 
-  const saveMembers = async (list) => {
-    setTeamMembers(list);
-    const val = JSON.stringify(list);
-    const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "policy_team_members").maybeSingle();
-    if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "policy_team_members"); }
-    else { await supabase.from("app_settings").insert({ key: "policy_team_members", value: val }); }
-  };
+  const saveMembers = async (list) => { setTeamMembers(list); const val = JSON.stringify(list); const { data: existing } = await supabase.from("app_settings").select("key").eq("key", "policy_team_members").maybeSingle(); if (existing) { await supabase.from("app_settings").update({ value: val }).eq("key", "policy_team_members"); } else { await supabase.from("app_settings").insert({ key: "policy_team_members", value: val }); } };
   const handleAddPhoto = (e) => { const f = e.target.files[0]; if (!f || !f.type.startsWith("image/")) return; setNewPhoto(f); const reader = new FileReader(); reader.onload = (ev) => setNewPhotoPreview(ev.target.result); reader.readAsDataURL(f); };
 
   const addMember = async () => {
@@ -977,8 +993,7 @@ export function FirstPolicySold({ isAdmin }) {
   };
 
   const uploadBg = async (e) => {
-    const f = e.target.files[0];
-    if (!f || !f.type.startsWith("image/")) return;
+    const f = e.target.files[0]; if (!f || !f.type.startsWith("image/")) return;
     setUploading(true);
     const path = "policy-team/background-" + Date.now() + "." + f.name.split(".").pop();
     await supabase.storage.from("ticket-attachments").upload(path, f);
@@ -990,79 +1005,141 @@ export function FirstPolicySold({ isAdmin }) {
     setUploading(false);
   };
 
+  const drawConfetti = (ctx, W, H) => {
+    const colors = ["#dc2626", "#2563eb", "#16a34a", "#eab308", "#8b5cf6", "#ec4899", "#f97316", "#231d68", "#20A39E"];
+    for (let i = 0; i < 70; i++) {
+      const cx = Math.random() * W, cy = Math.random() * H * 0.55;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.random() * Math.PI * 2);
+      ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+      ctx.globalAlpha = 0.35 + Math.random() * 0.4;
+      const shape = Math.random();
+      if (shape < 0.3) {
+        // Circle
+        ctx.beginPath(); ctx.arc(0, 0, 2 + Math.random() * 5, 0, Math.PI * 2); ctx.fill();
+      } else if (shape < 0.6) {
+        // Ribbon / streamer
+        const w = 10 + Math.random() * 18, h = 2 + Math.random() * 4;
+        ctx.beginPath(); ctx.moveTo(-w/2, 0);
+        ctx.quadraticCurveTo(-w/4, -h*2, 0, 0);
+        ctx.quadraticCurveTo(w/4, h*2, w/2, 0);
+        ctx.lineWidth = 1.5 + Math.random() * 2; ctx.strokeStyle = ctx.fillStyle; ctx.stroke();
+      } else if (shape < 0.8) {
+        // Square
+        const s = 4 + Math.random() * 8;
+        ctx.fillRect(-s/2, -s/2, s, s);
+      } else {
+        // Rectangle / strip
+        const w = 5 + Math.random() * 14, h = 2 + Math.random() * 4;
+        ctx.fillRect(-w/2, -h/2, w, h);
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  };
+
   const generateImage = () => {
     if (!selectedMember || !brokerName.trim()) return;
     setGenerating(true);
     const canvas = canvasRef.current;
-    const W = 1200, H = 627;
+    const W = sizeObj.w, H = sizeObj.h;
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d");
+    const isSquare = outputSize === "square";
+    const panelW = isSquare ? W * 0.55 : W * 0.5;
+    const titleLines = celeb.subtitle.split("\n");
 
     const drawContent = () => {
       const personImg = new window.Image();
       personImg.crossOrigin = "anonymous";
       personImg.onload = () => {
-        // Person photo on RIGHT half only - fit/contain, not stretch
-        const rightX = W * 0.48, rightW = W - rightX, rightH = H;
+        // Person photo on right - with zoom and position
+        const rightX = isSquare ? W * 0.4 : W * 0.45;
+        const rightW = W - rightX; const rightH = H;
+        const scale = photoZoom / 100;
         const pAspect = personImg.width / personImg.height;
         const boxAspect = rightW / rightH;
         let dw, dh;
-        if (pAspect > boxAspect) { dw = rightW; dh = rightW / pAspect; }
-        else { dh = rightH; dw = rightH * pAspect; }
+        if (pAspect > boxAspect) { dh = rightH * scale; dw = dh * pAspect; }
+        else { dw = rightW * scale; dh = dw / pAspect; }
         const dx = rightX + (rightW - dw) / 2;
-        const dy = (rightH - dh) / 2;
+        const yOffset = (photoY - 50) / 50 * (dh - rightH) * 0.5;
+        const dy = (rightH - dh) / 2 - yOffset;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(rightX, 0, rightW, rightH); ctx.clip();
         ctx.drawImage(personImg, dx, dy, dw, dh);
+        ctx.restore();
 
-        // White panel on LEFT - single gradient, no hard edge
-        const grad = ctx.createLinearGradient(0, 0, W * 0.58, 0);
-        grad.addColorStop(0, "rgba(255,255,255,0.93)");
-        grad.addColorStop(0.75, "rgba(255,255,255,0.93)");
+        // White panel gradient
+        const grad = ctx.createLinearGradient(0, 0, panelW + W * 0.08, 0);
+        grad.addColorStop(0, "rgba(255,255,255,0.94)");
+        grad.addColorStop(0.8, "rgba(255,255,255,0.94)");
         grad.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W * 0.58, H);
+        ctx.fillRect(0, 0, panelW + W * 0.08, H);
 
-        // "1st" - properly spaced
-        ctx.fillStyle = "#231d68";
+        // Title text
         ctx.textBaseline = "alphabetic";
-        ctx.font = "800 96px 'Inter', 'Segoe UI', sans-serif";
-        ctx.fillText("1", 60, 170);
-        const oneW = ctx.measureText("1").width;
-        ctx.font = "800 48px 'Inter', 'Segoe UI', sans-serif";
-        ctx.fillText("st", 60 + oneW + 2, 140);
+        const titleSize = isSquare ? 80 : 96;
+        const subSize = isSquare ? 80 : 96;
+        const margin = isSquare ? 50 : 60;
+        let ty = isSquare ? 160 : 170;
 
-        // "Policy" + "Sold!" - consistent line spacing
-        ctx.font = "800 96px 'Inter', 'Segoe UI', sans-serif";
-        ctx.fillText("Policy", 60, 270);
-        ctx.fillText("Sold!", 60, 370);
+        // Main number/word (e.g. "1st", "10th", "50", "New", "Top")
+        ctx.fillStyle = celeb.color;
+        ctx.font = "800 " + titleSize + "px 'Inter', 'Segoe UI', sans-serif";
+        const mainText = celeb.title;
+        ctx.fillText(mainText, margin, ty);
 
-        // Pink accent line
-        ctx.fillStyle = "#e64592";
-        ctx.fillRect(60, 390, 100, 5);
+        // Superscript for ordinals
+        if (["1st", "10th"].includes(mainText)) {
+          const numPart = mainText.replace(/\D/g, "");
+          const suffPart = mainText.replace(/\d/g, "");
+          ctx.font = "800 " + titleSize + "px 'Inter', 'Segoe UI', sans-serif";
+          ctx.fillText(numPart, margin, ty);
+          const numW = ctx.measureText(numPart).width;
+          ctx.font = "800 " + Math.round(titleSize * 0.45) + "px 'Inter', 'Segoe UI', sans-serif";
+          ctx.fillText(suffPart, margin + numW + 2, ty - titleSize * 0.35);
+        }
+
+        // Subtitle lines (e.g. "Policy", "Sold!")
+        ctx.font = "800 " + subSize + "px 'Inter', 'Segoe UI', sans-serif";
+        titleLines.forEach((line) => {
+          ty += subSize;
+          ctx.shadowColor = "rgba(0,0,0,0.06)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+          ctx.fillText(line, margin, ty);
+          ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        });
+
+        // Accent line
+        ty += 20;
+        ctx.fillStyle = celeb.accent;
+        ctx.fillRect(margin, ty, 100, 5);
+        ty += 35;
 
         // Broker name
         ctx.fillStyle = "#1a1d2e";
-        ctx.font = "600 36px 'Inter', 'Segoe UI', sans-serif";
+        const nameSize = isSquare ? 32 : 36;
+        ctx.font = "600 " + nameSize + "px 'Inter', 'Segoe UI', sans-serif";
+        const maxNameW = panelW - margin - 20;
         const words = brokerName.trim().split(" ");
-        let line = "", lineY = 450;
+        let line = "", lineY = ty;
         words.forEach((word) => {
           const test = line + (line ? " " : "") + word;
-          if (ctx.measureText(test).width > 420 && line) { ctx.fillText(line, 60, lineY); lineY += 44; line = word; }
+          if (ctx.measureText(test).width > maxNameW && line) { ctx.fillText(line, margin, lineY); lineY += nameSize + 8; line = word; }
           else { line = test; }
         });
-        ctx.fillText(line, 60, lineY);
+        ctx.fillText(line, margin, lineY);
+        lineY += nameSize + 4;
 
-        // Confetti - lighter, spread across
-        const colors = ["#dc2626", "#2563eb", "#16a34a", "#eab308", "#8b5cf6", "#ec4899", "#f97316", "#231d68"];
-        for (let i = 0; i < 55; i++) {
-          const cx = Math.random() * W, cy = Math.random() * H * 0.5;
-          const w = 5 + Math.random() * 12, h = 2 + Math.random() * 5;
-          ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.random() * Math.PI * 2);
-          ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-          ctx.globalAlpha = 0.35 + Math.random() * 0.35;
-          ctx.fillRect(-w / 2, -h / 2, w, h);
-          ctx.restore();
+        // Subtitle
+        if (subtitle.trim()) {
+          lineY += 6;
+          ctx.fillStyle = "#64748b";
+          ctx.font = "500 " + Math.round(nameSize * 0.65) + "px 'Inter', 'Segoe UI', sans-serif";
+          ctx.fillText(subtitle.trim(), margin, lineY);
         }
-        ctx.globalAlpha = 1;
+
+        drawConfetti(ctx, W, H);
         setGenerated(canvas.toDataURL("image/png"));
         setGenerating(false);
       };
@@ -1070,7 +1147,6 @@ export function FirstPolicySold({ isAdmin }) {
       personImg.src = selectedMember.photo_url;
     };
 
-    // Background image first, then content on top
     if (bgUrl) {
       const bgImg = new window.Image();
       bgImg.crossOrigin = "anonymous";
@@ -1086,11 +1162,11 @@ export function FirstPolicySold({ isAdmin }) {
     } else { ctx.fillStyle = "#f0f1f5"; ctx.fillRect(0, 0, W, H); drawContent(); }
   };
 
-  const downloadImage = () => { if (!generated) return; const a = document.createElement("a"); a.href = generated; a.download = "1st-Policy-Sold-" + brokerName.trim().replace(/\s+/g, "-") + ".png"; a.click(); };
+  const downloadImage = () => { if (!generated) return; const a = document.createElement("a"); a.href = generated; a.download = celeb.title + "-" + brokerName.trim().replace(/\s+/g, "-") + "-" + outputSize + ".png"; a.click(); };
 
   return (
-    <div style={{ width: "100%", maxWidth: 640 }}>
-      <PageHeader icon={<Wand2 size={22} color="#0284c7" />} title="1st Policy Sold Generator" subtitle="Create celebration images for broker milestones" action={isAdmin && <button onClick={() => setShowManage(!showManage)} style={{ padding: "7px 14px", background: showManage ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showManage ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showManage ? "Done" : "Manage"}</button>} />
+    <div style={{ width: "100%", maxWidth: 680 }}>
+      <PageHeader icon={<Wand2 size={22} color="#0284c7" />} title="Celebration Generator" subtitle="Create celebration images for broker milestones and team achievements" action={isAdmin && <button onClick={() => setShowManage(!showManage)} style={{ padding: "7px 14px", background: showManage ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showManage ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showManage ? "Done" : "Manage"}</button>} />
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {showManage && isAdmin && (
@@ -1103,7 +1179,6 @@ export function FirstPolicySold({ isAdmin }) {
                 <Upload size={12} /> {bgUrl ? "Change" : "Upload office photo"}
                 <input ref={bgFileRef} type="file" accept="image/*" onChange={uploadBg} style={{ display: "none" }} />
               </label>
-              {!bgUrl && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Upload the office photo to use as background</span>}
             </div>
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>Team Members ({teamMembers.length})</div>
@@ -1141,22 +1216,84 @@ export function FirstPolicySold({ isAdmin }) {
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{isAdmin ? "Click \"Manage\" to add team photos and a background image." : "Ask an admin to set up team members."}</div>
           </div>
         ) : (<>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Select Team Member <span style={{ color: "#dc2626" }}>*</span></label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
-              {teamMembers.map((m) => (
-                <button key={m.id} onClick={() => { setSelectedMember(m); setGenerated(null); }} style={{ background: "var(--bg-input)", border: "2px solid " + (selectedMember?.id === m.id ? "var(--brand)" : "var(--border)"), borderRadius: 10, overflow: "hidden", cursor: "pointer", padding: 0, transition: "all 0.15s" }}>
-                  <img src={m.photo_url} alt={m.name} style={{ width: "100%", height: 80, objectFit: "cover" }} />
-                  <div style={{ padding: "5px 6px", fontSize: 11, fontWeight: 600, color: selectedMember?.id === m.id ? "var(--brand)" : "var(--text-primary)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+          {/* Celebration type */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Celebration Type</label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {CELEBRATIONS.map((c) => (
+                <button key={c.id} onClick={() => { setCelebration(c.id); setGenerated(null); }} style={{ padding: "10px 6px", background: celebration === c.id ? c.color + "10" : "var(--bg-input)", border: "2px solid " + (celebration === c.id ? c.color : "var(--border)"), borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: c.color, lineHeight: 1 }}>{c.title}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginTop: 2 }}>{c.subtitle.replace("\n", " ")}</div>
                 </button>
               ))}
             </div>
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Broker Name <span style={{ color: "#dc2626" }}>*</span></label>
-            <input value={brokerName} onChange={(e) => { setBrokerName(e.target.value); setGenerated(null); }} placeholder="e.g. Howden Reading" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 15, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+
+          {/* Team member */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Team Member <span style={{ color: "#dc2626" }}>*</span></label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 8 }}>
+              {teamMembers.map((m) => (
+                <button key={m.id} onClick={() => { setSelectedMember(m); setGenerated(null); }} style={{ background: "var(--bg-input)", border: "2px solid " + (selectedMember?.id === m.id ? "var(--brand)" : "var(--border)"), borderRadius: 10, overflow: "hidden", cursor: "pointer", padding: 0, transition: "all 0.15s" }}>
+                  <img src={m.photo_url} alt={m.name} style={{ width: "100%", height: 70, objectFit: "cover" }} />
+                  <div style={{ padding: "4px 6px", fontSize: 10, fontWeight: 600, color: selectedMember?.id === m.id ? "var(--brand)" : "var(--text-primary)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                </button>
+              ))}
+            </div>
           </div>
-          <button onClick={generateImage} disabled={generating || !selectedMember || !brokerName.trim()} style={{ width: "100%", padding: "12px", background: "var(--brand)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer", opacity: (selectedMember && brokerName.trim()) ? 1 : 0.4 }}>
+
+          {/* Photo framing */}
+          {selectedMember && (
+            <div style={{ marginBottom: 18, padding: "12px 14px", background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Photo Framing</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}><span>Zoom</span><span>{photoZoom}%</span></label>
+                  <input type="range" min="80" max="200" value={photoZoom} onChange={(e) => { setPhotoZoom(Number(e.target.value)); setGenerated(null); }} style={{ width: "100%", accentColor: "var(--brand)" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}><span>Vertical Position</span><span>{photoY}%</span></label>
+                  <input type="range" min="0" max="100" value={photoY} onChange={(e) => { setPhotoY(Number(e.target.value)); setGenerated(null); }} style={{ width: "100%", accentColor: "var(--brand)" }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Broker name + subtitle */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Name <span style={{ color: "#dc2626" }}>*</span></label>
+              <input value={brokerName} onChange={(e) => { setBrokerName(e.target.value); setGenerated(null); }} placeholder="e.g. Howden Reading" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Subtitle <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
+              <input value={subtitle} onChange={(e) => { setSubtitle(e.target.value); setGenerated(null); }} placeholder="e.g. Motor Division" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+          </div>
+
+          {/* Output size */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+            {SIZES.map((s) => (
+              <button key={s.id} onClick={() => { setOutputSize(s.id); setGenerated(null); }} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1.5px solid " + (outputSize === s.id ? "var(--brand)" : "var(--border)"), background: outputSize === s.id ? "var(--brand-light)" : "var(--bg-input)", color: outputSize === s.id ? "var(--brand)" : "var(--text-muted)", fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>{s.label}</button>
+            ))}
+          </div>
+
+          {/* Live preview */}
+          <div style={{ marginBottom: 18, padding: 16, background: "#f0f1f5", borderRadius: 12, border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 10 }}>Preview</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, aspectRatio: outputSize === "square" ? "1" : "1200/627", maxHeight: 180 }}>
+              <div style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 12px" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: celeb.color, lineHeight: 1 }}>{celeb.title}<sup style={{ fontSize: 12 }}>{celeb.title.endsWith("st") || celeb.title.endsWith("th") ? "" : ""}</sup></div>
+                {celeb.subtitle.split("\n").map((l, i) => <div key={i} style={{ fontSize: 22, fontWeight: 800, color: celeb.color, lineHeight: 1.1 }}>{l}</div>)}
+                <div style={{ width: 40, height: 3, background: celeb.accent, margin: "8px 0 6px", borderRadius: 2 }}></div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1d2e" }}>{brokerName || "Broker name..."}</div>
+                {subtitle && <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{subtitle}</div>}
+              </div>
+              {selectedMember && <img src={selectedMember.photo_url} alt="" style={{ width: outputSize === "square" ? "45%" : "40%", height: "100%", objectFit: "cover", borderRadius: 8, objectPosition: "center " + photoY + "%" }} />}
+            </div>
+          </div>
+
+          <button onClick={generateImage} disabled={generating || !selectedMember || !brokerName.trim()} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, " + celeb.color + ", " + celeb.color + "cc)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer", opacity: (selectedMember && brokerName.trim()) ? 1 : 0.4, transition: "all 0.2s" }}>
             {generating ? "Generating..." : "Generate Image"}
           </button>
         </>)}
@@ -1165,7 +1302,7 @@ export function FirstPolicySold({ isAdmin }) {
       {generated && (
         <div style={{ marginTop: 20 }}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-            <img src={generated} alt="1st Policy Sold" style={{ width: "100%", display: "block" }} />
+            <img src={generated} alt="Celebration" style={{ width: "100%", display: "block" }} />
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button onClick={downloadImage} style={{ flex: 1, padding: "10px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Download size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> Download PNG</button>

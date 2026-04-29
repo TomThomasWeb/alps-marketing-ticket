@@ -753,7 +753,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "1st Policy Sold", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -784,7 +784,7 @@ const handleAddComment = async (id, author, text) => {
     { id: "image_editor", label: "Image Editor", group: "tools" },
     { id: "signatures", label: "Email Signatures", group: "tools" },
     { id: "contrast_checker", label: "Contrast Checker", group: "tools" },
-    { id: "first_policy", label: "1st Policy Sold", group: "tools" },
+    { id: "first_policy", label: "Celebrations", group: "tools" },
     ...(currentUser ? [
     ] : []),
     ...(isAdmin ? [
@@ -915,7 +915,7 @@ const handleAddComment = async (id, author, text) => {
           <SidebarLink id="image_editor" label="Image Editor" />
           {currentUser && <SidebarLink id="signatures" label="Email Signatures" />}
           <SidebarLink id="contrast_checker" label="Contrast Checker" />
-          {currentUser && <SidebarLink id="first_policy" label="1st Policy Sold" />}
+          {currentUser && <SidebarLink id="first_policy" label="Celebrations" />}
           <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
             {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
@@ -1292,7 +1292,7 @@ const handleAddComment = async (id, author, text) => {
             { id: "image_editor", icon: <Crop size={20} />, label: "Edit" },
             { id: "signatures", icon: <ExternalLink size={20} />, label: "Signatures" },
             { id: "contrast_checker", icon: <Target size={20} />, label: "Contrast" },
-            { id: "first_policy", icon: <Wand2 size={20} />, label: "1st Policy" },
+            { id: "first_policy", icon: <Wand2 size={20} />, label: "Celebrate" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
               { id: "broker_toolkit", icon: <Briefcase size={20} />, label: "Broker" },

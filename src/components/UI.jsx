@@ -115,7 +115,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
                 { text: "Access Brand Assets & guidelines", icon: <Palette size={14} /> },
                 { text: "Browse the Alps Gallery", icon: <Globe size={14} /> },
                 { text: "Generate email signatures", icon: <Sparkles size={14} /> },
-                { text: "Create 1st Policy Sold images", icon: <Inbox size={14} /> },
+                { text: "Create celebration images", icon: <Inbox size={14} /> },
                 { text: "Content calendar & templates", icon: <ExtLink size={14} /> },
                 { text: "Track your tickets & get notified", icon: <ClipboardList size={14} /> },
                 { text: "Approve or request changes on work", icon: <Lock size={14} /> },
