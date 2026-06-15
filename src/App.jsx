@@ -490,6 +490,7 @@ export default function App() {
       files,
       notes: row.notes || [],
       createdBy: row.created_by || null,
+      tags: row.tags || [],
     };
   }
 
