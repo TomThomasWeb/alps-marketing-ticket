@@ -35,3 +35,24 @@ DO $$ BEGIN
     CREATE POLICY app_settings_all ON app_settings FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- Content Stockroom table
+CREATE TABLE IF NOT EXISTS content_stockroom (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  text TEXT,
+  file_url TEXT,
+  submitted_by TEXT,
+  status TEXT DEFAULT 'stockroom',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE content_stockroom ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'content_stockroom_all' AND tablename = 'content_stockroom') THEN
+    CREATE POLICY content_stockroom_all ON content_stockroom FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Tickets: add tags column for meeting to-do tracking
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';

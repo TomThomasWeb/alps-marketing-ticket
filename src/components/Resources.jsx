@@ -1060,6 +1060,199 @@ export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
 }
 
 
+export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [addDate, setAddDate] = useState("");
+  const [addType, setAddType] = useState("linkedin");
+
+  const TYPES = [
+    { id: "linkedin", label: "LinkedIn", icon: "in", color: "#0A66C2" },
+    { id: "email", label: "Email", icon: "✉", color: "#6366f1" },
+    { id: "facebook", label: "Facebook", icon: "f", color: "#1877F2" },
+    { id: "instagram", label: "Instagram", icon: "📷", color: "#E4405F" },
+    { id: "blog", label: "Blog", icon: "📝", color: "#16a34a" },
+    { id: "podcast", label: "Podcast", icon: "🎙", color: "#8b5cf6" },
+    { id: "event", label: "Event", icon: "📅", color: "#dc2626" },
+  ];
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = today.getDay();
+  const mon = new Date(today); mon.setDate(today.getDate() - ((dow + 6) % 7));
+  const days = [];
+  for (let i = 0; i < 14; i++) { const d = new Date(mon); d.setDate(mon.getDate() + i); days.push(d); }
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const handleSave = () => {
+    if (!addDate) return;
+    onSave({ date: addDate, type: addType });
+    setAddDate(""); setShowAdd(false);
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 960 }}>
+      <PageHeader icon={<CalendarDays size={22} color="#20A39E" />} title="Content Calendar" subtitle="What's being published this week and next" action={isAdmin && <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add"}</button>} />
+
+      {showAdd && isAdmin && (
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 20, flexWrap: "wrap" }}>
+          <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Date</label><input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }} /></div>
+          <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Type</label><select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }}>{TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+          <button onClick={handleSave} disabled={!addDate} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: addDate ? 1 : 0.4 }}>Add</button>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {TYPES.map((t) => <span key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-muted)" }}><span style={{ width: 8, height: 8, borderRadius: 4, background: t.color }}></span>{t.label}</span>)}
+      </div>
+
+      {/* Two week grid */}
+      {[0, 1].map((weekIdx) => {
+        const weekStart = new Date(mon); weekStart.setDate(mon.getDate() + weekIdx * 7);
+        const weekDays = days.slice(weekIdx * 7, weekIdx * 7 + 7);
+        const isThisWeek = weekIdx === 0;
+        return (
+          <div key={weekIdx} style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{isThisWeek ? "This Week" : "Next Week"}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+              {weekDays.map((day, di) => {
+                const ds = day.toISOString().split("T")[0];
+                const isToday = day.getTime() === today.getTime();
+                const isPast = day < today;
+                const dayEvents = (events || []).filter((e) => e.date === ds);
+                return (
+                  <div key={di} style={{ background: isToday ? "var(--brand-light)" : "var(--bg-card)", border: "1px solid " + (isToday ? "var(--brand)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", minHeight: 80, opacity: isPast && !isToday ? 0.5 : 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>{dayNames[di]}</span>
+                      <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "var(--brand)" : "var(--text-primary)" }}>{day.getDate()}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      {dayEvents.map((ev) => {
+                        const tp = TYPES.find((t) => t.id === ev.type) || TYPES[0];
+                        return (
+                          <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: tp.color + "15", borderRadius: 4, borderLeft: "3px solid " + tp.color, position: "relative" }} className="hub-cal-event">
+                            <span style={{ fontSize: 9, fontWeight: 700, color: tp.color }}>{tp.label}</span>
+                            {isAdmin && <button onClick={() => onDelete(ev.id)} className="hub-cal-del" style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: "#dc2626", border: "none", color: "#fff", fontSize: 8, cursor: "pointer", display: "none", alignItems: "center", justifyContent: "center" }}>✕</button>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateStatus, onDelete }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const fileRef = useRef(null);
+
+  const STATUSES = [
+    { id: "stockroom", label: "In Stockroom", color: "#ca8a04", bg: "rgba(202,138,4,0.08)" },
+    { id: "scheduled", label: "Scheduled", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
+    { id: "posted", label: "Posted", color: "#16a34a", bg: "rgba(22,163,74,0.08)" },
+  ];
+
+  const handleAdd = async () => {
+    if (!title.trim()) return;
+    setUploading(true);
+    let file_url = null;
+    if (file) {
+      const path = "stockroom/" + Date.now() + "-" + file.name.replace(/\s+/g, "-");
+      const { error } = await supabase.storage.from("ticket-attachments").upload(path, file);
+      if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); file_url = data.publicUrl; }
+    }
+    await onAdd({ title: title.trim(), text: text.trim() || null, file_url, submitted_by: currentUser?.name || "Anonymous", status: "stockroom" });
+    setTitle(""); setText(""); setFile(null); setShowAdd(false); setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const filtered = (items || []).filter((i) => filter === "all" || i.status === filter);
+  const counts = { all: (items || []).length, stockroom: (items || []).filter((i) => i.status === "stockroom").length, scheduled: (items || []).filter((i) => i.status === "scheduled").length, posted: (items || []).filter((i) => i.status === "posted").length };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 800 }}>
+      <PageHeader icon={<FolderOpen size={22} color="#20A39E" />} title="Content Stockroom" subtitle="Submit content ideas, files, and text for the marketing team" action={<button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Content"}</button>} />
+
+      {showAdd && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Title <span style={{ color: "#dc2626" }}>*</span></label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's this content about?" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Text / Copy <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste the text, copy, or talking points here..." rows={4} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+              <Upload size={13} /> {file ? file.name : "Attach a file"}
+              <input ref={fileRef} type="file" onChange={(e) => setFile(e.target.files[0] || null)} style={{ display: "none" }} />
+            </label>
+            {file && <button onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ""; }} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 11, cursor: "pointer" }}>Remove</button>}
+          </div>
+          <button onClick={handleAdd} disabled={!title.trim() || uploading} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: title.trim() ? 1 : 0.4 }}>{uploading ? "Uploading..." : "Submit to Stockroom"}</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {[{ id: "all", label: "All" }, ...STATUSES].map((s) => (
+          <button key={s.id} onClick={() => setFilter(s.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === s.id ? "var(--brand)" : "var(--border)"), background: filter === s.id ? "var(--brand)" : "var(--bg-card)", color: filter === s.id ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{s.label} ({counts[s.id]})</button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
+          <FolderOpen size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No content here yet</div>
+          <div style={{ fontSize: 13 }}>Submit content ideas, text, or files for the marketing team to use.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.map((item) => {
+            const st = STATUSES.find((s) => s.id === item.status) || STATUSES[0];
+            return (
+              <div key={item.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + st.color, borderRadius: 10, padding: "14px 18px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{item.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <span>by {item.submitted_by}</span>
+                      <span>{new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                    </div>
+                    {item.text && <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--bg-input)", borderRadius: 6, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, maxHeight: 80, overflow: "auto" }}>{item.text}</div>}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
+                    {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}><Download size={11} /> File</a>}
+                    {isAdmin && (
+                      <select value={item.status} onChange={(e) => onUpdateStatus(item.id, e.target.value)} style={{ padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "var(--text-primary)", outline: "none" }}>
+                        {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </select>
+                    )}
+                    {isAdmin && <button onClick={() => { if (window.confirm("Delete this item?")) onDelete(item.id); }} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 10, cursor: "pointer" }}>Delete</button>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");

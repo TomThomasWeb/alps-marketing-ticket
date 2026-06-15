@@ -842,6 +842,68 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
 }
 
 
+export function MeetingTodos({ onBulkCreate, currentUser }) {
+  const [items, setItems] = useState([""]);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(null);
+
+  const addItem = () => setItems([...items, ""]);
+  const updateItem = (i, val) => { const next = [...items]; next[i] = val; setItems(next); };
+  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
+
+  const now = new Date();
+  const dow = now.getDay();
+  const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7));
+  const weekNum = Math.ceil(((now - new Date(now.getFullYear(), 0, 1)) / 86400000 + new Date(now.getFullYear(), 0, 1).getDay() + 1) / 7);
+  const weekTag = "W" + weekNum + "-" + now.getFullYear();
+
+  const handleCreate = async () => {
+    const valid = items.filter((i) => i.trim());
+    if (valid.length === 0) return;
+    setCreating(true);
+    await onBulkCreate(valid.map((title) => ({ title: title.trim(), tag: weekTag })));
+    setCreated(valid.length);
+    setItems([""]);
+    setCreating(false);
+    setTimeout(() => setCreated(null), 4000);
+  };
+
+  if (created) return (
+    <div style={{ maxWidth: 560, width: "100%", textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ width: 64, height: 64, borderRadius: 32, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "scaleIn 0.4s ease" }}><CheckCircle2 size={32} style={{ color: "#16a34a" }} /></div>
+      <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>{created} Tickets Created</h2>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Tagged as <strong>{weekTag}</strong> with 5 business day deadlines.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 580, width: "100%" }}>
+      <div style={{ background: "linear-gradient(135deg, #0d9488 0%, #20A39E 100%)", borderRadius: 16, padding: "28px 24px 24px", marginBottom: 24, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: 50, background: "rgba(255,255,255,0.06)" }}></div>
+        <ClipboardList size={24} style={{ opacity: 0.6, marginBottom: 10 }} />
+        <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800 }}>Weekly Meeting To-Dos</h1>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>Add each to-do as a separate line. Each becomes a ticket tagged <strong>{weekTag}</strong> with a 5 business day deadline.</p>
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 24, height: 24, borderRadius: 12, background: "var(--bg-input)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>{i + 1}</span>
+              <input value={item} onChange={(e) => updateItem(i, e.target.value)} placeholder={"To-do item " + (i + 1) + "..."} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (i === items.length - 1) addItem(); } }} style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} autoFocus={i === items.length - 1} />
+              {items.length > 1 && <button onClick={() => removeItem(i)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 16, padding: "0 4px" }}>✕</button>}
+            </div>
+          ))}
+        </div>
+        <button onClick={addItem} style={{ width: "100%", padding: "10px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, marginBottom: 20 }}>+ Add another item</button>
+        <button onClick={handleCreate} disabled={creating || items.every((i) => !i.trim())} style={{ width: "100%", padding: "14px", background: items.some((i) => i.trim()) ? "linear-gradient(135deg, #0d9488, #20A39E)" : "var(--border)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: creating ? "wait" : "pointer", opacity: items.some((i) => i.trim()) ? 1 : 0.5, transition: "all 0.3s", boxShadow: items.some((i) => i.trim()) ? "0 4px 16px rgba(13,148,136,0.25)" : "none" }}>
+          {creating ? "Creating..." : "Create " + items.filter((i) => i.trim()).length + " Ticket" + (items.filter((i) => i.trim()).length !== 1 ? "s" : "")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, currentUser, onEditTicket, onApprove, onRequestChanges }) {
   const [trackRef, setTrackRef] = useState(submittedRef || "");
   const [noteText, setNoteText] = useState("");
