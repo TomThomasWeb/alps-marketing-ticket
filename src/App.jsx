@@ -3,13 +3,13 @@ import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, Cal
 import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
-import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals } from "./components/Admin.jsx";
+import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals, WeeklyReport } from "./components/Admin.jsx";
 import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, BrokerToolkit, AlpsGallery, ContentCalendar, ContentStockroom } from "./components/Resources.jsx";
 import { FileConverter, QRCodeGenerator, ImageEditor, EmailSignatureGenerator, ContrastChecker, FirstPolicySold } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/broker-toolkit': 'broker_toolkit', '/content-calendar': 'content_calendar', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -768,7 +768,7 @@ const handleAddComment = async (id, author, text) => {
   const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
   const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
   const loginRequired = ["lead_form", "archive", "brand_assets", "gallery", "signatures", "first_policy"];
-  const adminOnly = ["dashboard", "leads_dashboard", "analytics", "admin"];
+  const adminOnly = ["dashboard", "leads_dashboard", "analytics", "weekly", "admin"];
   const nav = (v) => {
     if (adminOnly.includes(v) && !isAdmin) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
     if (loginRequired.includes(v) && !currentUser) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
@@ -779,7 +779,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", content_calendar: "Content Calendar", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", broker_toolkit: "Broker Toolkit", content_calendar: "Content Calendar", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", weekly: "Weekly Report", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -832,7 +832,7 @@ const handleAddComment = async (id, author, text) => {
     converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
    
     dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
-    analytics: <PieChart size={17} />, activity: <Clock size={17} />, admin: <Settings size={17} />,
+    analytics: <PieChart size={17} />, activity: <Clock size={17} />, weekly: <BarChart3 size={17} />, admin: <Settings size={17} />,
     signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
   };
 
@@ -959,6 +959,7 @@ const handleAddComment = async (id, author, text) => {
             <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
             <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
             <SidebarLink id="analytics" label="Analytics" />
+            <SidebarLink id="weekly" label="Weekly Report" />
             <SidebarLink id="activity" label="Activity Log" />
             <SidebarLink id="admin" label="Admin Panel" />
           </SidebarGroup>
@@ -1161,7 +1162,7 @@ const handleAddComment = async (id, author, text) => {
         </aside>
 
         {/* Main column */}
-        <div className={"hub-main-col " + (["archive", "brand_assets", "gallery", "broker_toolkit", "content_calendar", "stockroom"].includes(view) ? "hub-accent-resources" : ["converter", "qr_generator", "image_editor", "signatures", "contrast_checker", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
+        <div className={"hub-main-col " + (["archive", "brand_assets", "gallery", "broker_toolkit", "content_calendar", "stockroom"].includes(view) ? "hub-accent-resources" : ["converter", "qr_generator", "image_editor", "signatures", "contrast_checker", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
@@ -1190,7 +1191,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "activity", "broker_toolkit", "content_calendar", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "activity", "broker_toolkit", "weekly", "content_calendar", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1232,6 +1233,8 @@ const handleAddComment = async (id, author, text) => {
           <ActivityLog tickets={tickets} />
         ) : view === "analytics" ? (
           <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={isAdmin} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+        ) : view === "weekly" ? (
+          <WeeklyReport tickets={tickets} leads={leads} archiveEntries={archiveEntries} isAdmin={isAdmin} />
         ) : view === "archive" ? (
           <MarketingArchive entries={archiveEntries} isAdmin={isAdmin} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
         ) : (view === "archive_add" || view === "archive_edit") ? (

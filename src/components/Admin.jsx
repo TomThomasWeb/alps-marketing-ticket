@@ -582,7 +582,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
       <div style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 18, overflowX: "auto" }}>
         {tabBtn("overview", "Overview")}
-        {tabBtn("weekly", "📊 Weekly")}
+        
         {tabBtn("settings", "⚙️ Settings")}
         {tabBtn("schedules", "Schedules")}
         {tabBtn("data", "Data")}
@@ -590,122 +590,6 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         {tabBtn("audit", "Log")}
       </div>
 
-      {adminTab === "weekly" && (() => {
-        const now = new Date();
-        const currentDow = now.getDay();
-        const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((currentDow + 6) % 7)); thisMon.setHours(0,0,0,0);
-        const weekOffset = weekNav || 0;
-        const viewMon = new Date(thisMon); viewMon.setDate(thisMon.getDate() + weekOffset * 7);
-        const viewSun = new Date(viewMon); viewSun.setDate(viewMon.getDate() + 6); viewSun.setHours(23,59,59,999);
-        const isCurrentWeek = weekOffset === 0;
-        const fmt = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-
-        const inWeek = (dateStr) => { const d = new Date(dateStr); return d >= viewMon && d <= viewSun; };
-        const weekLeads = leads.filter((l) => inWeek(l.created_at));
-        const weekArchive = (archiveEntries || []).filter((e) => inWeek(e.date || e.created_at));
-        const weekSocial = weekArchive.filter((e) => e.type === "social");
-        const weekEmail = weekArchive.filter((e) => e.type === "email");
-        const weekBlog = weekArchive.filter((e) => e.type === "blog" || e.type === "article");
-        const weekPresentation = weekArchive.filter((e) => e.type === "presentation");
-        const weekVideo = weekArchive.filter((e) => e.type === "video");
-        const weekCompleted = tickets.filter((t) => t.completedAt && inWeek(t.completedAt));
-        const weekCompletedSla = weekCompleted.filter((t) => { const sla = getSlaStatus({ ...t, status: "completed" }); return sla && sla.met; });
-        const slaPct = weekCompleted.length > 0 ? Math.round(weekCompletedSla.length / weekCompleted.length * 100) : 0;
-
-        // Weekly priorities (meeting todo tags)
-        const weekNum = Math.ceil(((viewMon - new Date(viewMon.getFullYear(), 0, 1)) / 86400000 + new Date(viewMon.getFullYear(), 0, 1).getDay() + 1) / 7);
-        const wTag = "W" + weekNum + "-" + viewMon.getFullYear();
-        const priorityTickets = tickets.filter((t) => t.tags && t.tags.includes(wTag));
-        const priorityDone = priorityTickets.filter((t) => t.status === "completed" && t.completedAt && new Date(t.completedAt) <= viewSun);
-        const priorityPct = priorityTickets.length > 0 ? Math.round(priorityDone.length / priorityTickets.length * 100) : null;
-
-        const summaryCards = [
-          { label: "Leads Added", value: weekLeads.length, color: "#ca8a04" },
-          { label: "Social Posts", value: weekSocial.length, color: "#0284c7" },
-          { label: "Email Campaigns", value: weekEmail.length, color: "#6366f1" },
-          { label: "Completed in SLA", value: slaPct + "%", color: slaPct >= 80 ? "#16a34a" : slaPct >= 50 ? "#ca8a04" : "#dc2626" },
-        ];
-
-        return (<>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <button onClick={() => setWeekNav((weekNav || 0) - 1)} style={{ padding: "6px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>← Prev</button>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Week of {fmt(viewMon)} — {fmt(viewSun)}</div>
-              {isCurrentWeek && <span style={{ fontSize: 10, fontWeight: 600, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 20 }}>Current Week</span>}
-            </div>
-            <button onClick={() => setWeekNav((weekNav || 0) + 1)} disabled={isCurrentWeek} style={{ padding: "6px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)", opacity: isCurrentWeek ? 0.3 : 1 }}>Next →</button>
-          </div>
-
-          {/* Summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
-            {summaryCards.map((s) => (
-              <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
-                <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Weekly priorities */}
-          {priorityPct !== null && (
-            <div style={card}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Weekly Priorities ({wTag})</h3>
-                <span style={{ fontSize: 22, fontWeight: 800, color: priorityPct >= 80 ? "#16a34a" : priorityPct >= 50 ? "#ca8a04" : "#dc2626" }}>{priorityPct}%</span>
-              </div>
-              <div style={{ background: "var(--bg-input)", borderRadius: 6, height: 8, overflow: "hidden", marginBottom: 10 }}>
-                <div style={{ height: "100%", background: priorityPct >= 80 ? "#16a34a" : priorityPct >= 50 ? "#ca8a04" : "#dc2626", borderRadius: 6, width: priorityPct + "%", transition: "width 0.4s" }}></div>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{priorityDone.length} of {priorityTickets.length} completed by end of week</div>
-              {priorityTickets.length > 0 && <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-                {priorityTickets.map((t) => {
-                  const done = t.status === "completed";
-                  return <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "4px 0" }}>
-                    <span style={{ width: 16, height: 16, borderRadius: 8, background: done ? "rgba(22,163,74,0.1)" : "var(--bg-input)", border: "1px solid " + (done ? "#16a34a" : "var(--border)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: done ? "#16a34a" : "transparent" }}>✓</span>
-                    <span style={{ flex: 1, color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : "none" }}>{t.ref} — {t.title}</span>
-                  </div>;
-                })}
-              </div>}
-            </div>
-          )}
-
-          {/* Breakdown */}
-          <div style={card}>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Breakdown</h3>
-            {weekLeads.length > 0 && (<>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#ca8a04", marginBottom: 6 }}>Leads ({weekLeads.length})</div>
-              <div style={{ marginBottom: 14 }}>{weekLeads.map((l) => <div key={l.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0" }}>{l.broker} — {l.enquiry}</div>)}</div>
-            </>)}
-            {weekSocial.length > 0 && (<>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#0284c7", marginBottom: 6 }}>Social Posts ({weekSocial.length})</div>
-              <div style={{ marginBottom: 14 }}>{weekSocial.map((e) => <div key={e.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0" }}>{e.title}</div>)}</div>
-            </>)}
-            {weekEmail.length > 0 && (<>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", marginBottom: 6 }}>Email Campaigns ({weekEmail.length})</div>
-              <div style={{ marginBottom: 14 }}>{weekEmail.map((e) => <div key={e.id} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0" }}>{e.title}</div>)}</div>
-            </>)}
-            {(weekBlog.length > 0 || weekPresentation.length > 0 || weekVideo.length > 0) && (<>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 6, marginTop: 8 }}>Also Published</div>
-              {weekBlog.length > 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "2px 0" }}>Blog Articles: {weekBlog.length}</div>}
-              {weekPresentation.length > 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "2px 0" }}>Presentations: {weekPresentation.length}</div>}
-              {weekVideo.length > 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "2px 0" }}>Photo/Video: {weekVideo.length}</div>}
-            </>)}
-            {weekLeads.length === 0 && weekSocial.length === 0 && weekEmail.length === 0 && weekBlog.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "16px 0", textAlign: "center" }}>No activity recorded for this week.</div>}
-          </div>
-
-          {/* Week review */}
-          {(() => {
-            const reviewKey = "week_reviewed_" + fmt(viewMon).replace(/\s/g, "");
-            const markReviewed = async () => { const { data: existing } = await supabase.from("app_settings").select("key").eq("key", reviewKey).maybeSingle(); if (existing) await supabase.from("app_settings").update({ value: "true" }).eq("key", reviewKey); else await supabase.from("app_settings").insert({ key: reviewKey, value: "true" }); setWeekReviewed(true); };
-            return (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: weekReviewed ? "rgba(22,163,74,0.06)" : "var(--bg-card)", border: "1px solid " + (weekReviewed ? "rgba(22,163,74,0.2)" : "var(--border)"), borderRadius: 10, marginTop: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: weekReviewed ? "#16a34a" : "var(--text-secondary)" }}>{weekReviewed ? "✓ Week reviewed" : "Mark this week as reviewed?"}</span>
-                {!weekReviewed && <button onClick={markReviewed} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Mark Reviewed</button>}
-              </div>
-            );
-          })()}
-        </>);
-      })()}
 
       {adminTab === "overview" && (<>
         <div style={card}>
@@ -1217,3 +1101,149 @@ export function TeamGoals({ goals, isAdmin, onSave, onDelete, tickets, archiveEn
   );
 }
 
+
+export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
+  const [weekNav, setWeekNav] = useState(0);
+  const [weekReviewed, setWeekReviewed] = useState(false);
+
+  const now = new Date();
+  const currentDow = now.getDay();
+  const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((currentDow + 6) % 7)); thisMon.setHours(0,0,0,0);
+  const viewMon = new Date(thisMon); viewMon.setDate(thisMon.getDate() + weekNav * 7);
+  const viewSun = new Date(viewMon); viewSun.setDate(viewMon.getDate() + 6); viewSun.setHours(23,59,59,999);
+  const isCurrentWeek = weekNav === 0;
+  const fmt = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  const inWeek = (dateStr) => { if (!dateStr) return false; const d = new Date(dateStr); return d >= viewMon && d <= viewSun; };
+  const weekLeads = leads.filter((l) => inWeek(l.created_at));
+  const weekArchive = (archiveEntries || []).filter((e) => inWeek(e.date || e.created_at));
+  const weekSocial = weekArchive.filter((e) => e.type === "social");
+  const weekEmail = weekArchive.filter((e) => e.type === "email");
+  const weekBlog = weekArchive.filter((e) => e.type === "blog" || e.type === "article");
+  const weekPresentation = weekArchive.filter((e) => e.type === "presentation");
+  const weekVideo = weekArchive.filter((e) => e.type === "video");
+  const weekCompleted = tickets.filter((t) => t.completedAt && inWeek(t.completedAt));
+  const weekCompletedSla = weekCompleted.filter((t) => { const sla = getSlaStatus({ ...t, status: "completed" }); return sla && sla.met; });
+  const slaPct = weekCompleted.length > 0 ? Math.round(weekCompletedSla.length / weekCompleted.length * 100) : 0;
+
+  // Weekly priorities (meeting to-do tags)
+  const weekNum = Math.ceil(((viewMon - new Date(viewMon.getFullYear(), 0, 1)) / 86400000 + new Date(viewMon.getFullYear(), 0, 1).getDay() + 1) / 7);
+  const wTag = "W" + weekNum + "-" + viewMon.getFullYear();
+  const priorityTickets = tickets.filter((t) => t.tags && t.tags.includes(wTag));
+  const priorityDone = priorityTickets.filter((t) => t.status === "completed" && t.completedAt && new Date(t.completedAt) <= viewSun);
+  const priorityPct = priorityTickets.length > 0 ? Math.round(priorityDone.length / priorityTickets.length * 100) : null;
+
+  const card = { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "18px 20px", marginBottom: 14 };
+
+  // Load review status
+  useEffect(() => {
+    const reviewKey = "week_reviewed_" + fmt(viewMon).replace(/\s/g, "");
+    setWeekReviewed(false);
+    supabase.from("app_settings").select("value").eq("key", reviewKey).maybeSingle().then(({ data }) => { if (data?.value === "true") setWeekReviewed(true); });
+  }, [weekNav]);
+
+  const markReviewed = async () => {
+    const reviewKey = "week_reviewed_" + fmt(viewMon).replace(/\s/g, "");
+    const { data: existing } = await supabase.from("app_settings").select("key").eq("key", reviewKey).maybeSingle();
+    if (existing) await supabase.from("app_settings").update({ value: "true" }).eq("key", reviewKey);
+    else await supabase.from("app_settings").insert({ key: reviewKey, value: "true" });
+    setWeekReviewed(true);
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 900 }}>
+      <PageHeader icon={<BarChart3 size={22} color="#8b5cf6" />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} />
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <button onClick={() => setWeekNav(weekNav - 1)} style={{ padding: "8px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>← Previous Week</button>
+        <div style={{ textAlign: "center" }}>
+          {isCurrentWeek && <span style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 12px", borderRadius: 20 }}>Current Week</span>}
+        </div>
+        <button onClick={() => setWeekNav(weekNav + 1)} disabled={isCurrentWeek} style={{ padding: "8px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)", opacity: isCurrentWeek ? 0.3 : 1 }}>Next Week →</button>
+      </div>
+
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Leads Added", value: weekLeads.length, color: "#ca8a04" },
+          { label: "Social Posts", value: weekSocial.length, color: "#0284c7" },
+          { label: "Email Campaigns", value: weekEmail.length, color: "#6366f1" },
+          { label: "Completed in SLA", value: slaPct + "%", color: slaPct >= 80 ? "#16a34a" : slaPct >= 50 ? "#ca8a04" : "#dc2626" },
+          { label: "Priorities on Time", value: priorityPct !== null ? priorityPct + "%" : "—", color: priorityPct === null ? "#64748b" : priorityPct >= 80 ? "#16a34a" : priorityPct >= 50 ? "#ca8a04" : "#dc2626" },
+        ].map((s) => (
+          <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px 10px", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Weekly priorities detail */}
+      {priorityTickets.length > 0 && (
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Weekly Priorities Delivered on Time ({wTag})</h3>
+            <span style={{ fontSize: 24, fontWeight: 800, color: priorityPct >= 80 ? "#16a34a" : priorityPct >= 50 ? "#ca8a04" : "#dc2626" }}>{priorityPct}%</span>
+          </div>
+          <div style={{ background: "var(--bg-input)", borderRadius: 6, height: 10, overflow: "hidden", marginBottom: 12 }}>
+            <div style={{ height: "100%", background: priorityPct >= 80 ? "#16a34a" : priorityPct >= 50 ? "#ca8a04" : "#dc2626", borderRadius: 6, width: priorityPct + "%", transition: "width 0.4s" }}></div>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>{priorityDone.length} of {priorityTickets.length} meeting to-dos completed by Sunday</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {priorityTickets.map((t) => {
+              const done = t.status === "completed";
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 10, background: done ? "rgba(22,163,74,0.1)" : "var(--bg-input)", border: "2px solid " + (done ? "#16a34a" : "var(--border)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: done ? "#16a34a" : "transparent", flexShrink: 0 }}>✓</span>
+                  <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", fontSize: 11, flexShrink: 0 }}>{t.ref}</span>
+                  <span style={{ flex: 1, color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Breakdown */}
+      <div style={card}>
+        <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Breakdown</h3>
+        {weekLeads.length > 0 && (<>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#ca8a04", marginBottom: 8 }}>Leads ({weekLeads.length})</div>
+          <div style={{ marginBottom: 16 }}>{weekLeads.map((l) => <div key={l.id} style={{ fontSize: 13, color: "var(--text-secondary)", padding: "4px 0", borderBottom: "1px solid var(--border)" }}><strong>{l.broker}</strong> — {l.enquiry}</div>)}</div>
+        </>)}
+        {weekSocial.length > 0 && (<>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0284c7", marginBottom: 8 }}>Social Posts ({weekSocial.length})</div>
+          <div style={{ marginBottom: 16 }}>{weekSocial.map((e) => <div key={e.id} style={{ fontSize: 13, color: "var(--text-secondary)", padding: "4px 0" }}>{e.title}</div>)}</div>
+        </>)}
+        {weekEmail.length > 0 && (<>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 8 }}>Email Campaigns ({weekEmail.length})</div>
+          <div style={{ marginBottom: 16 }}>{weekEmail.map((e) => <div key={e.id} style={{ fontSize: 13, color: "var(--text-secondary)", padding: "4px 0" }}>{e.title}</div>)}</div>
+        </>)}
+        {(weekBlog.length > 0 || weekPresentation.length > 0 || weekVideo.length > 0) && (<>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, marginTop: 8 }}>Also Published</div>
+          {weekBlog.length > 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "3px 0" }}>Blog Articles: {weekBlog.length}</div>}
+          {weekPresentation.length > 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "3px 0" }}>Presentations: {weekPresentation.length}</div>}
+          {weekVideo.length > 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "3px 0" }}>Photo/Video: {weekVideo.length}</div>}
+        </>)}
+        {weekLeads.length === 0 && weekSocial.length === 0 && weekEmail.length === 0 && weekBlog.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "20px 0", textAlign: "center" }}>No activity recorded for this week.</div>}
+      </div>
+
+      {/* SLA breakdown */}
+      <div style={card}>
+        <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>SLA Performance</h3>
+        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>{weekCompleted.length} tickets completed this week · {weekCompletedSla.length} within SLA ({slaPct}%)</div>
+        {weekCompleted.length > 0 && <div style={{ background: "var(--bg-input)", borderRadius: 6, height: 8, overflow: "hidden" }}>
+          <div style={{ height: "100%", background: slaPct >= 80 ? "#16a34a" : slaPct >= 50 ? "#ca8a04" : "#dc2626", borderRadius: 6, width: slaPct + "%", transition: "width 0.4s" }}></div>
+        </div>}
+      </div>
+
+      {/* Review */}
+      {isAdmin && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: weekReviewed ? "rgba(22,163,74,0.06)" : "var(--bg-card)", border: "1px solid " + (weekReviewed ? "rgba(22,163,74,0.2)" : "var(--border)"), borderRadius: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: weekReviewed ? "#16a34a" : "var(--text-secondary)" }}>{weekReviewed ? "✓ Week reviewed" : "Mark this week as reviewed?"}</span>
+          {!weekReviewed && <button onClick={markReviewed} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Mark Reviewed</button>}
+        </div>
+      )}
+    </div>
+  );
+}
