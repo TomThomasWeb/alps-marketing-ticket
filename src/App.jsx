@@ -718,13 +718,14 @@ const handleAddComment = async (id, author, text) => {
 
   const handleCalendarSave = async (event) => {
     if (event.id) {
-      await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description, date: event.date, status: event.status || "planned" }).eq("id", event.id);
-    } else {
-      const { data: inserted } = await supabase.from("calendar_events").insert([{ title: event.title, type: event.type, description: event.description || "", date: event.date, status: event.status || "planned" }]).select();
-      if (event.createTicket && inserted && inserted[0]) {
-        const nextRef = await getNextRef();
-        await supabase.from("tickets").insert({ ref: nextRef, name: "Calendar", title: event.title, description: event.description || "Auto-created from content calendar", priority: "medium", status: "open", deadline: event.date, file_names: [], notes: [] });
+      // If only date is being updated (drag-drop), only update date
+      if (!event.title && !event.type) {
+        await supabase.from("calendar_events").update({ date: event.date }).eq("id", event.id);
+      } else {
+        await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description, date: event.date, status: event.status || "planned" }).eq("id", event.id);
       }
+    } else {
+      await supabase.from("calendar_events").insert([{ title: event.title || "", type: event.type, description: event.description || "", date: event.date, status: event.status || "planned" }]).select();
     }
   };
   const handleCalendarReschedule = async (eventId, newDate, ticketRef) => {

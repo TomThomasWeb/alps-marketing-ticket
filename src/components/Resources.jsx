@@ -1064,6 +1064,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addDate, setAddDate] = useState("");
   const [addType, setAddType] = useState("linkedin");
+  const [addTitle, setAddTitle] = useState("");
 
   const TYPES = [
     { id: "linkedin", label: "LinkedIn", icon: "in", color: "#0A66C2" },
@@ -1083,9 +1084,16 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const handleSave = () => {
-    if (!addDate) return;
-    onSave({ date: addDate, type: addType });
-    setAddDate(""); setShowAdd(false);
+    if (!addDate || !addTitle.trim()) return;
+    onSave({ date: addDate, type: addType, title: addTitle.trim() });
+    setAddDate(""); setAddTitle(""); setShowAdd(false);
+  };
+
+  const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+
+  const handleDrop = (dateStr) => {
+    if (dragId) { onSave({ id: dragId, date: dateStr }); setDragId(null); setDragOver(null); }
   };
 
   return (
@@ -1096,7 +1104,8 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Date</label><input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }} /></div>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Type</label><select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }}>{TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
-          <button onClick={handleSave} disabled={!addDate} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: addDate ? 1 : 0.4 }}>Add</button>
+          <div style={{ flex: 1, minWidth: 160 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Title</label><input value={addTitle} onChange={(e) => setAddTitle(e.target.value)} placeholder="e.g. Q3 campaign launch" onKeyDown={(e) => e.key === "Enter" && handleSave()} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+          <button onClick={handleSave} disabled={!addDate || !addTitle.trim()} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: addDate && addTitle.trim() ? 1 : 0.4 }}>Add</button>
         </div>
       )}
 
@@ -1120,7 +1129,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
                 const isPast = day < today;
                 const dayEvents = (events || []).filter((e) => e.date === ds);
                 return (
-                  <div key={di} style={{ background: isToday ? "var(--brand-light)" : "var(--bg-card)", border: "1px solid " + (isToday ? "var(--brand)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", minHeight: 80, opacity: isPast && !isToday ? 0.5 : 1 }}>
+                  <div key={di} onDragOver={(e) => { if (isAdmin) { e.preventDefault(); setDragOver(ds); } }} onDragLeave={() => setDragOver(null)} onDrop={(e) => { e.preventDefault(); handleDrop(ds); }} style={{ background: dragOver === ds ? "var(--brand-light)" : isToday ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (dragOver === ds ? "var(--brand)" : isToday ? "var(--brand)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", minHeight: 80, opacity: isPast && !isToday ? 0.5 : 1, transition: "all 0.15s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>{dayNames[di]}</span>
                       <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "var(--brand)" : "var(--text-primary)" }}>{day.getDate()}</span>
@@ -1129,8 +1138,9 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
                       {dayEvents.map((ev) => {
                         const tp = TYPES.find((t) => t.id === ev.type) || TYPES[0];
                         return (
-                          <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: tp.color + "15", borderRadius: 4, borderLeft: "3px solid " + tp.color, position: "relative" }} className="hub-cal-event">
-                            <span style={{ fontSize: 9, fontWeight: 700, color: tp.color }}>{tp.label}</span>
+                          <div key={ev.id} draggable={isAdmin} onDragStart={(e) => { setDragId(ev.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragId(null); setDragOver(null); }} style={{ padding: "4px 6px", background: dragId === ev.id ? tp.color + "30" : tp.color + "12", borderRadius: 5, borderLeft: "3px solid " + tp.color, position: "relative", overflow: "hidden", cursor: isAdmin ? "grab" : "default", opacity: dragId === ev.id ? 0.5 : 1 }} className="hub-cal-event" title={ev.title}>
+                            <div style={{ fontSize: 8, fontWeight: 700, color: tp.color, textTransform: "uppercase", letterSpacing: "0.03em", lineHeight: 1 }}>{tp.label}</div>
+                            {ev.title && <div style={{ fontSize: 9, fontWeight: 600, color: "var(--text-primary)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.2 }}>{ev.title}</div>}
                             {isAdmin && <button onClick={() => onDelete(ev.id)} className="hub-cal-del" style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: "#dc2626", border: "none", color: "#fff", fontSize: 8, cursor: "pointer", display: "none", alignItems: "center", justifyContent: "center" }}>✕</button>}
                           </div>
                         );
