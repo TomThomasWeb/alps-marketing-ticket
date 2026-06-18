@@ -56,3 +56,23 @@ END $$;
 
 -- Tickets: add tags column for meeting to-do tracking
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';
+
+-- Testimonials table (replaces broker_toolkit)
+CREATE TABLE IF NOT EXISTS testimonials (
+  id BIGSERIAL PRIMARY KEY,
+  broker TEXT NOT NULL,
+  name TEXT NOT NULL,
+  submitted_date DATE,
+  consent BOOLEAN DEFAULT false,
+  text TEXT,
+  file_url TEXT,
+  type TEXT DEFAULT 'text',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE testimonials ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'testimonials_all' AND tablename = 'testimonials') THEN
+    CREATE POLICY testimonials_all ON testimonials FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;

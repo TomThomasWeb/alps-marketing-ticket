@@ -880,186 +880,128 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset }) {
 }
 
 
-export function BrokerToolkit({ items, isAdmin, onSave, onDelete }) {
-  const [filter, setFilter] = useState("all");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
-  const [editing, setEditing] = useState(null);
+
+
+export function Testimonials({ items, isAdmin, onSave, onDelete }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ broker: "", name: "", submitted_date: new Date().toISOString().split("T")[0], consent: false, text: "", file_url: "" });
   const [uploading, setUploading] = useState(false);
-  const toolkitFileRef = useRef(null);
+  const [filter, setFilter] = useState("all");
+  const fileRef = useRef(null);
 
-  const PRODUCTS = [
-    { key: "all", label: "All", icon: "📦" },
-    { key: "general", label: "General", icon: "📋" },
-    { key: "alps", label: "Alps", icon: "⛰" },
-    { key: "motor", label: "Motor", icon: "🚗" },
-    { key: "commercial", label: "Commercial", icon: "🏢" },
-    { key: "let", label: "Let", icon: "🏠" },
-    { key: "personal", label: "Personal", icon: "👤" },
-  ];
-
-  const ASSET_TYPES = {
-    one_pager: { label: "One-Pager", icon: "📄" },
-    email_copy: { label: "Email Copy", icon: "✉" },
-    social_pack: { label: "Social Pack", icon: "📱" },
-    flyer: { label: "Flyer / Print", icon: "🖨" },
-    presentation: { label: "Presentation", icon: "📊" },
-    guide: { label: "Guide / PDF", icon: "📖" },
-    other: { label: "Other", icon: "📎" },
+  const handleFileUpload = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    setUploading(true);
+    const path = "testimonials/" + Date.now() + "-" + f.name.replace(/\s+/g, "-");
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, f);
+    if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); setForm({ ...form, file_url: data.publicUrl }); }
+    setUploading(false);
   };
-
-  const filtered = items.filter((item) => filter === "all" || item.product === filter);
-  const grouped = {};
-  filtered.forEach((item) => {
-    const key = item.product || "general";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(item);
-  });
-
-  const [showVersions, setShowVersions] = useState(null);
 
   const handleSave = () => {
-    if (!form.title.trim()) return;
-    // If editing and file_url changed, archive the previous version
-    if (editing) {
-      const existing = items.find((i) => i.id === editing);
-      if (existing && existing.file_url && form.file_url !== existing.file_url) {
-        const prevVersions = existing.previous_versions ? [...existing.previous_versions] : [];
-        prevVersions.push({ file_url: existing.file_url, archived_at: new Date().toISOString() });
-        onSave({ ...form, previous_versions: prevVersions, id: editing });
-      } else {
-        onSave({ ...form, id: editing });
-      }
-    } else {
-      onSave({ ...form, previous_versions: [] });
-    }
-    setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" });
-    setShowForm(false); setEditing(null);
+    if (!form.broker.trim() || !form.name.trim()) return;
+    onSave({ broker: form.broker.trim(), name: form.name.trim(), submitted_date: form.submitted_date, consent: form.consent, text: form.text.trim() || null, file_url: form.file_url || null, type: form.file_url && form.file_url.match(/\.(mp4|mov|webm|avi)$/i) ? "video" : "text" });
+    setForm({ broker: "", name: "", submitted_date: new Date().toISOString().split("T")[0], consent: false, text: "", file_url: "" });
+    setShowAdd(false);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
-  const startEdit = (item) => {
-    setForm({ title: item.title, product: item.product, type: item.type, description: item.description || "", file_url: item.file_url || "" });
-    setEditing(item.id); setShowForm(true);
-  };
-
-  const prodCounts = {};
-  items.forEach((item) => { prodCounts[item.product || "general"] = (prodCounts[item.product || "general"] || 0) + 1; });
+  const sorted = [...(items || [])].sort((a, b) => new Date(b.submitted_date || b.created_at) - new Date(a.submitted_date || a.created_at));
+  const filtered = filter === "all" ? sorted : filter === "consent" ? sorted.filter((t) => t.consent) : sorted.filter((t) => t.type === filter);
+  const counts = { all: sorted.length, consent: sorted.filter((t) => t.consent).length, video: sorted.filter((t) => t.type === "video").length, text: sorted.filter((t) => t.type === "text").length };
 
   return (
-    <div style={{ width: "100%", maxWidth: 960 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <PageHeader icon={<Briefcase size={22} color="#20A39E" />} title="Broker Toolkit" subtitle="Materials and resources for broker partners" />
-          <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Product sheets, email copy, social packs, and broker-facing materials.</p>
-        </div>
-        {isAdmin && <button onClick={() => { setShowForm(!showForm); setEditing(null); setForm({ title: "", product: "general", type: "one_pager", description: "", file_url: "" }); }} style={{ padding: "8px 16px", background: showForm ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showForm ? "var(--text-primary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showForm ? "Cancel" : "\u2795 Add Asset"}</button>}
-      </div>
+    <div style={{ width: "100%", maxWidth: 800 }}>
+      <PageHeader icon={<Star size={22} color="#20A39E" />} title="Testimonials" subtitle="Broker testimonials and feedback" action={isAdmin && <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Testimonial"}</button>} />
 
-      {showForm && isAdmin && (
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, marginBottom: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Motor One-Pager" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
-            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Product</label><select value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>{PRODUCTS.filter((p) => p.key !== "all").map((p) => <option key={p.key} value={p.key}>{p.icon} {p.label}</option>)}</select></div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }}>{Object.entries(ASSET_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}</select></div>
+      {showAdd && isAdmin && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>File</label>
-              {form.file_url ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8 }}>
-                  <span style={{ flex: 1, fontSize: 12, color: "#16a34a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✓ File attached</span>
-                  <button onClick={() => setForm({ ...form, file_url: "" })} style={{ padding: "3px 8px", background: "none", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "#dc2626", cursor: "pointer" }}>Remove</button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    <Upload size={13} /> {uploading ? "Uploading..." : "Upload file"}
-                    <input ref={toolkitFileRef} type="file" onChange={async (e) => {
-                      const f = e.target.files[0]; if (!f) return;
-                      setUploading(true);
-                      const path = "broker-toolkit/" + Date.now() + "-" + f.name.replace(/\s+/g, "-");
-                      const { error } = await supabase.storage.from("ticket-attachments").upload(path, f);
-                      if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); setForm({ ...form, file_url: data.publicUrl }); }
-                      setUploading(false);
-                    }} style={{ display: "none" }} disabled={uploading} />
-                  </label>
-                  <input value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="or paste URL" style={{ flex: 1, padding: "10px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
-                </div>
-              )}
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Broker <span style={{ color: "#dc2626" }}>*</span></label>
+              <input value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })} placeholder="e.g. Howden Reading" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Name <span style={{ color: "#dc2626" }}>*</span></label>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. John Smith" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
             </div>
           </div>
-          <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--brand)", marginBottom: 4 }}>Description</label><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of this asset..." rows={2} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit" }} /></div>
-          <button onClick={handleSave} style={{ padding: "10px 20px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{editing ? "Update Asset" : "Add Asset"}</button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Date Submitted</label>
+              <input type="date" value={form.submitted_date} onChange={(e) => setForm({ ...form, submitted_date: e.target.value })} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                <input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} style={{ width: 18, height: 18, accentColor: "var(--brand)", cursor: "pointer" }} />
+                <span style={{ color: form.consent ? "#16a34a" : "var(--text-secondary)", fontWeight: 600 }}>Consent given for marketing use</span>
+              </label>
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Testimonial Text <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(or upload video below)</span></label>
+            <textarea value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} rows={4} placeholder="Paste the testimonial here..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 18 }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+              <Upload size={13} /> {form.file_url ? "Change file" : "Upload video/file"}
+              <input ref={fileRef} type="file" onChange={handleFileUpload} style={{ display: "none" }} disabled={uploading} />
+            </label>
+            {form.file_url && <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>✓ File attached</span>}
+            {form.file_url && <button onClick={() => { setForm({ ...form, file_url: "" }); if (fileRef.current) fileRef.current.value = ""; }} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 11, cursor: "pointer" }}>Remove</button>}
+            {uploading && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Uploading...</span>}
+          </div>
+          <button onClick={handleSave} disabled={!form.broker.trim() || !form.name.trim()} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: form.broker.trim() && form.name.trim() ? 1 : 0.4 }}>Save Testimonial</button>
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-        {PRODUCTS.map((p) => {
-          const count = p.key === "all" ? items.length : (prodCounts[p.key] || 0);
-          return <button key={p.key} onClick={() => setFilter(p.key)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === p.key ? "var(--brand)" : "var(--border)"), background: filter === p.key ? "var(--brand)" : "var(--bg-card)", color: filter === p.key ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}><span>{p.icon}</span> {p.label} {count > 0 && <span style={{ fontSize: 10, opacity: 0.7 }}>({count})</span>}</button>;
-        })}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {[{ id: "all", label: "All" }, { id: "consent", label: "Consented" }, { id: "text", label: "Written" }, { id: "video", label: "Video" }].map((f) => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === f.id ? "var(--brand)" : "var(--border)"), background: filter === f.id ? "var(--brand)" : "var(--bg-card)", color: filter === f.id ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{f.label} ({counts[f.id]})</button>
+        ))}
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "64px 20px", color: "var(--text-muted)" }}>
-          <div style={{ marginBottom: 12, opacity: 0.3 }}><Briefcase size={44} /></div>
-          <p style={{ fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{items.length === 0 ? "No assets yet" : "No assets for this product"}</p>
-          <p style={{ fontSize: 13, margin: 0 }}>{items.length === 0 && isAdmin ? "Add broker-facing materials to get started." : "Try a different filter."}</p>
+        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
+          <Star size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No testimonials yet</div>
+          <div style={{ fontSize: 13 }}>{isAdmin ? "Click \"+ Add Testimonial\" to get started." : "Testimonials from brokers will appear here."}</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {Object.entries(grouped).sort((a, b) => {
-            const order = PRODUCTS.map((p) => p.key);
-            return order.indexOf(a[0]) - order.indexOf(b[0]);
-          }).map(([prodKey, prodItems]) => {
-            const prod = PRODUCTS.find((p) => p.key === prodKey) || PRODUCTS[1];
-            return (
-              <div key={prodKey}>
-                {filter === "all" && <h3 style={{ margin: "8px 0 10px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{prod.icon} {prod.label}</h3>}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
-                  {prodItems.map((item) => {
-                    const at = ASSET_TYPES[item.type] || ASSET_TYPES.other;
-                    return (
-                      <div key={item.id} className="hub-card-hover" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, position: "relative" }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                          <span style={{ fontSize: 24 }}>{at.icon}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{item.title}</div>
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{at.label}{item.updated_at && <span style={{ marginLeft: 8, fontSize: 10, opacity: 0.7 }}>Updated {new Date(item.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}</div>
-                            {item.description && <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>{item.description}</div>}
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                              {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 12px", background: "var(--brand)", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, textDecoration: "none", transition: "all 0.15s" }}><Download size={11} /> Download</a>}
-                              {(item.previous_versions || []).length > 0 && <button onClick={(e) => { e.stopPropagation(); setShowVersions(showVersions === item.id ? null : item.id); }} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 10, color: "var(--text-muted)", cursor: "pointer" }}>{item.previous_versions.length} older version{item.previous_versions.length !== 1 ? "s" : ""}</button>}
-                              {isAdmin && <button onClick={() => startEdit(item)} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, color: "var(--text-muted)", cursor: "pointer" }}>Edit</button>}
-                              {isAdmin && <button onClick={() => { if (window.confirm("Delete \"" + item.title + "\"?")) onDelete(item.id); }} style={{ padding: "4px 10px", background: "transparent", border: "1px solid #fecaca", borderRadius: 6, fontSize: 11, color: "#dc2626", cursor: "pointer" }}>{"\u2715"}</button>}
-                            </div>
-                            {showVersions === item.id && (item.previous_versions || []).length > 0 && (
-                              <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--bg-input)", borderRadius: 6, border: "1px solid var(--border)" }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 6 }}>Previous Versions</div>
-                                {item.previous_versions.map((v, i) => (
-                                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", borderBottom: i < item.previous_versions.length - 1 ? "1px solid var(--border)" : "none" }}>
-                                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Archived {new Date(v.archived_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                                    <a href={v.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}>Download</a>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map((t) => (
+            <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + (t.consent ? "#16a34a" : "#ca8a04"), borderRadius: 12, padding: "18px 20px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, color: "var(--brand)" }}>{t.broker}</span>
+                    <span>{new Date(t.submitted_date || t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                  {t.consent ? <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(22,163,74,0.08)", color: "#16a34a" }}>✓ Consent</span> : <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>No consent</span>}
+                  {t.type === "video" && <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626" }}>🎬 Video</span>}
+                  {isAdmin && <button onClick={() => { if (window.confirm("Delete this testimonial?")) onDelete(t.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 14, cursor: "pointer", padding: 0, opacity: 0.5 }}>✕</button>}
                 </div>
               </div>
-            );
-          })}
+              {t.text && <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.7, fontStyle: "italic", padding: "12px 16px", background: "var(--bg-input)", borderRadius: 8, borderLeft: "3px solid var(--border)" }}>"{t.text}"</div>}
+              {t.file_url && (
+                <div style={{ marginTop: 10 }}>
+                  {t.file_url.match(/\.(mp4|mov|webm)$/i) ? (
+                    <video src={t.file_url} controls style={{ width: "100%", maxHeight: 300, borderRadius: 8, background: "#000" }} />
+                  ) : (
+                    <a href={t.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--brand-light)", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none" }}><Download size={13} /> Download File</a>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 }
-
-
 export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addDate, setAddDate] = useState("");
