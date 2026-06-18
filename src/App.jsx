@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2 } from "lucide-react";
+import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2, Star } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
@@ -800,7 +800,7 @@ const handleAddComment = async (id, author, text) => {
     { id: "brand_assets", label: "Brand Assets", group: "resources" },
     { id: "gallery", label: "Alps Gallery", group: "resources" },
     ...(currentUser ? [
-      { id: "testimonials", label: "Broker Toolkit", group: "resources" },
+      { id: "testimonials", label: "Testimonials", group: "resources" },
     ] : []),
     { id: "converter", label: "File Converter", group: "tools" },
     { id: "qr_generator", label: "QR Generator", group: "tools" },
@@ -1334,7 +1334,7 @@ const handleAddComment = async (id, author, text) => {
             { id: "first_policy", icon: <Wand2 size={20} />, label: "Celebrate" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
-              { id: "testimonials", icon: <Briefcase size={20} />, label: "Broker" },
+              { id: "testimonials", icon: <Star size={20} />, label: "Testimonials" },
             ] : []),
             ...(isAdmin ? [
               { id: "dashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
