@@ -6,10 +6,11 @@ export const ALPS_LOGO_REVERSED = "/alps-logo-reversed.webp";
 export const DASHBOARD_PASSWORD = "Sunnyside!";
 
 export const PRIORITIES = {
-  critical: { label: "Critical", color: "#dc2626", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.25)", icon: "\u{1F534}" },
-  high: { label: "High", color: "#ea580c", bg: "rgba(234,88,12,0.08)", border: "rgba(234,88,12,0.25)", icon: "\u{1F7E0}" },
-  medium: { label: "Medium", color: "#ca8a04", bg: "rgba(202,138,4,0.08)", border: "rgba(202,138,4,0.25)", icon: "\u{1F7E1}" },
-  low: { label: "Low", color: "#16a34a", bg: "rgba(22,163,74,0.08)", border: "rgba(22,163,74,0.25)", icon: "\u{1F7E2}" },
+  none: { label: "No Priority", color: "#64748b", bg: "rgba(100,116,139,0.08)", border: "rgba(100,116,139,0.25)", icon: "📋" },
+  critical: { label: "Critical", color: "#dc2626", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.25)", icon: "🔴" },
+  high: { label: "High", color: "#ea580c", bg: "rgba(234,88,12,0.08)", border: "rgba(234,88,12,0.25)", icon: "🟠" },
+  medium: { label: "Medium", color: "#ca8a04", bg: "rgba(202,138,4,0.08)", border: "rgba(202,138,4,0.25)", icon: "🟡" },
+  low: { label: "Low", color: "#16a34a", bg: "rgba(22,163,74,0.08)", border: "rgba(22,163,74,0.25)", icon: "🟢" },
 };
 
 export const STATUS_FALLBACK = { label: "Open", color: "#6366f1", bg: "rgba(99,102,241,0.1)" };
@@ -154,6 +155,7 @@ export function addBusinessDays(date, days) {
 }
 
 export function getSlaStatus(ticket) {
+  if (ticket.priority === "none") return null;
   if (ticket.status === "completed" && ticket.completedAt && ticket.createdAt) {
     const bizHours = businessHoursBetween(ticket.createdAt, ticket.completedAt);
     const target = SLA_TARGETS[ticket.priority];

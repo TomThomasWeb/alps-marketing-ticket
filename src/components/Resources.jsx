@@ -1002,11 +1002,16 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
     </div>
   );
 }
+
 export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addDate, setAddDate] = useState("");
   const [addType, setAddType] = useState("linkedin");
   const [addTitle, setAddTitle] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({ date: "", type: "", title: "" });
+  const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
 
   const TYPES = [
     { id: "linkedin", label: "LinkedIn", icon: "in", color: "#0A66C2" },
@@ -1018,6 +1023,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
     { id: "event", label: "Event", icon: "📅", color: "#dc2626" },
   ];
 
+  const localDate = (d) => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0"); return y + "-" + m + "-" + dd; };
   const today = new Date(); today.setHours(0,0,0,0);
   const dow = today.getDay();
   const mon = new Date(today); mon.setDate(today.getDate() - ((dow + 6) % 7));
@@ -1031,19 +1037,37 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
     setAddDate(""); setAddTitle(""); setShowAdd(false);
   };
 
-  const [dragId, setDragId] = useState(null);
-  const [dragOver, setDragOver] = useState(null);
-
-  const handleDrop = (dateStr) => {
-    if (dragId) { onSave({ id: dragId, date: dateStr }); setDragId(null); setDragOver(null); }
-  };
+  const handleEdit = (ev) => { setEditId(ev.id); setEditForm({ date: ev.date, type: ev.type, title: ev.title || "" }); };
+  const saveEdit = () => { if (!editForm.title.trim()) return; onSave({ id: editId, date: editForm.date, type: editForm.type, title: editForm.title.trim() }); setEditId(null); };
+  const handleDrop = (dateStr) => { if (dragId) { onSave({ id: dragId, date: dateStr }); setDragId(null); setDragOver(null); } };
 
   return (
-    <div style={{ width: "100%", maxWidth: 960 }}>
+    <div style={{ width: "100%" }}>
       <PageHeader icon={<CalendarDays size={22} color="#20A39E" />} title="Content Calendar" subtitle="What's being published this week and next" action={isAdmin && <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add"}</button>} />
 
+      <div style={{ padding: "8px 14px", background: "var(--bg-input)", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", border: "1px solid var(--border)" }}>This Content Calendar is updated every Monday following the Marketing Catch Up</div>
+
+      {/* Edit modal */}
+      {editId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setEditId(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 14, padding: 24, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Edit Calendar Entry</h3>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Date</label><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Type</label><select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }}>{TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            </div>
+            <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Title</label><input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveEdit()} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { if (window.confirm("Delete this entry?")) { onDelete(editId); setEditId(null); } }} style={{ padding: "8px 14px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 6, color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", marginRight: "auto" }}>Delete</button>
+              <button onClick={() => setEditId(null)} style={{ padding: "8px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+              <button onClick={saveEdit} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAdd && isAdmin && (
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "14px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 16, flexWrap: "wrap" }}>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Date</label><input type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }} /></div>
           <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Type</label><select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none" }}>{TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
           <div style={{ flex: 1, minWidth: 160 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Title</label><input value={addTitle} onChange={(e) => setAddTitle(e.target.value)} placeholder="e.g. Q3 campaign launch" onKeyDown={(e) => e.key === "Enter" && handleSave()} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
@@ -1052,38 +1076,36 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
       )}
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {TYPES.map((t) => <span key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-muted)" }}><span style={{ width: 8, height: 8, borderRadius: 4, background: t.color }}></span>{t.label}</span>)}
       </div>
 
-      {/* Two week grid */}
+      {/* Two week grid - full width, large tiles */}
       {[0, 1].map((weekIdx) => {
-        const weekStart = new Date(mon); weekStart.setDate(mon.getDate() + weekIdx * 7);
         const weekDays = days.slice(weekIdx * 7, weekIdx * 7 + 7);
         const isThisWeek = weekIdx === 0;
         return (
-          <div key={weekIdx} style={{ marginBottom: 20 }}>
+          <div key={weekIdx} style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{isThisWeek ? "This Week" : "Next Week"}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
               {weekDays.map((day, di) => {
-                const ds = day.toISOString().split("T")[0];
+                const ds = localDate(day);
                 const isToday = day.getTime() === today.getTime();
                 const isPast = day < today;
                 const dayEvents = (events || []).filter((e) => e.date === ds);
                 return (
-                  <div key={di} onDragOver={(e) => { if (isAdmin) { e.preventDefault(); setDragOver(ds); } }} onDragLeave={() => setDragOver(null)} onDrop={(e) => { e.preventDefault(); handleDrop(ds); }} style={{ background: dragOver === ds ? "var(--brand-light)" : isToday ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (dragOver === ds ? "var(--brand)" : isToday ? "var(--brand)" : "var(--border)"), borderRadius: 10, padding: "8px 6px", minHeight: 80, opacity: isPast && !isToday ? 0.5 : 1, transition: "all 0.15s" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>{dayNames[di]}</span>
-                      <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 600, color: isToday ? "var(--brand)" : "var(--text-primary)" }}>{day.getDate()}</span>
+                  <div key={di} onDragOver={(e) => { if (isAdmin) { e.preventDefault(); setDragOver(ds); } }} onDragLeave={() => setDragOver(null)} onDrop={(e) => { e.preventDefault(); handleDrop(ds); }} style={{ background: dragOver === ds ? "var(--brand-light)" : isToday ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (dragOver === ds ? "var(--brand)" : isToday ? "var(--brand)" : "var(--border)"), borderRadius: 10, padding: "10px 8px", minHeight: 130, opacity: isPast && !isToday ? 0.5 : 1, transition: "all 0.15s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>{dayNames[di]}</span>
+                      <span style={{ fontSize: 15, fontWeight: isToday ? 800 : 600, color: isToday ? "var(--brand)" : "var(--text-primary)" }}>{day.getDate()}</span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {dayEvents.map((ev) => {
                         const tp = TYPES.find((t) => t.id === ev.type) || TYPES[0];
                         return (
-                          <div key={ev.id} draggable={isAdmin} onDragStart={(e) => { setDragId(ev.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragId(null); setDragOver(null); }} style={{ padding: "4px 6px", background: dragId === ev.id ? tp.color + "30" : tp.color + "12", borderRadius: 5, borderLeft: "3px solid " + tp.color, position: "relative", overflow: "hidden", cursor: isAdmin ? "grab" : "default", opacity: dragId === ev.id ? 0.5 : 1 }} className="hub-cal-event" title={ev.title}>
-                            <div style={{ fontSize: 8, fontWeight: 700, color: tp.color, textTransform: "uppercase", letterSpacing: "0.03em", lineHeight: 1 }}>{tp.label}</div>
-                            {ev.title && <div style={{ fontSize: 9, fontWeight: 600, color: "var(--text-primary)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.2 }}>{ev.title}</div>}
-                            {isAdmin && <button onClick={() => onDelete(ev.id)} className="hub-cal-del" style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: "#dc2626", border: "none", color: "#fff", fontSize: 8, cursor: "pointer", display: "none", alignItems: "center", justifyContent: "center" }}>✕</button>}
+                          <div key={ev.id} draggable={isAdmin} onDragStart={(e) => { setDragId(ev.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragId(null); setDragOver(null); }} onClick={() => { if (isAdmin) handleEdit(ev); }} style={{ padding: "5px 7px", background: dragId === ev.id ? tp.color + "30" : tp.color + "12", borderRadius: 6, borderLeft: "3px solid " + tp.color, position: "relative", overflow: "hidden", cursor: isAdmin ? "pointer" : "default", opacity: dragId === ev.id ? 0.5 : 1 }} className="hub-cal-event" title={ev.title + " (click to edit)"}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: tp.color, textTransform: "uppercase", letterSpacing: "0.03em", lineHeight: 1 }}>{tp.label}</div>
+                            {ev.title && <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-primary)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>{ev.title}</div>}
                           </div>
                         );
                       })}
@@ -1098,7 +1120,6 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
     </div>
   );
 }
-
 
 export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateStatus, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);

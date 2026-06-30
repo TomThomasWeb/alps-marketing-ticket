@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2, Star } from "lucide-react";
+import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2, Star, FolderOpen } from "lucide-react";
 import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
@@ -833,12 +833,12 @@ const handleAddComment = async (id, author, text) => {
     signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
   };
 
-  const SidebarLink = ({ id, label, badge }) => {
+  const SidebarLink = ({ id, label, badge, dot }) => {
     const active = view === id;
     const recent = !active && recentPages.includes(id);
     return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "7px 0" : "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
       <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
-      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
+      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>{label}{dot && <span style={{ width: 6, height: 6, borderRadius: 3, background: dot, flexShrink: 0 }}></span>}</span>}
       {!sideCollapsed && recent && <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--brand)", opacity: 0.35, flexShrink: 0 }}></span>}
       {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
     </button>);
@@ -923,19 +923,19 @@ const handleAddComment = async (id, author, text) => {
       {currentUser && (
         <div style={{ padding: "4px 6px" }}>
           <SidebarLink id="profile" label="My Tickets" badge={myTicketCount} />
-          <SidebarLink id="lead_form" label="Log a Lead" />
+          <SidebarLink id="lead_form" label="Log a Lead" dot="#0d9488" />
         </div>
       )}
 
       {/* Groups */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <SidebarGroup id="resources" label="Resources">
-          {currentUser && <SidebarLink id="archive" label="Marketing Archive" />}
+          {currentUser && <SidebarLink id="archive" label="Marketing Archive" dot="#8b5cf6" />}
           {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
           {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
           {currentUser && <SidebarLink id="content_calendar" label="Content Calendar" />}
-          {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" />}
-          {currentUser && <SidebarLink id="testimonials" label="Testimonials" />}
+          {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" dot="#20A39E" />}
+          {currentUser && <SidebarLink id="testimonials" label="Testimonials" dot="#ca8a04" />}
           {!currentUser && !sideCollapsed && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>Log in to access resources</div>}
         </SidebarGroup>
         <SidebarGroup id="tools" label="Tools">
@@ -956,7 +956,7 @@ const handleAddComment = async (id, author, text) => {
             <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
             <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
             <SidebarLink id="analytics" label="Analytics" />
-            <SidebarLink id="weekly" label="Weekly Report" />
+            <SidebarLink id="weekly" label="Weekly Report" dot="#8b5cf6" />
             <SidebarLink id="activity" label="Activity Log" />
             <SidebarLink id="admin" label="Admin Panel" />
           </SidebarGroup>
@@ -1294,6 +1294,8 @@ const handleAddComment = async (id, author, text) => {
                   <button onClick={() => { setQuickAdd(false); nav("form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><PenSquare size={16} style={{ color: "#6366f1" }} />Submit a Ticket</button>
                   <button onClick={() => { setQuickAdd(false); nav("lead_form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><TrendingUp size={16} style={{ color: "#0d9488" }} />Log a Lead</button>
                   {isAdmin && <button onClick={() => { setQuickAdd(false); nav("archive_add"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><Library size={16} style={{ color: "#8b5cf6" }} />Archive Entry</button>}
+                  {isAdmin && <button onClick={() => { setQuickAdd(false); nav("testimonials"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><Star size={16} style={{ color: "#ca8a04" }} />Testimonial</button>}
+                  <button onClick={() => { setQuickAdd(false); nav("stockroom"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><FolderOpen size={16} style={{ color: "#20A39E" }} />Content Stockroom</button>
                 </div>
               )}
               <button onClick={() => setQuickAdd(!quickAdd)} style={{ width: 48, height: 48, borderRadius: 24, background: "var(--brand)", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", boxShadow: "0 4px 16px var(--brand-glow)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", transform: quickAdd ? "rotate(45deg)" : "none" }}><Plus size={22} /></button>
