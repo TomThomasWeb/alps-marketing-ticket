@@ -276,6 +276,35 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         );
       })()}
 
+      {/* Continue where you left off */}
+      {currentUser && (() => {
+        const recentPages = (() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } })();
+        const pageLabels = { archive: "Marketing Archive", brand_assets: "Brand Assets", gallery: "Alps Gallery", testimonials: "Testimonials", stockroom: "Content Stockroom", content_calendar: "Content Calendar", weekly: "Weekly Report", dashboard: "Ticket Dashboard", analytics: "Analytics", leads_dashboard: "Leads", profile: "Profile", qr_generator: "QR Generator", image_editor: "Image Editor", contrast_checker: "Contrast Checker", first_policy: "Celebrations", converter: "File Converter" };
+        const pageIcons = { archive: "📂", brand_assets: "🎨", gallery: "🖼", testimonials: "⭐", stockroom: "📦", content_calendar: "📅", weekly: "📊", dashboard: "📋", analytics: "📈", leads_dashboard: "📇", profile: "👤", qr_generator: "📱", image_editor: "🖌", contrast_checker: "🎯", first_policy: "🎉", converter: "🔄" };
+        const recent = recentPages.filter((p) => pageLabels[p]).slice(0, 4);
+        if (recent.length === 0) return null;
+        const inProgressTickets = myActive.filter((t) => t.status === "in_progress").slice(0, 2);
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Continue where you left off</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {recent.map((p) => (
+                <button key={p} onClick={() => onNavigate(p)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-primary)", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.background = "var(--brand-light)"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-card)"; }}>
+                  <span style={{ fontSize: 16 }}>{pageIcons[p] || "📄"}</span>
+                  {pageLabels[p]}
+                </button>
+              ))}
+              {inProgressTickets.map((t) => (
+                <button key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(2,132,199,0.04)", border: "1px solid rgba(2,132,199,0.15)", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#0284c7", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.background = "rgba(2,132,199,0.08)"} onMouseOut={(e) => e.currentTarget.style.background = "rgba(2,132,199,0.04)"}>
+                  <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700 }}>{t.ref}</span>
+                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-secondary)" }}>{t.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Your active tickets - compact */}
       {myActive.length > 0 && (
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: 16, overflow: "hidden" }}>

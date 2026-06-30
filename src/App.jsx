@@ -833,12 +833,12 @@ const handleAddComment = async (id, author, text) => {
     signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
   };
 
-  const SidebarLink = ({ id, label, badge, dot }) => {
+  const SidebarLink = ({ id, label, badge, iconColor }) => {
     const active = view === id;
     const recent = !active && recentPages.includes(id);
     return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "7px 0" : "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
-      <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
-      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>{label}{dot && <span style={{ width: 6, height: 6, borderRadius: 3, background: dot, flexShrink: 0 }}></span>}</span>}
+      <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : iconColor || "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
+      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>{label}</span>}
       {!sideCollapsed && recent && <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--brand)", opacity: 0.35, flexShrink: 0 }}></span>}
       {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
     </button>);
@@ -923,19 +923,19 @@ const handleAddComment = async (id, author, text) => {
       {currentUser && (
         <div style={{ padding: "4px 6px" }}>
           <SidebarLink id="profile" label="My Tickets" badge={myTicketCount} />
-          <SidebarLink id="lead_form" label="Log a Lead" dot="#0d9488" />
+          <SidebarLink id="lead_form" label="Log a Lead" iconColor="#0d9488" />
         </div>
       )}
 
       {/* Groups */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <SidebarGroup id="resources" label="Resources">
-          {currentUser && <SidebarLink id="archive" label="Marketing Archive" dot="#8b5cf6" />}
+          {currentUser && <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />}
           {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
           {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
           {currentUser && <SidebarLink id="content_calendar" label="Content Calendar" />}
-          {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" dot="#20A39E" />}
-          {currentUser && <SidebarLink id="testimonials" label="Testimonials" dot="#ca8a04" />}
+          {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />}
+          {currentUser && <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />}
           {!currentUser && !sideCollapsed && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>Log in to access resources</div>}
         </SidebarGroup>
         <SidebarGroup id="tools" label="Tools">
@@ -956,7 +956,7 @@ const handleAddComment = async (id, author, text) => {
             <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
             <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
             <SidebarLink id="analytics" label="Analytics" />
-            <SidebarLink id="weekly" label="Weekly Report" dot="#8b5cf6" />
+            <SidebarLink id="weekly" label="Weekly Report" iconColor="#8b5cf6" />
             <SidebarLink id="activity" label="Activity Log" />
             <SidebarLink id="admin" label="Admin Panel" />
           </SidebarGroup>

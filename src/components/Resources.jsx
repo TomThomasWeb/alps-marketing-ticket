@@ -75,7 +75,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<Library size={22} color="#20A39E" />} title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} action={isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>} />
+      <PageHeader icon={<Library size={22} color="#20A39E" />} title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} action={<div style={{ display: "flex", gap: 8 }}><button onClick={() => { const rows = (entries || []).map((e) => [new Date(e.date || e.created_at).toLocaleDateString("en-GB"), e.title, e.link || "", (e.tags || []).join(", ")].join("\t")); const csv = "Date\tTitle\tLink\tTags\n" + rows.join("\n"); const blob = new Blob([csv], { type: "text/tab-separated-values" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "marketing-archive-export.tsv"; a.click(); }} style={{ padding: "9px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Download size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> Export</button>{isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>}</div>} />
       <div className="hub-filter-row" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 180 }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search archive..." style={{ width: "100%", padding: "9px 14px 9px 36px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
         <div className="hub-type-filter" style={{ display: "flex", gap: 3, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)", flexWrap: "wrap" }}>
@@ -887,6 +887,7 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
   const [form, setForm] = useState({ broker: "", name: "", submitted_date: new Date().toISOString().split("T")[0], consent: false, text: "", file_url: "" });
   const [uploading, setUploading] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const fileRef = useRef(null);
 
   const handleFileUpload = async (e) => {
@@ -907,7 +908,17 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
   };
 
   const sorted = [...(items || [])].sort((a, b) => new Date(b.submitted_date || b.created_at) - new Date(a.submitted_date || a.created_at));
-  const filtered = filter === "all" ? sorted : filter === "consent" ? sorted.filter((t) => t.consent) : sorted.filter((t) => t.type === filter);
+  const filtered = sorted.filter((t) => {
+    if (filter === "consent" && !t.consent) return false;
+    if (filter === "video" && t.type !== "video") return false;
+    if (filter === "text" && t.type !== "text") return false;
+    if (search.trim()) {
+      const q = search.toLowerCase().split(/\s+/).filter(Boolean);
+      const haystack = ((t.text || "") + " " + (t.broker || "") + " " + (t.name || "")).toLowerCase();
+      if (!q.every((word) => haystack.includes(word))) return false;
+    }
+    return true;
+  });
   const counts = { all: sorted.length, consent: sorted.filter((t) => t.consent).length, video: sorted.filter((t) => t.type === "video").length, text: sorted.filter((t) => t.type === "text").length };
 
   return (
@@ -954,6 +965,14 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
           <button onClick={handleSave} disabled={!form.broker.trim() || !form.name.trim()} style={{ padding: "10px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: form.broker.trim() && form.name.trim() ? 1 : 0.4 }}>Save Testimonial</button>
         </div>
       )}
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-muted)" }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search keywords... e.g. Claim Motor" style={{ width: "100%", padding: "8px 12px 8px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+        </div>
+        {search.trim() && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>}
+      </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
         {[{ id: "all", label: "All" }, { id: "consent", label: "Consented" }, { id: "text", label: "Written" }, { id: "video", label: "Video" }].map((f) => (
@@ -1121,6 +1140,7 @@ export function ContentCalendar({ events, isAdmin, onSave, onDelete }) {
   );
 }
 
+
 export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateStatus, onDelete }) {
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
@@ -1128,13 +1148,29 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [justSubmitted, setJustSubmitted] = useState(false);
   const fileRef = useRef(null);
+
+  const CONTENT_TAGS = [
+    { id: "social", label: "Social Post", color: "#0284c7" },
+    { id: "email", label: "Email Campaign", color: "#6366f1" },
+    { id: "blog", label: "Blog", color: "#16a34a" },
+    { id: "video", label: "Video/Photo", color: "#dc2626" },
+    { id: "presentation", label: "Presentation", color: "#ca8a04" },
+    { id: "print", label: "Print", color: "#ea580c" },
+    { id: "other", label: "Other", color: "#64748b" },
+  ];
 
   const STATUSES = [
     { id: "stockroom", label: "In Stockroom", color: "#ca8a04", bg: "rgba(202,138,4,0.08)" },
     { id: "scheduled", label: "Scheduled", color: "#0284c7", bg: "rgba(2,132,199,0.08)" },
     { id: "posted", label: "Posted", color: "#16a34a", bg: "rgba(22,163,74,0.08)" },
   ];
+
+  const toggleTag = (id) => setSelectedTags((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
 
   const handleAdd = async () => {
     if (!title.trim()) return;
@@ -1145,23 +1181,46 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
       const { error } = await supabase.storage.from("ticket-attachments").upload(path, file);
       if (!error) { const { data } = supabase.storage.from("ticket-attachments").getPublicUrl(path); file_url = data.publicUrl; }
     }
-    await onAdd({ title: title.trim(), text: text.trim() || null, file_url, submitted_by: currentUser?.name || "Anonymous", status: "stockroom" });
-    setTitle(""); setText(""); setFile(null); setShowAdd(false); setUploading(false);
+    await onAdd({ title: title.trim(), text: text.trim() || null, file_url, submitted_by: currentUser?.name || "Anonymous", status: "stockroom", tags: selectedTags });
+    setTitle(""); setText(""); setFile(null); setSelectedTags([]); setShowAdd(false); setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    setJustSubmitted(true);
   };
 
-  const filtered = (items || []).filter((i) => filter === "all" || i.status === filter);
-  const counts = { all: (items || []).length, stockroom: (items || []).filter((i) => i.status === "stockroom").length, scheduled: (items || []).filter((i) => i.status === "scheduled").length, posted: (items || []).filter((i) => i.status === "posted").length };
+  const sorted = [...(items || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const filtered = sorted.filter((i) => {
+    if (filter !== "all" && i.status !== filter) return false;
+    if (tagFilter !== "all" && !(i.tags || []).includes(tagFilter)) return false;
+    return true;
+  });
+  const statusCounts = { all: sorted.length, stockroom: sorted.filter((i) => i.status === "stockroom").length, scheduled: sorted.filter((i) => i.status === "scheduled").length, posted: sorted.filter((i) => i.status === "posted").length };
+  const tagCounts = {};
+  CONTENT_TAGS.forEach((t) => { tagCounts[t.id] = sorted.filter((i) => (i.tags || []).includes(t.id)).length; });
 
   return (
-    <div style={{ width: "100%", maxWidth: 800 }}>
+    <div style={{ width: "100%", maxWidth: 900 }}>
       <PageHeader icon={<FolderOpen size={22} color="#20A39E" />} title="Content Stockroom" subtitle="Submit content ideas, files, and text for the marketing team" action={<button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Content"}</button>} />
+
+      {justSubmitted && (
+        <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 8, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>✓ Content submitted! Refresh the page to see your submission in the list.</span>
+          <button onClick={() => window.location.reload()} style={{ padding: "5px 12px", background: "#16a34a", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Refresh</button>
+        </div>
+      )}
 
       {showAdd && (
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Title <span style={{ color: "#dc2626" }}>*</span></label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What's this content about?" style={{ width: "100%", padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Tags</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {CONTENT_TAGS.map((t) => (
+                <button key={t.id} onClick={() => toggleTag(t.id)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid " + (selectedTags.includes(t.id) ? t.color : "var(--border)"), background: selectedTags.includes(t.id) ? t.color + "15" : "var(--bg-input)", color: selectedTags.includes(t.id) ? t.color : "var(--text-muted)" }}>{t.label}</button>
+              ))}
+            </div>
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>Text / Copy <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
@@ -1178,9 +1237,18 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+      {/* Status filters */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         {[{ id: "all", label: "All" }, ...STATUSES].map((s) => (
-          <button key={s.id} onClick={() => setFilter(s.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === s.id ? "var(--brand)" : "var(--border)"), background: filter === s.id ? "var(--brand)" : "var(--bg-card)", color: filter === s.id ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{s.label} ({counts[s.id]})</button>
+          <button key={s.id} onClick={() => setFilter(s.id)} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid " + (filter === s.id ? "var(--brand)" : "var(--border)"), background: filter === s.id ? "var(--brand)" : "var(--bg-card)", color: filter === s.id ? "#fff" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{s.label} ({statusCounts[s.id]})</button>
+        ))}
+      </div>
+
+      {/* Tag filters */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={() => setTagFilter("all")} style={{ padding: "4px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, cursor: "pointer", border: "1px solid " + (tagFilter === "all" ? "var(--brand)" : "var(--border)"), background: tagFilter === "all" ? "var(--brand)" : "transparent", color: tagFilter === "all" ? "#fff" : "var(--text-muted)" }}>All</button>
+        {CONTENT_TAGS.map((t) => (
+          <button key={t.id} onClick={() => setTagFilter(t.id)} style={{ padding: "4px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, cursor: "pointer", border: "1px solid " + (tagFilter === t.id ? t.color : "var(--border)"), background: tagFilter === t.id ? t.color + "15" : "transparent", color: tagFilter === t.id ? t.color : "var(--text-muted)" }}>{t.label} ({tagCounts[t.id]})</button>
         ))}
       </div>
 
@@ -1191,31 +1259,30 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
           <div style={{ fontSize: 13 }}>Submit content ideas, text, or files for the marketing team to use.</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
           {filtered.map((item) => {
             const st = STATUSES.find((s) => s.id === item.status) || STATUSES[0];
+            const isExpanded = expandedId === item.id;
             return (
-              <div key={item.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + st.color, borderRadius: 10, padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{item.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <span>by {item.submitted_by}</span>
-                      <span>{new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-                    </div>
-                    {item.text && <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--bg-input)", borderRadius: 6, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, maxHeight: 80, overflow: "auto" }}>{item.text}</div>}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
-                    {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none" }}><Download size={11} /> File</a>}
-                    {isAdmin && (
-                      <select value={item.status} onChange={(e) => onUpdateStatus(item.id, e.target.value)} style={{ padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "var(--text-primary)", outline: "none" }}>
-                        {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                      </select>
-                    )}
-                    {isAdmin && <button onClick={() => { if (window.confirm("Delete this item?")) onDelete(item.id); }} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 10, cursor: "pointer" }}>Delete</button>}
+              <div key={item.id} onClick={() => { if (item.text) setExpandedId(isExpanded ? null : item.id); }} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderTop: "3px solid " + st.color, borderRadius: 10, padding: "14px", cursor: item.text ? "pointer" : "default", transition: "all 0.15s" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8, lineHeight: 1.4 }}>{item.title}</div>
+                {isExpanded && item.text && (
+                  <div style={{ padding: "10px 12px", background: "var(--bg-input)", borderRadius: 6, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 10, maxHeight: 200, overflow: "auto", border: "1px solid var(--border)" }}>{item.text}</div>
+                )}
+                {item.file_url && <a href={item.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--brand)", textDecoration: "none", marginBottom: 8 }}><Download size={11} /> File</a>}
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+                  {(item.tags || []).map((tag) => { const ct = CONTENT_TAGS.find((t) => t.id === tag); return ct ? <span key={tag} style={{ fontSize: 9, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: ct.color + "12", color: ct.color }}>{ct.label}</span> : null; })}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    {isAdmin && <select value={item.status} onChange={(e) => { e.stopPropagation(); onUpdateStatus(item.id, e.target.value); }} onClick={(e) => e.stopPropagation()} style={{ padding: "3px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 9, color: "var(--text-primary)", outline: "none" }}>
+                      {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>}
+                    {isAdmin && <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete?")) onDelete(item.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", opacity: 0.5 }}>✕</button>}
                   </div>
                 </div>
+                <div style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 6 }}>by {item.submitted_by} · {new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
               </div>
             );
           })}
@@ -1224,7 +1291,6 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
     </div>
   );
 }
-
 
 export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
   const [filter, setFilter] = useState("all");

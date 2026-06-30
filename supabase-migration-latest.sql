@@ -76,3 +76,6 @@ DO $$ BEGIN
     CREATE POLICY testimonials_all ON testimonials FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- Content Stockroom: add tags column
+ALTER TABLE content_stockroom ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';
