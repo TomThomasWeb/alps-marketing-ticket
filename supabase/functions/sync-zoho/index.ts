@@ -56,29 +56,42 @@ async function getAccessToken(): Promise<string | null> {
 
 async function fetchWithRetry(url: string, token: string): Promise<any> {
   let res = await fetch(url, {
-    headers: { Authorization: `Zoho-oauthtoken ${token}` },
+    headers: { 
+      Authorization: `Zoho-oauthtoken ${token}`,
+      Accept: "application/json",
+    },
   });
 
   if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (!newToken) return null;
     res = await fetch(url, {
-      headers: { Authorization: `Zoho-oauthtoken ${newToken}` },
+      headers: { 
+        Authorization: `Zoho-oauthtoken ${newToken}`,
+        Accept: "application/json",
+      },
     });
   }
 
   if (!res.ok) {
-    console.error("Zoho API error:", res.status, await res.text());
+    const text = await res.text();
+    console.error("Zoho API error:", res.status, text);
     return null;
   }
 
-  return await res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error("Zoho returned non-JSON:", text.substring(0, 200));
+    return null;
+  }
 }
 
 async function syncCampaigns(token: string, apiDomain: string) {
   // Fetch recent campaigns from Zoho Campaigns
   const data = await fetchWithRetry(
-    `${apiDomain}/api/v1.1/recentcampaigns?recentinfo=recent&sort=desc`,
+    `${apiDomain}/v1.1/recentcampaigns?recentinfo=recent&sort=desc`,
     token
   );
 
@@ -105,7 +118,7 @@ async function syncCampaigns(token: string, apiDomain: string) {
     if (campaign.campaign_key || campaign.campaignkey) {
       const key = campaign.campaign_key || campaign.campaignkey;
       const statsData = await fetchWithRetry(
-        `${apiDomain}/api/v1.1/reports/${key}`,
+        `${apiDomain}/v1.1/reports/${key}`,
         token
       );
       if (statsData) {
@@ -210,6 +223,22 @@ Deno.serve(async (req) => {
     }
 
     const apiDomain = (await getSetting("zoho_campaigns_api_domain")) || "https://campaigns.zoho.eu/api";
+
+    // Check if debug mode requested
+    let debugMode = false;
+    try { const body = await req.json(); debugMode = body?.debug === true; } catch {}
+
+    if (debugMode) {
+      // Return raw API response for debugging
+      const testUrl = `${apiDomain}/v1.1/recentcampaigns?recentinfo=recent&sort=desc`;
+      const testRes = await fetch(testUrl, {
+        headers: { Authorization: `Zoho-oauthtoken ${token}`, Accept: "application/json" },
+      });
+      const testText = await testRes.text();
+      return new Response(JSON.stringify({ debug: true, url: testUrl, status: testRes.status, body: testText.substring(0, 2000) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Sync both Campaigns and Marketing Automation
     const campaignResults = await syncCampaigns(token, apiDomain);
