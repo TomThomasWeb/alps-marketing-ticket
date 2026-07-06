@@ -224,21 +224,23 @@ Deno.serve(async (req) => {
 
     const apiDomain = (await getSetting("zoho_campaigns_api_domain")) || "https://campaigns.zoho.eu/api";
 
-    // Check if debug mode requested
-    let debugMode = false;
-    try { const body = await req.json(); debugMode = body?.debug === true; } catch {}
+    // Debug: fetch raw response first
+    const debugUrl = `${apiDomain}/v1.1/recentcampaigns?recentinfo=recent&sort=desc`;
+    const debugRes = await fetch(debugUrl, {
+      headers: { Authorization: `Zoho-oauthtoken ${token}`, Accept: "application/json" },
+    });
+    const debugText = await debugRes.text();
+    let debugParsed = null;
+    try { debugParsed = JSON.parse(debugText); } catch {}
 
-    if (debugMode) {
-      // Return raw API response for debugging
-      const testUrl = `${apiDomain}/v1.1/recentcampaigns?recentinfo=recent&sort=desc`;
-      const testRes = await fetch(testUrl, {
-        headers: { Authorization: `Zoho-oauthtoken ${token}`, Accept: "application/json" },
-      });
-      const testText = await testRes.text();
-      return new Response(JSON.stringify({ debug: true, url: testUrl, status: testRes.status, body: testText.substring(0, 2000) }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Also try the getEmailCampaigns endpoint
+    const altUrl = `${apiDomain}/v1.1/getEmailCampaigns?sort=desc&status=sent`;
+    const altRes = await fetch(altUrl, {
+      headers: { Authorization: `Zoho-oauthtoken ${token}`, Accept: "application/json" },
+    });
+    const altText = await altRes.text();
+    let altParsed = null;
+    try { altParsed = JSON.parse(altText); } catch {}
 
     // Sync both Campaigns and Marketing Automation
     const campaignResults = await syncCampaigns(token, apiDomain);
@@ -253,6 +255,14 @@ Deno.serve(async (req) => {
         marketingAutomation: maResults,
         totalNew: campaignResults.new + maResults.new,
         totalUpdated: campaignResults.updated + maResults.updated,
+        debug: {
+          recentCampaignsUrl: debugUrl,
+          recentCampaignsStatus: debugRes.status,
+          recentCampaignsBody: (debugText || "").substring(0, 1500),
+          altUrl: altUrl,
+          altStatus: altRes.status,
+          altBody: (altText || "").substring(0, 1500),
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
