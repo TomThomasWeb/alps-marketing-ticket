@@ -470,7 +470,35 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
   const [editTpl, setEditTpl] = useState(null);
   const [newTpl, setNewTpl] = useState({ label: "", icon: "📋", title: "", description: "", priority: "medium" });
   const [tplSaved, setTplSaved] = useState(false);
+  const [linkedinConfig, setLinkedinConfig] = useState({ org_id: "", access_token: "", refresh_token: "" });
+  const [zohoConfig, setZohoConfig] = useState({ domain: "https://accounts.zoho.eu", campaigns_domain: "https://campaigns.zoho.eu/api", ma_domain: "https://marketingautomation.zoho.eu", refresh_token: "" });
+  const [syncing, setSyncing] = useState(null);
+  const [syncResult, setSyncResult] = useState(null);
+  const [linkedinLastSync, setLinkedinLastSync] = useState(null);
+  const [zohoLastSync, setZohoLastSync] = useState(null);
   const handleTplSave = () => { if (onSaveTemplates) onSaveTemplates([...tplList]); setTplSaved(true); setTimeout(() => setTplSaved(false), 2000); };
+
+  // Load integration settings
+  useEffect(() => {
+    async function loadIntegrations() {
+      const keys = ["linkedin_org_id", "linkedin_access_token", "linkedin_refresh_token", "linkedin_last_sync", "zoho_domain", "zoho_campaigns_api_domain", "zoho_ma_api_domain", "zoho_refresh_token", "zoho_last_sync"];
+      for (const key of keys) {
+        const { data } = await supabase.from("app_settings").select("value").eq("key", key).maybeSingle();
+        if (data?.value) {
+          if (key === "linkedin_org_id") setLinkedinConfig((c) => ({ ...c, org_id: data.value }));
+          if (key === "linkedin_access_token") setLinkedinConfig((c) => ({ ...c, access_token: data.value }));
+          if (key === "linkedin_refresh_token") setLinkedinConfig((c) => ({ ...c, refresh_token: data.value }));
+          if (key === "linkedin_last_sync") setLinkedinLastSync(data.value);
+          if (key === "zoho_domain") setZohoConfig((c) => ({ ...c, domain: data.value }));
+          if (key === "zoho_campaigns_api_domain") setZohoConfig((c) => ({ ...c, campaigns_domain: data.value }));
+          if (key === "zoho_ma_api_domain") setZohoConfig((c) => ({ ...c, ma_domain: data.value }));
+          if (key === "zoho_refresh_token") setZohoConfig((c) => ({ ...c, refresh_token: data.value }));
+          if (key === "zoho_last_sync") setZohoLastSync(data.value);
+        }
+      }
+    }
+    loadIntegrations();
+  }, []);
   const addTpl = () => { if (!newTpl.label.trim() || !newTpl.title.trim()) return; setTplList([...tplList, { ...newTpl }]); setNewTpl({ label: "", icon: "📋", title: "", description: "", priority: "medium" }); };
   const removeTpl = (i) => setTplList(tplList.filter((_, idx) => idx !== i));
   const updateTpl = (i, field, value) => { const next = [...tplList]; next[i] = { ...next[i], [field]: value }; setTplList(next); };
@@ -588,6 +616,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         {tabBtn("data", "Data")}
         {tabBtn("users", "Users")}
         {tabBtn("audit", "Log")}
+        {tabBtn("integrations", "🔗 Integrations")}
       </div>
 
 
@@ -877,6 +906,118 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
           )}
         </div>
       </>)}
+
+      {adminTab === "integrations" && (() => {
+        const saveSetting = async (key, value) => {
+          const { data: existing } = await supabase.from("app_settings").select("key").eq("key", key).maybeSingle();
+          if (existing) await supabase.from("app_settings").update({ value }).eq("key", key);
+          else await supabase.from("app_settings").insert({ key, value });
+        };
+
+        const saveLinkedin = async () => {
+          await saveSetting("linkedin_org_id", linkedinConfig.org_id);
+          if (linkedinConfig.access_token) await saveSetting("linkedin_access_token", linkedinConfig.access_token);
+          if (linkedinConfig.refresh_token) await saveSetting("linkedin_refresh_token", linkedinConfig.refresh_token);
+          alert("LinkedIn settings saved");
+        };
+
+        const saveZoho = async () => {
+          await saveSetting("zoho_domain", zohoConfig.domain);
+          await saveSetting("zoho_campaigns_api_domain", zohoConfig.campaigns_domain);
+          await saveSetting("zoho_ma_api_domain", zohoConfig.ma_domain);
+          if (zohoConfig.refresh_token) await saveSetting("zoho_refresh_token", zohoConfig.refresh_token);
+          alert("Zoho settings saved");
+        };
+
+        const syncLinkedin = async () => {
+          setSyncing("linkedin"); setSyncResult(null);
+          try {
+            const res = await fetch(import.meta.env.VITE_SUPABASE_URL + "/functions/v1/sync-linkedin", { method: "POST", headers: { Authorization: "Bearer " + import.meta.env.VITE_SUPABASE_ANON_KEY } });
+            const data = await res.json();
+            setSyncResult({ type: "linkedin", ...data });
+            if (data.success) setLinkedinLastSync(new Date().toISOString());
+          } catch (e) { setSyncResult({ type: "linkedin", error: e.message }); }
+          setSyncing(null);
+        };
+
+        const syncZoho = async () => {
+          setSyncing("zoho"); setSyncResult(null);
+          try {
+            const res = await fetch(import.meta.env.VITE_SUPABASE_URL + "/functions/v1/sync-zoho", { method: "POST", headers: { Authorization: "Bearer " + import.meta.env.VITE_SUPABASE_ANON_KEY } });
+            const data = await res.json();
+            setSyncResult({ type: "zoho", ...data });
+            if (data.success) setZohoLastSync(new Date().toISOString());
+          } catch (e) { setSyncResult({ type: "zoho", error: e.message }); }
+          setSyncing(null);
+        };
+
+        const fmtSync = (ts) => ts ? new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Never";
+        const inputSt = { width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box", fontFamily: "monospace" };
+        const lblSt = { display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 };
+
+        return (<>
+          {syncResult && (
+            <div style={{ padding: "12px 16px", background: syncResult.error ? "rgba(220,38,38,0.06)" : "rgba(22,163,74,0.06)", border: "1px solid " + (syncResult.error ? "rgba(220,38,38,0.15)" : "rgba(22,163,74,0.15)"), borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
+              {syncResult.error ? <span style={{ color: "#dc2626" }}>Sync failed: {syncResult.error}</span> : <span style={{ color: "#16a34a" }}>Sync complete. {syncResult.type === "linkedin" ? (syncResult.newPosts || 0) + " new, " + (syncResult.updatedPosts || 0) + " updated" : (syncResult.totalNew || 0) + " new, " + (syncResult.totalUpdated || 0) + " updated"}</span>}
+            </div>
+          )}
+
+          {/* LinkedIn */}
+          <div style={card}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0A66C2" }}>LinkedIn</h3>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Auto-sync company page posts to the Marketing Archive</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Last sync: {fmtSync(linkedinLastSync)}</div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: linkedinConfig.refresh_token ? "rgba(22,163,74,0.08)" : "rgba(202,138,4,0.08)", color: linkedinConfig.refresh_token ? "#16a34a" : "#ca8a04" }}>{linkedinConfig.refresh_token ? "Connected" : "Not configured"}</span>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div><label style={lblSt}>Organization ID</label><input style={inputSt} value={linkedinConfig.org_id} onChange={(e) => setLinkedinConfig({ ...linkedinConfig, org_id: e.target.value })} placeholder="e.g. 12345678" /></div>
+              <div><label style={lblSt}>Access Token</label><input style={inputSt} type="password" value={linkedinConfig.access_token} onChange={(e) => setLinkedinConfig({ ...linkedinConfig, access_token: e.target.value })} placeholder="From OAuth flow" /></div>
+              <div><label style={lblSt}>Refresh Token</label><input style={inputSt} type="password" value={linkedinConfig.refresh_token} onChange={(e) => setLinkedinConfig({ ...linkedinConfig, refresh_token: e.target.value })} placeholder="From OAuth flow" /></div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveLinkedin} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save Settings</button>
+              <button onClick={syncLinkedin} disabled={syncing === "linkedin" || !linkedinConfig.org_id} style={{ padding: "8px 16px", background: "#0A66C2", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: linkedinConfig.org_id ? 1 : 0.4 }}>{syncing === "linkedin" ? "Syncing..." : "Sync Now"}</button>
+            </div>
+          </div>
+
+          {/* Zoho */}
+          <div style={card}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#dc2626" }}>Zoho Campaigns & Marketing Automation</h3>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>Auto-sync email campaigns with open/click rates to the Archive</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Last sync: {fmtSync(zohoLastSync)}</div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: zohoConfig.refresh_token ? "rgba(22,163,74,0.08)" : "rgba(202,138,4,0.08)", color: zohoConfig.refresh_token ? "#16a34a" : "#ca8a04" }}>{zohoConfig.refresh_token ? "Connected" : "Not configured"}</span>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div><label style={lblSt}>Zoho Auth Domain</label><select style={{ ...inputSt, fontFamily: "inherit" }} value={zohoConfig.domain} onChange={(e) => setZohoConfig({ ...zohoConfig, domain: e.target.value })}><option value="https://accounts.zoho.eu">EU (zoho.eu)</option><option value="https://accounts.zoho.com">US (zoho.com)</option><option value="https://accounts.zoho.co.uk">UK (zoho.co.uk)</option></select></div>
+              <div><label style={lblSt}>Campaigns API Domain</label><input style={inputSt} value={zohoConfig.campaigns_domain} onChange={(e) => setZohoConfig({ ...zohoConfig, campaigns_domain: e.target.value })} /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div><label style={lblSt}>Marketing Automation API Domain</label><input style={inputSt} value={zohoConfig.ma_domain} onChange={(e) => setZohoConfig({ ...zohoConfig, ma_domain: e.target.value })} /></div>
+              <div><label style={lblSt}>Refresh Token</label><input style={inputSt} type="password" value={zohoConfig.refresh_token} onChange={(e) => setZohoConfig({ ...zohoConfig, refresh_token: e.target.value })} placeholder="From OAuth flow" /></div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveZoho} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save Settings</button>
+              <button onClick={syncZoho} disabled={syncing === "zoho" || !zohoConfig.refresh_token} style={{ padding: "8px 16px", background: "#dc2626", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: zohoConfig.refresh_token ? 1 : 0.4 }}>{syncing === "zoho" ? "Syncing..." : "Sync Now"}</button>
+            </div>
+          </div>
+
+          {/* Setup guide link */}
+          <div style={{ padding: "14px 18px", background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
+            <strong style={{ color: "var(--text-secondary)" }}>Need help setting up?</strong> See the <code>INTEGRATIONS.md</code> file in the project root for step-by-step instructions on creating API apps, getting OAuth tokens, and deploying the Edge Functions.
+          </div>
+        </>);
+      })()}
+
     </div>
   );
 }
