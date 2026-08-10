@@ -79,3 +79,17 @@ END $$;
 
 -- Content Stockroom: add tags column
 ALTER TABLE content_stockroom ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';
+
+-- Enable required extensions for scheduled syncs
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Schedule Zoho sync daily at 8am UTC (9am UK time in BST)
+SELECT cron.schedule(
+  'sync-zoho-daily',
+  '0 8 * * *',
+  $$SELECT net.http_post(
+    url := 'https://egzftdazyrsolmflbqjp.supabase.co/functions/v1/sync-zoho',
+    headers := '{"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnemZ0ZGF6eXJzb2xtZmxicWpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MzkyNTAsImV4cCI6MjA4NzQxNTI1MH0.HuPc1vxjmDtPSnGpXTLU-XMn1Zkh-FGVak5dYQz_Ilw"}'::jsonb
+  )$$
+);

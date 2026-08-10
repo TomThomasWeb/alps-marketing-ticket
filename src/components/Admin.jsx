@@ -958,7 +958,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
         return (<>
           {syncResult && (
             <div style={{ padding: "12px 16px", background: syncResult.error ? "rgba(220,38,38,0.06)" : "rgba(22,163,74,0.06)", border: "1px solid " + (syncResult.error ? "rgba(220,38,38,0.15)" : "rgba(22,163,74,0.15)"), borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
-              {syncResult.error ? <span style={{ color: "#dc2626" }}>Sync failed: {syncResult.error}</span> : <span style={{ color: "#16a34a" }}>Sync complete. {syncResult.type === "linkedin" ? (syncResult.newPosts || 0) + " new, " + (syncResult.updatedPosts || 0) + " updated" : (syncResult.totalNew || 0) + " new, " + (syncResult.totalUpdated || 0) + " updated"}</span>}
+              {syncResult.error ? <span style={{ color: "#dc2626" }}>Sync failed: {syncResult.error}</span> : <span style={{ color: "#16a34a" }}>Sync complete. {syncResult.totalNew || 0} new, {syncResult.totalUpdated || 0} updated</span>}
             </div>
           )}
 

@@ -4,12 +4,12 @@ import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals, WeeklyReport } from "./components/Admin.jsx";
-import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, AlpsGallery, ContentCalendar, ContentStockroom } from "./components/Resources.jsx";
+import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, BrandAssetManagement, AlpsGallery, ContentCalendar, ContentStockroom } from "./components/Resources.jsx";
 import { FileConverter, QRCodeGenerator, ImageEditor, EmailSignatureGenerator, ContrastChecker, FirstPolicySold } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/testimonials': 'testimonials', '/content-calendar': 'content_calendar', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/testimonials': 'testimonials', '/brand-management': 'brand_management', '/content-calendar': 'content_calendar', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -776,7 +776,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", testimonials: "Testimonials", content_calendar: "Content Calendar", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", weekly: "Weekly Report", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", testimonials: "Testimonials", brand_management: "Brand Management", content_calendar: "Content Calendar", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", weekly: "Weekly Report", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -825,7 +825,7 @@ const handleAddComment = async (id, author, text) => {
     hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
     profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
     archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
-    testimonials: <Star size={17} />, content_calendar: <CalendarDays size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
+    testimonials: <Star size={17} />, brand_management: <Target size={17} />, content_calendar: <CalendarDays size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
     converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
    
     dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
@@ -932,7 +932,8 @@ const handleAddComment = async (id, author, text) => {
         <SidebarGroup id="resources" label="Resources">
           {currentUser && <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />}
           {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
-          {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
+          {currentUser {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}{currentUser && <SidebarLink id="gallery" label="Alps Gallery" />} <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />}
+          {currentUser {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}{currentUser && <SidebarLink id="gallery" label="Alps Gallery" />} <SidebarLink id="gallery" label="Alps Gallery" />}
           {currentUser && <SidebarLink id="content_calendar" label="Content Calendar" />}
           {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />}
           {currentUser && <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />}
@@ -1159,7 +1160,7 @@ const handleAddComment = async (id, author, text) => {
         </aside>
 
         {/* Main column */}
-        <div className={"hub-main-col " + (["archive", "brand_assets", "gallery", "testimonials", "content_calendar", "stockroom"].includes(view) ? "hub-accent-resources" : ["converter", "qr_generator", "image_editor", "signatures", "contrast_checker", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
+        <div className={"hub-main-col " + (["archive", "brand_assets", "gallery", "testimonials", "brand_management", "content_calendar", "stockroom"].includes(view) ? "hub-accent-resources" : ["converter", "qr_generator", "image_editor", "signatures", "contrast_checker", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
@@ -1188,7 +1189,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "testimonials", "activity", "weekly", "content_calendar", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "testimonials", "brand_management", "activity", "weekly", "content_calendar", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1258,6 +1259,8 @@ const handleAddComment = async (id, author, text) => {
           <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "testimonials" ? (
           <Testimonials items={testimonialItems} isAdmin={isAdmin} onSave={handleTestimonialSave} onDelete={handleTestimonialDelete} />
+        ) : view === "brand_management" ? (
+          <BrandAssetManagement isAdmin={isAdmin} />
         ) : view === "content_calendar" ? (
           <ContentCalendar events={calendarEvents} isAdmin={isAdmin} onSave={handleCalendarSave} onDelete={handleCalendarDelete} />
         ) : view === "stockroom" ? (
