@@ -932,8 +932,8 @@ const handleAddComment = async (id, author, text) => {
         <SidebarGroup id="resources" label="Resources">
           {currentUser && <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />}
           {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
-          {currentUser {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}{currentUser && <SidebarLink id="gallery" label="Alps Gallery" />} <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />}
-          {currentUser {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}{currentUser && <SidebarLink id="gallery" label="Alps Gallery" />} <SidebarLink id="gallery" label="Alps Gallery" />}
+          {currentUser && <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />}
+          {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
           {currentUser && <SidebarLink id="content_calendar" label="Content Calendar" />}
           {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />}
           {currentUser && <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />}
