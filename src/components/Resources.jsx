@@ -1342,21 +1342,33 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
   );
 }
 
+
 export function BrandAssetManagement({ isAdmin }) {
   const [touchpoints, setTouchpoints] = useState([]);
   const [changelog, setChangelog] = useState([]);
+  const [versionedAssets, setVersionedAssets] = useState([]);
   const [showAddTp, setShowAddTp] = useState(false);
+  const [showAddAsset, setShowAddAsset] = useState(false);
   const [showLogChange, setShowLogChange] = useState(null);
+  const [showUploadVersion, setShowUploadVersion] = useState(null);
+  const [expandedAsset, setExpandedAsset] = useState(null);
   const [tpForm, setTpForm] = useState({ name: "", category: "social", elements: "", admin_url: "", status: "up_to_date" });
   const [logForm, setLogForm] = useState({ description: "", user_name: "" });
+  const [assetForm, setAssetForm] = useState({ name: "", type: "brochure", version: "1.0", notes: "" });
+  const [versionForm, setVersionForm] = useState({ version: "", notes: "" });
+  const [assetFile, setAssetFile] = useState(null);
+  const [versionFile, setVersionFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("touchpoints");
+  const assetFileRef = useRef(null);
+  const versionFileRef = useRef(null);
 
   const CATEGORIES = [
     { id: "social", label: "Social Media", icon: "📱" },
     { id: "reviews", label: "Review Sites", icon: "⭐" },
     { id: "internal", label: "Internal Tools", icon: "🔧" },
-    { id: "web", label: "Website & Online", icon: "🌐" },
+    { id: "web", label: "Website Pages", icon: "🌐" },
     { id: "print", label: "Print & Physical", icon: "🖨" },
     { id: "email", label: "Email & Comms", icon: "✉" },
     { id: "other", label: "Other", icon: "📌" },
@@ -1368,29 +1380,58 @@ export function BrandAssetManagement({ isAdmin }) {
     { id: "outdated", label: "Outdated", color: "#dc2626", bg: "rgba(220,38,38,0.08)" },
   ];
 
+  const ASSET_TYPES = [
+    { id: "brochure", label: "Brochure", icon: "📄" },
+    { id: "one_pager", label: "One-Pager", icon: "📋" },
+    { id: "flyer", label: "Flyer", icon: "📰" },
+    { id: "poster", label: "Poster", icon: "🪧" },
+    { id: "presentation", label: "Presentation", icon: "📊" },
+    { id: "template", label: "Template", icon: "📐" },
+    { id: "letterhead", label: "Letterhead", icon: "📝" },
+    { id: "guidelines", label: "Guidelines", icon: "📖" },
+    { id: "other", label: "Other", icon: "📦" },
+  ];
+
   useEffect(() => {
     async function load() {
-      const { data: tp } = await supabase.from("app_settings").select("value").eq("key", "brand_touchpoints").maybeSingle();
-      if (tp?.value) { try { setTouchpoints(JSON.parse(tp.value)); } catch {} }
-      const { data: cl } = await supabase.from("app_settings").select("value").eq("key", "brand_changelog").maybeSingle();
-      if (cl?.value) { try { setChangelog(JSON.parse(cl.value)); } catch {} }
+      const keys = ["brand_touchpoints", "brand_changelog", "brand_versioned_assets"];
+      for (const key of keys) {
+        const { data } = await supabase.from("app_settings").select("value").eq("key", key).maybeSingle();
+        if (data?.value) {
+          try {
+            const parsed = JSON.parse(data.value);
+            if (key === "brand_touchpoints") setTouchpoints(parsed);
+            if (key === "brand_changelog") setChangelog(parsed);
+            if (key === "brand_versioned_assets") setVersionedAssets(parsed);
+          } catch {}
+        }
+      }
       setLoading(false);
     }
     load();
   }, []);
 
-  const saveTouchpoints = async (list) => { setTouchpoints(list); const val = JSON.stringify(list); const { data: ex } = await supabase.from("app_settings").select("key").eq("key", "brand_touchpoints").maybeSingle(); if (ex) await supabase.from("app_settings").update({ value: val }).eq("key", "brand_touchpoints"); else await supabase.from("app_settings").insert({ key: "brand_touchpoints", value: val }); };
-  const saveChangelog = async (list) => { setChangelog(list); const val = JSON.stringify(list); const { data: ex } = await supabase.from("app_settings").select("key").eq("key", "brand_changelog").maybeSingle(); if (ex) await supabase.from("app_settings").update({ value: val }).eq("key", "brand_changelog"); else await supabase.from("app_settings").insert({ key: "brand_changelog", value: val }); };
+  const saveData = async (key, data) => {
+    const val = JSON.stringify(data);
+    const { data: ex } = await supabase.from("app_settings").select("key").eq("key", key).maybeSingle();
+    if (ex) await supabase.from("app_settings").update({ value: val }).eq("key", key);
+    else await supabase.from("app_settings").insert({ key, value: val });
+  };
 
+  const saveTouchpoints = (list) => { setTouchpoints(list); saveData("brand_touchpoints", list); };
+  const saveChangelog = (list) => { setChangelog(list); saveData("brand_changelog", list); };
+  const saveAssets = (list) => { setVersionedAssets(list); saveData("brand_versioned_assets", list); };
+
+  // Touchpoint handlers
   const addTouchpoint = () => {
     if (!tpForm.name.trim()) return;
     saveTouchpoints([...touchpoints, { id: Date.now().toString(), name: tpForm.name.trim(), category: tpForm.category, elements: tpForm.elements.trim(), admin_url: tpForm.admin_url.trim(), status: tpForm.status, last_updated: null }]);
     setTpForm({ name: "", category: "social", elements: "", admin_url: "", status: "up_to_date" }); setShowAddTp(false);
   };
-
   const updateTpStatus = (id, status) => saveTouchpoints(touchpoints.map((tp) => tp.id === id ? { ...tp, status, last_updated: status === "up_to_date" ? new Date().toISOString() : tp.last_updated } : tp));
   const deleteTp = (id) => saveTouchpoints(touchpoints.filter((tp) => tp.id !== id));
 
+  // Change log
   const logChange = () => {
     if (!logForm.description.trim()) return;
     const tp = touchpoints.find((t) => t.id === showLogChange);
@@ -1400,72 +1441,138 @@ export function BrandAssetManagement({ isAdmin }) {
     setLogForm({ description: "", user_name: "" }); setShowLogChange(null);
   };
 
+  // Versioned asset handlers
+  const addAsset = async () => {
+    if (!assetForm.name.trim() || !assetFile) return;
+    setUploading(true);
+    const path = "brand-assets/" + Date.now() + "-" + assetFile.name.replace(/\s+/g, "-");
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, assetFile);
+    if (error) { setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+    const asset = {
+      id: Date.now().toString(), name: assetForm.name.trim(), type: assetForm.type,
+      current_version: assetForm.version.trim() || "1.0", current_file: urlData.publicUrl,
+      current_notes: assetForm.notes.trim(), updated_at: new Date().toISOString(),
+      versions: [{ version: assetForm.version.trim() || "1.0", file: urlData.publicUrl, notes: assetForm.notes.trim() || "Initial version", date: new Date().toISOString() }]
+    };
+    saveAssets([...versionedAssets, asset]);
+    setAssetForm({ name: "", type: "brochure", version: "1.0", notes: "" }); setAssetFile(null); setShowAddAsset(false); setUploading(false);
+    if (assetFileRef.current) assetFileRef.current.value = "";
+  };
+
+  const uploadNewVersion = async (assetId) => {
+    if (!versionForm.version.trim() || !versionFile) return;
+    setUploading(true);
+    const path = "brand-assets/" + Date.now() + "-" + versionFile.name.replace(/\s+/g, "-");
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, versionFile);
+    if (error) { setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+    const newVersion = { version: versionForm.version.trim(), file: urlData.publicUrl, notes: versionForm.notes.trim(), date: new Date().toISOString() };
+    saveAssets(versionedAssets.map((a) => a.id === assetId ? {
+      ...a, current_version: newVersion.version, current_file: newVersion.file,
+      current_notes: newVersion.notes, updated_at: newVersion.date,
+      versions: [newVersion, ...(a.versions || [])]
+    } : a));
+    // Also log it
+    const asset = versionedAssets.find((a) => a.id === assetId);
+    if (asset) saveChangelog([{ id: Date.now().toString(), touchpoint_id: assetId, touchpoint_name: asset.name, description: "Updated to v" + newVersion.version + (newVersion.notes ? ": " + newVersion.notes : ""), user_name: "Admin", date: new Date().toISOString() }, ...changelog].slice(0, 200));
+    setVersionForm({ version: "", notes: "" }); setVersionFile(null); setShowUploadVersion(null); setUploading(false);
+    if (versionFileRef.current) versionFileRef.current.value = "";
+  };
+
+  const deleteAsset = (id) => saveAssets(versionedAssets.filter((a) => a.id !== id));
+
   const upToDate = touchpoints.filter((t) => t.status === "up_to_date").length;
   const needsAttention = touchpoints.length - upToDate;
   const grouped = {};
   touchpoints.forEach((tp) => { if (!grouped[tp.category]) grouped[tp.category] = []; grouped[tp.category].push(tp); });
 
+  if (loading) return <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading...</div>;
+
   return (
-    <div style={{ width: "100%", maxWidth: 900 }}>
+    <div style={{ width: "100%", maxWidth: 960 }}>
       <PageHeader icon={<Target size={22} color="#8b5cf6" />} title="Brand Asset Management" subtitle="Track where the Alps brand lives and keep it consistent" />
 
       {/* Summary */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: "var(--brand)" }}>{touchpoints.length}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Touchpoints Tracked</div>
-        </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: "#16a34a" }}>{upToDate}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Up to Date</div>
-        </div>
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: needsAttention > 0 ? "#ca8a04" : "#16a34a" }}>{needsAttention}</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Need Attention</div>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Touchpoints", value: touchpoints.length, color: "var(--brand)" },
+          { label: "Up to Date", value: upToDate, color: "#16a34a" },
+          { label: "Need Attention", value: needsAttention, color: needsAttention > 0 ? "#ca8a04" : "#16a34a" },
+          { label: "Versioned Assets", value: versionedAssets.length, color: "#8b5cf6" },
+        ].map((s) => (
+          <div key={s.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px", textAlign: "center" }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{s.label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-        {[{ id: "touchpoints", label: "Touchpoints" }, { id: "changelog", label: "Change Log (" + changelog.length + ")" }].map((t) => (
+        {[{ id: "touchpoints", label: "Touchpoints" }, { id: "assets", label: "Versioned Assets" }, { id: "changelog", label: "Change Log (" + changelog.length + ")" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "8px", borderRadius: 6, border: "none", background: tab === t.id ? "var(--brand)" : "transparent", color: tab === t.id ? "#fff" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{t.label}</button>
         ))}
       </div>
 
-      {loading ? <div style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading...</div> : tab === "touchpoints" ? (<>
+      {/* Log change modal */}
+      {showLogChange && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowLogChange(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 14, padding: 24, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Log a Change</h3>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{touchpoints.find((t) => t.id === showLogChange)?.name}</div>
+            <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>What was updated?</label><input value={logForm.description} onChange={(e) => setLogForm({ ...logForm, description: e.target.value })} placeholder="e.g. Updated logo to new version" onKeyDown={(e) => e.key === "Enter" && logChange()} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Updated by</label><input value={logForm.user_name} onChange={(e) => setLogForm({ ...logForm, user_name: e.target.value })} placeholder="Your name" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowLogChange(null)} style={{ padding: "8px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+              <button onClick={logChange} disabled={!logForm.description.trim()} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: logForm.description.trim() ? 1 : 0.4 }}>Log & Mark Updated</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload version modal */}
+      {showUploadVersion && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowUploadVersion(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 14, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Upload New Version</h3>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{versionedAssets.find((a) => a.id === showUploadVersion)?.name} (currently v{versionedAssets.find((a) => a.id === showUploadVersion)?.current_version})</div>
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginBottom: 12 }}>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Version</label><input value={versionForm.version} onChange={(e) => setVersionForm({ ...versionForm, version: e.target.value })} placeholder="e.g. 2.0" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>What changed?</label><input value={versionForm.notes} onChange={(e) => setVersionForm({ ...versionForm, notes: e.target.value })} placeholder="e.g. Updated logo, new pricing" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                <Upload size={13} /> {versionFile ? versionFile.name : "Choose file"}
+                <input ref={versionFileRef} type="file" onChange={(e) => setVersionFile(e.target.files[0] || null)} style={{ display: "none" }} />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { setShowUploadVersion(null); setVersionFile(null); setVersionForm({ version: "", notes: "" }); }} style={{ padding: "8px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => uploadNewVersion(showUploadVersion)} disabled={!versionForm.version.trim() || !versionFile || uploading} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: versionForm.version.trim() && versionFile ? 1 : 0.4 }}>{uploading ? "Uploading..." : "Upload Version"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOUCHPOINTS TAB */}
+      {tab === "touchpoints" && (<>
         {isAdmin && <button onClick={() => setShowAddTp(!showAddTp)} style={{ padding: "8px 16px", background: showAddTp ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAddTp ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}>{showAddTp ? "Cancel" : "+ Add Touchpoint"}</button>}
 
         {showAddTp && isAdmin && (
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Platform Name *</label><input value={tpForm.name} onChange={(e) => setTpForm({ ...tpForm, name: e.target.value })} placeholder="e.g. Feefo" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Platform / Page Name *</label><input value={tpForm.name} onChange={(e) => setTpForm({ ...tpForm, name: e.target.value })} placeholder="e.g. Feefo, Website – Homepage" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
               <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Category</label><select value={tpForm.category} onChange={(e) => setTpForm({ ...tpForm, category: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}>{CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}</select></div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Brand Elements Present</label><input value={tpForm.elements} onChange={(e) => setTpForm({ ...tpForm, elements: e.target.value })} placeholder="e.g. Logo, Description, Banner" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
-              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Admin URL</label><input value={tpForm.admin_url} onChange={(e) => setTpForm({ ...tpForm, admin_url: e.target.value })} placeholder="https://..." style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Brand Elements</label><input value={tpForm.elements} onChange={(e) => setTpForm({ ...tpForm, elements: e.target.value })} placeholder="e.g. Logo, Description, Banner" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Admin / Edit URL</label><input value={tpForm.admin_url} onChange={(e) => setTpForm({ ...tpForm, admin_url: e.target.value })} placeholder="https://..." style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
             </div>
             <button onClick={addTouchpoint} disabled={!tpForm.name.trim()} style={{ padding: "8px 20px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: tpForm.name.trim() ? 1 : 0.4 }}>Add Touchpoint</button>
           </div>
         )}
 
-        {/* Log change modal */}
-        {showLogChange && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowLogChange(null)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-card)", borderRadius: 14, padding: 24, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-              <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Log a Change</h3>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{touchpoints.find((t) => t.id === showLogChange)?.name}</div>
-              <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>What was updated?</label><input value={logForm.description} onChange={(e) => setLogForm({ ...logForm, description: e.target.value })} placeholder="e.g. Updated logo to new version" onKeyDown={(e) => e.key === "Enter" && logChange()} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
-              <div style={{ marginBottom: 16 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Updated by</label><input value={logForm.user_name} onChange={(e) => setLogForm({ ...logForm, user_name: e.target.value })} placeholder="Your name" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button onClick={() => setShowLogChange(null)} style={{ padding: "8px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}>Cancel</button>
-                <button onClick={logChange} disabled={!logForm.description.trim()} style={{ padding: "8px 18px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: logForm.description.trim() ? 1 : 0.4 }}>Log & Mark Updated</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Grouped touchpoints */}
         {Object.entries(grouped).map(([catId, items]) => {
           const cat = CATEGORIES.find((c) => c.id === catId) || CATEGORIES[6];
           return (
@@ -1478,26 +1585,16 @@ export function BrandAssetManagement({ isAdmin }) {
                   const daysSince = lastUp ? Math.floor((Date.now() - lastUp.getTime()) / 86400000) : null;
                   const stale = daysSince !== null && daysSince > 180;
                   return (
-                    <div key={tp.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + st.color, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>{tp.name} {stale && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>6+ months</span>}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                          {tp.elements && <span>{tp.elements}</span>}
-                          {lastUp && <span> · Last updated {lastUp.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
-                          {!lastUp && <span> · Never updated</span>}
-                        </div>
+                    <div key={tp.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + st.color, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>{tp.name}{stale && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>6+ months</span>}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{tp.elements && <span>{tp.elements} · </span>}{lastUp ? "Updated " + lastUp.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Never updated"}</div>
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
-                      {tp.admin_url && <a href={tp.admin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--brand)", textDecoration: "none", fontWeight: 600, flexShrink: 0 }}><ExternalLink size={12} /> Admin</a>}
-                      {isAdmin && (
-                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                          <button onClick={() => setShowLogChange(tp.id)} style={{ padding: "4px 10px", background: "var(--brand-light)", border: "1px solid var(--brand)", borderRadius: 5, color: "var(--brand)", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>Log Change</button>
-                          <select value={tp.status} onChange={(e) => updateTpStatus(tp.id, e.target.value)} style={{ padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "var(--text-primary)", outline: "none" }}>
-                            {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                          </select>
-                          <button onClick={() => { if (window.confirm("Remove " + tp.name + "?")) deleteTp(tp.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", opacity: 0.5 }}>✕</button>
-                        </div>
-                      )}
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
+                      {tp.admin_url && <a href={tp.admin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--brand)", textDecoration: "none", fontWeight: 600 }}><ExternalLink size={11} style={{display:"inline",verticalAlign:"-1px"}} /> Admin</a>}
+                      {isAdmin && <button onClick={() => setShowLogChange(tp.id)} style={{ padding: "4px 10px", background: "var(--brand-light)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 5, color: "var(--brand)", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>Log Change</button>}
+                      {isAdmin && <select value={tp.status} onChange={(e) => updateTpStatus(tp.id, e.target.value)} style={{ padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 10, color: "var(--text-primary)", outline: "none" }}>{STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>}
+                      {isAdmin && <button onClick={() => { if (window.confirm("Remove?")) deleteTp(tp.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", opacity: 0.4 }}>✕</button>}
                     </div>
                   );
                 })}
@@ -1505,36 +1602,107 @@ export function BrandAssetManagement({ isAdmin }) {
             </div>
           );
         })}
-        {touchpoints.length === 0 && <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><Target size={36} style={{ opacity: 0.2, marginBottom: 12 }} /><div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No touchpoints tracked yet</div><div style={{ fontSize: 13 }}>{isAdmin ? "Click \"+ Add Touchpoint\" to start tracking where the Alps brand lives." : "Brand touchpoints will appear here."}</div></div>}
-      </>) : (
-        /* Changelog */
-        <div>
-          {changelog.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 15, fontWeight: 600 }}>No changes logged yet</div><div style={{ fontSize: 13, marginTop: 4 }}>Changes will appear here when you log updates to touchpoints.</div></div>
-          ) : (
-            <div style={{ position: "relative", paddingLeft: 24 }}>
-              <div style={{ position: "absolute", left: 8, top: 0, bottom: 0, width: 2, background: "var(--border)", borderRadius: 1 }}></div>
-              {changelog.map((entry) => (
-                <div key={entry.id} style={{ position: "relative", marginBottom: 16 }}>
-                  <div style={{ position: "absolute", left: -20, top: 4, width: 10, height: 10, borderRadius: 5, background: "#16a34a", border: "2px solid var(--bg-main)" }}></div>
-                  <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{entry.description}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 8 }}>
-                      <span style={{ fontWeight: 600, color: "var(--brand)" }}>{entry.touchpoint_name}</span>
-                      <span>by {entry.user_name}</span>
-                      <span>{new Date(entry.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+        {touchpoints.length === 0 && <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><Target size={36} style={{ opacity: 0.2, marginBottom: 12 }} /><div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No touchpoints tracked yet</div><div style={{ fontSize: 13 }}>{isAdmin ? "Click \"+ Add Touchpoint\" to start tracking." : "Brand touchpoints will appear here."}</div></div>}
+      </>)}
+
+      {/* VERSIONED ASSETS TAB */}
+      {tab === "assets" && (<>
+        {isAdmin && <button onClick={() => setShowAddAsset(!showAddAsset)} style={{ padding: "8px 16px", background: showAddAsset ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAddAsset ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 16 }}>{showAddAsset ? "Cancel" : "+ Add Asset"}</button>}
+
+        {showAddAsset && isAdmin && (
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 10, marginBottom: 12 }}>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Asset Name *</label><input value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })} placeholder="e.g. Motor Insurance Brochure" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Type</label><select value={assetForm.type} onChange={(e) => setAssetForm({ ...assetForm, type: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }}>{ASSET_TYPES.map((t) => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}</select></div>
+              <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Version</label><input value={assetForm.version} onChange={(e) => setAssetForm({ ...assetForm, version: e.target.value })} placeholder="1.0" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Notes</label><input value={assetForm.notes} onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })} placeholder="e.g. Initial release" style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} /></div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}><Upload size={13} /> {assetFile ? assetFile.name : "Choose file *"}<input ref={assetFileRef} type="file" onChange={(e) => setAssetFile(e.target.files[0] || null)} style={{ display: "none" }} /></label>
+              <button onClick={addAsset} disabled={!assetForm.name.trim() || !assetFile || uploading} style={{ padding: "8px 20px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: assetForm.name.trim() && assetFile ? 1 : 0.4 }}>{uploading ? "Uploading..." : "Add Asset"}</button>
+            </div>
+          </div>
+        )}
+
+        {versionedAssets.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No versioned assets yet</div><div style={{ fontSize: 13 }}>Add brochures, templates, and other materials to track their versions.</div></div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {versionedAssets.map((asset) => {
+              const at = ASSET_TYPES.find((t) => t.id === asset.type) || ASSET_TYPES[8];
+              const isExpanded = expandedAsset === asset.id;
+              return (
+                <div key={asset.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                  <div style={{ padding: "16px 18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 24 }}>{at.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{asset.name}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{at.label}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "#8b5cf6", background: "rgba(139,92,246,0.08)", padding: "3px 10px", borderRadius: 20 }}>v{asset.current_version}</span>
+                    </div>
+                    {asset.current_notes && <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>{asset.current_notes}</div>}
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 12 }}>Updated {new Date(asset.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <a href={asset.current_file} target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: "8px", background: "var(--brand)", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Download size={12} /> Download Current</a>
+                      {isAdmin && <button onClick={() => setShowUploadVersion(asset.id)} style={{ padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>New Version</button>}
                     </div>
                   </div>
+                  {/* Version history toggle */}
+                  {asset.versions && asset.versions.length > 1 && (
+                    <div style={{ borderTop: "1px solid var(--border)" }}>
+                      <button onClick={() => setExpandedAsset(isExpanded ? null : asset.id)} style={{ width: "100%", padding: "8px 18px", background: "var(--bg-input)", border: "none", color: "var(--text-muted)", fontSize: 11, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>{isExpanded ? "▼" : "▶"} Version History ({asset.versions.length})</button>
+                      {isExpanded && (
+                        <div style={{ padding: "0 18px 14px" }}>
+                          {asset.versions.map((v, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < asset.versions.length - 1 ? "1px solid var(--border)" : "none" }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? "#8b5cf6" : "var(--text-muted)", minWidth: 40 }}>v{v.version}</span>
+                              <div style={{ flex: 1, fontSize: 11, color: "var(--text-secondary)" }}>{v.notes || "No notes"}</div>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(v.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                              <a href={v.file} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "var(--brand)", textDecoration: "none", fontWeight: 600, flexShrink: 0 }}>Download</a>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isAdmin && <div style={{ borderTop: "1px solid var(--border)", padding: "6px 18px", textAlign: "right" }}><button onClick={() => { if (window.confirm("Delete " + asset.name + " and all versions?")) deleteAsset(asset.id); }} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 10, cursor: "pointer", opacity: 0.5 }}>Delete asset</button></div>}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
+      </>)}
+
+      {/* CHANGELOG TAB */}
+      {tab === "changelog" && (
+        changelog.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}><div style={{ fontSize: 15, fontWeight: 600 }}>No changes logged yet</div></div>
+        ) : (
+          <div style={{ position: "relative", paddingLeft: 24 }}>
+            <div style={{ position: "absolute", left: 8, top: 0, bottom: 0, width: 2, background: "var(--border)", borderRadius: 1 }}></div>
+            {changelog.map((entry) => (
+              <div key={entry.id} style={{ position: "relative", marginBottom: 14 }}>
+                <div style={{ position: "absolute", left: -20, top: 4, width: 10, height: 10, borderRadius: 5, background: "#16a34a", border: "2px solid var(--bg-main)" }}></div>
+                <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{entry.description}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 8 }}>
+                    <span style={{ fontWeight: 600, color: "var(--brand)" }}>{entry.touchpoint_name}</span>
+                    <span>by {entry.user_name}</span>
+                    <span>{new Date(entry.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );
 }
-
 
 export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
   const [filter, setFilter] = useState("all");
