@@ -1166,7 +1166,7 @@ const handleAddComment = async (id, author, text) => {
 
       <div style={{ display: "flex", minHeight: "100vh" }} className="hub-app-shell">
         {/* Desktop sidebar */}
-        <aside className={"hub-sidebar" + (sideCollapsed ? " collapsed" : "")}>
+        <aside className={"hub-sidebar hub-sidebar-inner" + (sideCollapsed ? " collapsed" : "")}>
           {sidebarContent(false)}
         </aside>
 

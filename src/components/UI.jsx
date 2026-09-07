@@ -112,6 +112,15 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
   const progressCount = t.filter(function(x) { return x.status === "in_progress"; }).length;
   const pendingStock = s.filter(function(x) { return x.status === "stockroom"; }).length;
   const recentEntries = a.slice(0, 4);
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickSent, setQuickSent] = useState(false);
+
+  var handleQuick = function() {
+    if (!quickTitle.trim() || !onQuickSubmit) return;
+    onQuickSubmit({ title: quickTitle.trim(), type: "general", priority: "medium", description: "Quick request from homepage", name: currentUser ? currentUser.name : "Anonymous" });
+    setQuickTitle(""); setQuickSent(true);
+    setTimeout(function() { setQuickSent(false); }, 3000);
+  };
 
   return (
     <div style={{ width: "100%", maxWidth: 1000 }}>
@@ -120,6 +129,10 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>{greeting}{firstName ? ", " + firstName : ""}</h1>
         <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7, position: "relative", zIndex: 1 }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "Welcome to the Alps Marketing Hub"}</p>
         {announcement && announcement.active && announcement.text && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, position: "relative", zIndex: 1 }}>{announcement.text}</div>}
+        <div style={{ marginTop: 18, display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
+          <input value={quickTitle} onChange={function(e) { setQuickTitle(e.target.value); }} onKeyDown={function(e) { if (e.key === "Enter") handleQuick(); }} placeholder="Quick request... type and press Enter" style={{ flex: 1, padding: "11px 16px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, color: "#fff", fontSize: 13, outline: "none" }} />
+          <button onClick={handleQuick} disabled={!quickTitle.trim()} style={{ padding: "11px 20px", background: quickSent ? "rgba(22,163,74,0.9)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", opacity: quickTitle.trim() ? 1 : 0.5 }}>{quickSent ? "Submitted!" : "Submit"}</button>
+        </div>
       </div>
 
       {isAdmin && (

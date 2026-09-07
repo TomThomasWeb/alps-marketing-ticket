@@ -1293,7 +1293,22 @@ export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 900 }}>
-      <PageHeader icon={<BarChart3 size={22} />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" />
+      <PageHeader icon={<BarChart3 size={22} />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" action={<button onClick={function() {
+        var html = '<html><head><meta charset="utf-8"><title>Alps Marketing - Weekly Report</title><style>body{font-family:-apple-system,sans-serif;max-width:700px;margin:40px auto;color:#1e1b4b;padding:20px;}h1{font-size:22px;margin:0 0 4px;}p.sub{color:#666;font-size:13px;margin:0 0 24px;}.stats{display:flex;gap:12px;margin-bottom:24px;}.stat{flex:1;background:#f8f7ff;border-radius:12px;padding:16px;text-align:center;}.stat-val{font-size:28px;font-weight:800;}.stat-label{font-size:11px;color:#666;margin-top:4px;}.section{margin-bottom:20px;}.section h3{font-size:14px;color:#4338ca;margin:0 0 8px;border-bottom:2px solid #e8e5ff;padding-bottom:6px;}.item{padding:6px 0;font-size:13px;border-bottom:1px solid #f0f0f0;}.footer{margin-top:32px;padding-top:16px;border-top:2px solid #e8e5ff;font-size:11px;color:#999;}</style></head><body>';
+        html += '<h1>Alps Marketing - Weekly Report</h1>';
+        html += '<p class="sub">Week of ' + fmt(viewMon) + ' — ' + fmt(viewSun) + '</p>';
+        html += '<div class="stats">';
+        html += '<div class="stat"><div class="stat-val" style="color:#ca8a04">' + weekLeads.length + '</div><div class="stat-label">Leads</div></div>';
+        html += '<div class="stat"><div class="stat-val" style="color:#0284c7">' + weekSocial.length + '</div><div class="stat-label">Social</div></div>';
+        html += '<div class="stat"><div class="stat-val" style="color:#8b5cf6">' + weekEmails.length + '</div><div class="stat-label">Emails</div></div>';
+        html += '<div class="stat"><div class="stat-val" style="color:#16a34a">' + weekCompleted.length + '</div><div class="stat-label">Completed</div></div>';
+        html += '</div>';
+        if (weekCompleted.length > 0) { html += '<div class="section"><h3>Completed Tickets</h3>'; weekCompleted.forEach(function(x) { html += '<div class="item">' + (x.ref || '') + ' — ' + x.title + '</div>'; }); html += '</div>'; }
+        if (weekEmails.length > 0) { html += '<div class="section"><h3>Email Campaigns</h3>'; weekEmails.forEach(function(x) { html += '<div class="item">' + x.title + '</div>'; }); html += '</div>'; }
+        if (weekSocial.length > 0) { html += '<div class="section"><h3>Social Posts</h3>'; weekSocial.forEach(function(x) { html += '<div class="item">' + x.title + '</div>'; }); html += '</div>'; }
+        html += '<div class="footer">Generated from Alps Marketing Hub</div></body></html>';
+        var blob = new Blob([html], { type: 'text/html' }); var url = URL.createObjectURL(blob); var link = document.createElement('a'); link.href = url; link.download = 'weekly-report-' + fmt(viewMon).replace(/\s/g,'-') + '.html'; link.click();
+      }} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Export Report</button>} />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button onClick={() => setWeekNav(weekNav - 1)} style={{ padding: "8px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>← Previous Week</button>

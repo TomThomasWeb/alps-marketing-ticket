@@ -622,7 +622,7 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<LayoutDashboard size={22} />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" action={
+      <PageHeader icon={<LayoutDashboard size={22} />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" stats={[{ label: "Open", value: tickets.filter(function(x){return x.status==="open";}).length, color: "#ca8a04" }, { label: "In Progress", value: tickets.filter(function(x){return x.status==="in_progress";}).length, color: "#0284c7" }, { label: "Completed", value: tickets.filter(function(x){return x.status==="completed";}).length, color: "#16a34a" }, { label: "This Week", value: tickets.filter(function(x){var d=new Date(x.created_at);var w=new Date();w.setDate(w.getDate()-7);return d>=w;}).length, color: "#8b5cf6" }]} action={
         <div style={{ position: "relative", minWidth: 200 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)", pointerEvents: "none" }}><Search size={14} /></span>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 13, outline: "none" }} />
