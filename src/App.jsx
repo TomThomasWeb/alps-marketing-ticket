@@ -4,12 +4,12 @@ import { supabase } from "./supabaseClient.js";
 import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
 import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals, WeeklyReport } from "./components/Admin.jsx";
-import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, BrandAssetManagement, AlpsGallery, ContentCalendar, ContentStockroom } from "./components/Resources.jsx";
-import { FileConverter, QRCodeGenerator, ImageEditor, EmailSignatureGenerator, ContrastChecker, FirstPolicySold } from "./components/Tools.jsx";
+import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, BrandAssetManagement, ContentStockroom } from "./components/Resources.jsx";
+import { QRCodeGenerator, EmailSignatureGenerator, FirstPolicySold } from "./components/Tools.jsx";
 import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
-const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/converter': 'converter', '/qr': 'qr_generator', '/image-editor': 'image_editor', '/signatures': 'signatures', '/contrast': 'contrast_checker', '/first-policy': 'first_policy', '/gallery': 'gallery', '/testimonials': 'testimonials', '/brand-management': 'brand_management', '/content-calendar': 'content_calendar', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/qr': 'qr_generator', '/signatures': 'signatures', '/first-policy': 'first_policy', '/testimonials': 'testimonials', '/brand-management': 'brand_management', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
 const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
 const getHash = () => window.location.hash.replace(/^#/, '') || '/';
 
@@ -710,28 +710,6 @@ const handleAddComment = async (id, author, text) => {
     await supabase.from("brand_assets").delete().eq("id", id);
   };
 
-
-  const handleCalendarSave = async (event) => {
-    if (event.id) {
-      // If only date is being updated (drag-drop), only update date
-      if (!event.title && !event.type) {
-        await supabase.from("calendar_events").update({ date: event.date }).eq("id", event.id);
-      } else {
-        await supabase.from("calendar_events").update({ title: event.title, type: event.type, description: event.description, date: event.date, status: event.status || "planned" }).eq("id", event.id);
-      }
-    } else {
-      await supabase.from("calendar_events").insert([{ title: event.title || "", type: event.type, description: event.description || "", date: event.date, status: event.status || "planned" }]).select();
-    }
-  };
-  const handleCalendarReschedule = async (eventId, newDate, ticketRef) => {
-    await supabase.from("calendar_events").update({ date: newDate }).eq("id", eventId);
-    if (ticketRef) {
-      const t = tickets.find((tk) => tk.ref === ticketRef || tk.id === ticketRef);
-      if (t) await supabase.from("tickets").update({ deadline: newDate }).eq("id", t.dbId || t.id);
-    }
-  };
-  const handleCalendarDelete = async (id) => { await supabase.from("calendar_events").delete().eq("id", id); };
-
   // Stockroom handlers
   const handleStockroomAdd = async (item) => { const { error } = await supabase.from("content_stockroom").insert(item); if (error) toast("Failed to add", "error"); else toast("Added to stockroom", "success"); };
   const handleStockroomStatus = async (id, status) => { await supabase.from("content_stockroom").update({ status }).eq("id", id); };
@@ -764,7 +742,7 @@ const handleAddComment = async (id, author, text) => {
   const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
   const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
   const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
-  const loginRequired = ["lead_form", "archive", "brand_assets", "gallery", "testimonials", "signatures", "first_policy"];
+  const loginRequired = ["lead_form", "archive", "brand_assets", "testimonials", "signatures", "first_policy"];
   const adminOnly = ["dashboard", "leads_dashboard", "analytics", "weekly", "admin"];
   const nav = (v) => {
     if (adminOnly.includes(v) && !isAdmin) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
@@ -776,7 +754,7 @@ const handleAddComment = async (id, author, text) => {
   };
 
   // Page titles for top bar
-  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", converter: "File Converter", qr_generator: "QR Generator", image_editor: "Image Editor", signatures: "Email Signatures", contrast_checker: "Contrast Checker", first_policy: "Celebration Generator", gallery: "Alps Gallery", testimonials: "Testimonials", brand_management: "Brand Management", content_calendar: "Content Calendar", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", weekly: "Weekly Report", admin: "Admin Panel" };
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", qr_generator: "QR Generator", signatures: "Email Signatures", first_policy: "Celebration Generator", testimonials: "Testimonials", brand_management: "Brand Management", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", weekly: "Weekly Report", admin: "Admin Panel" };
   const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
   const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
   const parentView = BREADCRUMB_PARENT[view];
@@ -798,15 +776,11 @@ const handleAddComment = async (id, author, text) => {
     ...(currentUser ? [{ id: "profile", label: "My Tickets", group: "" }, { id: "lead_form", label: "Log a Lead", group: "" }] : []),
     { id: "archive", label: "Marketing Archive", group: "resources" },
     { id: "brand_assets", label: "Brand Assets", group: "resources" },
-    { id: "gallery", label: "Alps Gallery", group: "resources" },
     ...(currentUser ? [
       { id: "testimonials", label: "Testimonials", group: "resources" },
     ] : []),
-    { id: "converter", label: "File Converter", group: "tools" },
     { id: "qr_generator", label: "QR Generator", group: "tools" },
-    { id: "image_editor", label: "Image Editor", group: "tools" },
     { id: "signatures", label: "Email Signatures", group: "tools" },
-    { id: "contrast_checker", label: "Contrast Checker", group: "tools" },
     { id: "first_policy", label: "Celebrations", group: "tools" },
     ...(currentUser ? [
     ] : []),
@@ -825,12 +799,12 @@ const handleAddComment = async (id, author, text) => {
     hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
     profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
     archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
-    testimonials: <Star size={17} />, brand_management: <Target size={17} />, content_calendar: <CalendarDays size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
-    converter: <ArrowLeftRight size={17} />, qr_generator: <QrCode size={17} />, image_editor: <Crop size={17} />,
+    testimonials: <Star size={17} />, brand_management: <Target size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
+    qr_generator: <QrCode size={17} />,
    
     dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
     analytics: <PieChart size={17} />, activity: <Clock size={17} />, weekly: <BarChart3 size={17} />, admin: <Settings size={17} />,
-    signatures: <ExternalLink size={17} />, contrast_checker: <Target size={17} />, first_policy: <Wand2 size={17} />,
+    signatures: <ExternalLink size={17} />, first_policy: <Wand2 size={17} />,
   };
 
   const SidebarLink = ({ id, label, badge, iconColor }) => {
@@ -905,17 +879,9 @@ const handleAddComment = async (id, author, text) => {
     ) : (<>
       {/* Quick actions */}
       <div style={{ padding: "6px 10px 4px" }}>
-        <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "9px" : "9px 12px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 4 }}>
+        <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "9px" : "9px 12px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 12px rgba(35,29,104,0.2)" }}>
           <Plus size={16} />
-          {(!sideCollapsed || mobile) && <span>Submit Ticket</span>}
-        </button>
-        {isAdmin && <button onClick={() => nav("meeting_todos")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "7px" : "7px 12px", background: "transparent", border: "1px solid rgba(13,148,136,0.3)", borderRadius: 8, color: "#0d9488", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-          <ClipboardList size={14} />
-          {(!sideCollapsed || mobile) && <span>Meeting To-Dos</span>}
-        </button>}
-        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "7px" : "7px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-          <Search size={14} />
-          {(!sideCollapsed || mobile) && <span>Track Ticket</span>}
+          {(!sideCollapsed || mobile) && <span>New Request</span>}
         </button>
       </div>
 
@@ -923,41 +889,42 @@ const handleAddComment = async (id, author, text) => {
       {currentUser && (
         <div style={{ padding: "4px 6px" }}>
           <SidebarLink id="profile" label="My Tickets" badge={myTicketCount} />
-          <SidebarLink id="lead_form" label="Log a Lead" iconColor="#0d9488" />
         </div>
       )}
 
       {/* Groups */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        <SidebarGroup id="resources" label="Resources">
-          {currentUser && <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />}
-          {currentUser && <SidebarLink id="brand_assets" label="Brand Assets" />}
-          {currentUser && <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />}
-          {currentUser && <SidebarLink id="gallery" label="Alps Gallery" />}
-          {currentUser && <SidebarLink id="content_calendar" label="Content Calendar" />}
-          {currentUser && <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />}
-          {currentUser && <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />}
-          {!currentUser && !sideCollapsed && <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>Log in to access resources</div>}
+        <SidebarGroup id="tickets" label="Tickets">
+          <SidebarLink id="form" label="Submit Request" />
+          <SidebarLink id="tracker" label="Track Ticket" />
+          {isAdmin && <SidebarLink id="meeting_todos" label="Meeting To-Dos" />}
+          <SidebarLink id="lead_form" label="Log a Lead" iconColor="#0d9488" />
         </SidebarGroup>
-        <SidebarGroup id="tools" label="Tools">
-          <SidebarLink id="converter" label="File Converter" />
-          <SidebarLink id="qr_generator" label="QR Generator" />
-          <SidebarLink id="image_editor" label="Image Editor" />
-          {currentUser && <SidebarLink id="signatures" label="Email Signatures" />}
-          <SidebarLink id="contrast_checker" label="Contrast Checker" />
-          {currentUser && <SidebarLink id="first_policy" label="Celebrations" />}
+        {currentUser && <SidebarGroup id="content" label="Content">
+          <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />
+          <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />
+          <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />
+        </SidebarGroup>}
+        {currentUser && <SidebarGroup id="brand" label="Brand">
+          <SidebarLink id="brand_assets" label="Brand Assets & Gallery" />
           <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
             <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
             {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
             {!sideCollapsed && <ExternalLink size={11} style={{ opacity: 0.3 }} />}
           </button>
-        </SidebarGroup>
+        </SidebarGroup>}
+        {currentUser && <SidebarGroup id="tools" label="Tools">
+          <SidebarLink id="qr_generator" label="QR Generator" />
+          <SidebarLink id="signatures" label="Email Signatures" />
+          <SidebarLink id="first_policy" label="Celebrations" />
+        </SidebarGroup>}
         {isAdmin && (
           <SidebarGroup id="admin" label="Admin">
             <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
             <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
             <SidebarLink id="analytics" label="Analytics" />
             <SidebarLink id="weekly" label="Weekly Report" iconColor="#8b5cf6" />
+            <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />
             <SidebarLink id="activity" label="Activity Log" />
             <SidebarLink id="admin" label="Admin Panel" />
           </SidebarGroup>
@@ -965,7 +932,7 @@ const handleAddComment = async (id, author, text) => {
         {!currentUser && !sideCollapsed && (
           <div style={{ margin: "12px 10px", padding: "14px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid rgba(99,102,241,0.15)" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 6 }}>Create a free account</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>Unlock the Archive, Brand Assets, Gallery, Email Signatures, Templates, and more.</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>Unlock the Archive, Brand Assets, and more.</div>
             <button onClick={() => nav("signup")} style={{ width: "100%", padding: "7px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sign Up Free</button>
           </div>
         )}
@@ -1041,12 +1008,23 @@ const handleAddComment = async (id, author, text) => {
         @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Page accent strips - full width */
-        .hub-main-col::before { content: ""; display: block; height: 4px; margin-top: 52px; opacity: 0.6; }
-        .hub-accent-resources .hub-main-col::before { background: linear-gradient(90deg, #20A39E, transparent 70%); }
-        .hub-accent-tools .hub-main-col::before { background: linear-gradient(90deg, #0284c7, transparent 70%); }
-        .hub-accent-admin .hub-main-col::before { background: linear-gradient(90deg, #8b5cf6, transparent 70%); }
-        .hub-accent-tickets .hub-main-col::before { background: linear-gradient(90deg, #6366f1, transparent 70%); }
+        .hub-main-col::before { content: ""; display: block; height: 4px; margin-top: 52px; opacity: 0.7; }
+        .hub-accent-resources .hub-main-col::before { background: linear-gradient(90deg, #20A39E, transparent 60%); }
+        .hub-accent-tools .hub-main-col::before { background: linear-gradient(90deg, #0284c7, transparent 60%); }
+        .hub-accent-admin .hub-main-col::before { background: linear-gradient(90deg, #8b5cf6, transparent 60%); }
+        .hub-accent-tickets .hub-main-col::before { background: linear-gradient(90deg, #6366f1, transparent 60%); }
         .hub-accent-none .hub-main-col::before { display: none; }
+
+        /* Enhanced card styles */
+        .hub-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; transition: all 0.2s ease; }
+        .hub-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); border-color: rgba(99,102,241,0.2); }
+        .hub-card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+
+        /* Navigation cards on homepage */
+        .hub-nav-card { border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.25s ease; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .hub-nav-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; opacity: 0.8; }
+        .hub-nav-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
+        .hub-nav-card:hover::before { height: 4px; opacity: 1; }
 
         /* Context menu */
         .hub-ctx-menu { position: fixed; z-index: 300; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); padding: 4px; min-width: 180; animation: fadeInScale 0.12s ease; }
@@ -1160,7 +1138,7 @@ const handleAddComment = async (id, author, text) => {
         </aside>
 
         {/* Main column */}
-        <div className={"hub-main-col " + (["archive", "brand_assets", "gallery", "testimonials", "brand_management", "content_calendar", "stockroom"].includes(view) ? "hub-accent-resources" : ["converter", "qr_generator", "image_editor", "signatures", "contrast_checker", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
+        <div className={"hub-main-col " + (["archive", "brand_assets", "testimonials", "brand_management", "stockroom"].includes(view) ? "hub-accent-resources" : ["qr_generator", "signatures", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
@@ -1189,7 +1167,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "gallery", "testimonials", "brand_management", "activity", "weekly", "content_calendar", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "testimonials", "brand_management", "activity", "weekly", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1208,7 +1186,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} />
+          <HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} stockroomItems={stockroomItems} />
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
@@ -1242,27 +1220,17 @@ const handleAddComment = async (id, author, text) => {
         ) : view === "leads_dashboard" ? (
           <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
         ) : view === "brand_assets" ? (
-          <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} />
-        ) : view === "converter" ? (
-          <FileConverter />
+          <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} galleryImages={galleryImages} onGalleryUpload={handleGalleryUpload} onGalleryDelete={handleGalleryDelete} />
         ) : view === "qr_generator" ? (
           <QRCodeGenerator />
-        ) : view === "image_editor" ? (
-          <ImageEditor />
         ) : view === "signatures" ? (
           <EmailSignatureGenerator />
-        ) : view === "contrast_checker" ? (
-          <ContrastChecker />
         ) : view === "first_policy" ? (
           <FirstPolicySold isAdmin={isAdmin} />
-        ) : view === "gallery" ? (
-          <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "testimonials" ? (
           <Testimonials items={testimonialItems} isAdmin={isAdmin} onSave={handleTestimonialSave} onDelete={handleTestimonialDelete} />
         ) : view === "brand_management" ? (
           <BrandAssetManagement isAdmin={isAdmin} />
-        ) : view === "content_calendar" ? (
-          <ContentCalendar events={calendarEvents} isAdmin={isAdmin} onSave={handleCalendarSave} onDelete={handleCalendarDelete} />
         ) : view === "stockroom" ? (
           <ContentStockroom items={stockroomItems} currentUser={currentUser} isAdmin={isAdmin} onAdd={handleStockroomAdd} onUpdateStatus={handleStockroomStatus} onDelete={handleStockroomDelete} />
         ) : view === "meeting_todos" ? (
@@ -1330,12 +1298,8 @@ const handleAddComment = async (id, author, text) => {
           {[
             { id: "archive", icon: <Library size={20} />, label: "Archive" },
             { id: "brand_assets", icon: <Palette size={20} />, label: "Brand" },
-            { id: "gallery", icon: <Image size={20} />, label: "Gallery" },
-            { id: "converter", icon: <ArrowLeftRight size={20} />, label: "Convert" },
             { id: "qr_generator", icon: <QrCode size={20} />, label: "QR" },
-            { id: "image_editor", icon: <Crop size={20} />, label: "Edit" },
             { id: "signatures", icon: <ExternalLink size={20} />, label: "Signatures" },
-            { id: "contrast_checker", icon: <Target size={20} />, label: "Contrast" },
             { id: "first_policy", icon: <Wand2 size={20} />, label: "Celebrate" },
             { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
             ...(currentUser ? [
