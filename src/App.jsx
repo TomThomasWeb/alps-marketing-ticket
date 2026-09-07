@@ -1039,6 +1039,26 @@ const handleAddComment = async (id, author, text) => {
         [data-theme="light"] .hub-sidebar-inner { background: linear-gradient(180deg, #fafafa 0%, #f1f1f4 100%); }
         .hub-sidebar-group-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px !important; font-weight: 700 !important; }
 
+        /* Section labels */
+        .hub-section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+
+        /* Interactive cards with hover lift */
+        .hub-card-interactive { background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); transition: all 0.25s cubic-bezier(0.4,0,0.2,1); cursor: pointer; }
+        .hub-card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-color: rgba(99,102,241,0.15); }
+
+        /* Static cards with subtle depth */
+        .hub-card-static { background: var(--bg-card); border-radius: 14px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); }
+
+        /* List rows with hover */
+        .hub-list-row { transition: background 0.15s ease; cursor: pointer; }
+        .hub-list-row:hover { background: var(--bg-hover) !important; }
+
+        /* Empty states */
+        .hub-empty { text-align: center; padding: 56px 24px; }
+        .hub-empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.8; }
+        .hub-empty-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+        .hub-empty-desc { font-size: 13px; color: var(--text-muted); max-width: 360px; margin: 0 auto; line-height: 1.5; }
+
         /* Context menu */
         .hub-ctx-menu { position: fixed; z-index: 300; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); padding: 4px; min-width: 180; animation: fadeInScale 0.12s ease; }
         .hub-ctx-menu button { display: flex; align-items: center; gap: 8; width: 100%; padding: 8px 12px; border: none; border-radius: 6px; background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.1s; }

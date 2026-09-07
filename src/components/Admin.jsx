@@ -88,7 +88,7 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<PieChart size={22} color="#8b5cf6" />} title="Analytics" subtitle="Performance overview across all areas" />
+      <PageHeader icon={<PieChart size={22} />} title="Analytics" subtitle="Performance overview across all areas" gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" />
 
       {/* Summary metrics with trends */}
       <div className="hub-analytics-metrics" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
@@ -590,7 +590,7 @@ export function AdminPanel({ oooActive, oooReturnDate, oooStartDate, onToggleOoo
 
   return (
     <div style={{ width: "100%", maxWidth: 800 }}>
-      <PageHeader icon={<Shield size={22} color="#8b5cf6" />} title="Admin Panel" subtitle="Manage settings, schedules, goals, and data" />
+      <PageHeader icon={<Shield size={22} />} title="Admin Panel" subtitle="Manage settings, schedules, goals, and data" gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" />
 
       {(shouldShowSummary || showSummary) && summary && (
         <div style={card}>
@@ -1293,7 +1293,7 @@ export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 900 }}>
-      <PageHeader icon={<BarChart3 size={22} color="#8b5cf6" />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} />
+      <PageHeader icon={<BarChart3 size={22} />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button onClick={() => setWeekNav(weekNav - 1)} style={{ padding: "8px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>← Previous Week</button>

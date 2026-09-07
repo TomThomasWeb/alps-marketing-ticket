@@ -622,14 +622,14 @@ export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDe
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<LayoutDashboard size={22} color="#6366f1" />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" action={
+      <PageHeader icon={<LayoutDashboard size={22} />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" action={
         <div style={{ position: "relative", minWidth: 200 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}><Search size={14} /></span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)", pointerEvents: "none" }}><Search size={14} /></span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 13, outline: "none" }} />
         </div>
       } />
 
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", position: "sticky", top: 52, zIndex: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+      <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", position: "sticky", top: 52, zIndex: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
         {(() => {
           const open = tickets.filter((t) => t.status === "open").length;
           const inP = tickets.filter((t) => t.status === "in_progress").length;
@@ -941,7 +941,7 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
         </div>
       )}
 
-      {!submittedRef && <PageHeader icon={<Search size={22} color="#6366f1" />} title="Track a Ticket" subtitle="Enter your ticket reference to check its status" />}
+      {!submittedRef && <PageHeader icon={<Search size={22} />} title="Track a Ticket" subtitle="Enter your ticket reference to check its status" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" />}
 
       <div style={{ marginBottom: 16 }}>
         {!submittedRef && (

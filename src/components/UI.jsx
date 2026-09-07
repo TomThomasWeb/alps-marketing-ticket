@@ -66,14 +66,34 @@ export function FilePreview({ files }) {
 
 
 
-export function PageHeader({ title, subtitle, action, icon }) {
+export function PageHeader({ title, subtitle, action, icon, gradient, stats }) {
+  const g = gradient || "linear-gradient(135deg, #231d68 0%, #464B99 100%)";
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32, gap: 16, flexWrap: "wrap" }}>
-      <div>
-        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.03em", display: "flex", alignItems: "center", gap: 12 }}>{icon && <span style={{ display: "flex" }}>{icon}</span>}{title}</h2>
-        {subtitle && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{subtitle}</p>}
+    <div style={{ marginBottom: stats ? 0 : 32 }}>
+      <div style={{ background: g, borderRadius: 20, padding: "32px 28px 28px", marginBottom: stats ? 16 : 0, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.05)" }}></div>
+        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 80, height: 80, borderRadius: 40, background: "rgba(255,255,255,0.03)" }}></div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {icon && <span style={{ display: "flex", fontSize: 28, opacity: 0.9 }}>{icon}</span>}
+            <div>
+              <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em" }}>{title}</h2>
+              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.7 }}>{subtitle}</p>}
+            </div>
+          </div>
+          {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+        </div>
       </div>
-      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+      {stats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(" + stats.length + ", 1fr)", gap: 10, marginBottom: 28 }}>
+          {stats.map(function(s) { return (
+            <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: 14, padding: "16px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: s.color || "var(--brand)", letterSpacing: "-0.02em" }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+            </div>
+          ); })}
+        </div>
+      )}
     </div>
   );
 }

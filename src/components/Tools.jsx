@@ -123,7 +123,7 @@ export function QRCodeGenerator() {
 
   return (
     <div style={{ width: "100%", maxWidth: 560 }}>
-      <PageHeader icon={<QrCode size={22} color="#0284c7" />} title="QR Code Generator" subtitle="Create branded QR codes with custom colours" />
+      <PageHeader icon={<QrCode size={22} />} title="QR Code Generator" subtitle="Create branded QR codes with custom colours" gradient="linear-gradient(135deg, #0369a1 0%, #38bdf8 100%)" />
 
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, borderTop: "3px solid #0284c7" }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "var(--bg-input)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
@@ -238,7 +238,7 @@ export function QRCodeGenerator() {
 export function EmailSignatureGenerator() {
   return (
     <div style={{ width: "100%", maxWidth: 600 }}>
-      <PageHeader icon={<Mail size={22} color="#0284c7" />} title="Email Signature Generator" subtitle="Select your company to open the signature builder" />
+      <PageHeader icon={<Mail size={22} />} title="Email Signature Generator" subtitle="Select your company to open the signature builder" gradient="linear-gradient(135deg, #0369a1 0%, #38bdf8 100%)" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <a href="https://alpsltd.signature.email" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
           <div style={{ background: "var(--bg-card)", border: "2px solid var(--border)", borderRadius: 14, padding: "32px 24px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }} className="hub-card-hover">
@@ -508,7 +508,7 @@ export function FirstPolicySold({ isAdmin }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 680 }}>
-      <PageHeader icon={<Wand2 size={22} color="#0284c7" />} title="Celebration Generator" subtitle="Create celebration images for broker milestones and team achievements" action={isAdmin && <button onClick={() => setShowManage(!showManage)} style={{ padding: "7px 14px", background: showManage ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showManage ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showManage ? "Done" : "Manage"}</button>} />
+      <PageHeader icon={<Wand2 size={22} />} title="Celebration Generator" subtitle="Create celebration images for milestones and achievements" gradient="linear-gradient(135deg, #0369a1 0%, #38bdf8 100%)" action={isAdmin && <button onClick={() => setShowManage(!showManage)} style={{ padding: "7px 14px", background: showManage ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showManage ? "Done" : "Manage"}</button>} />
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {showManage && isAdmin && (

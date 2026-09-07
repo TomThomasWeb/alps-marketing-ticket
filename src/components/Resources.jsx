@@ -45,7 +45,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
     const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
     const stats = getStats(entry);
     return (
-      <div key={entry.id} onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + t.color, borderRadius: 10, padding: "12px 16px", cursor: "pointer", transition: "all 0.15s" }} onMouseOver={(e) => e.currentTarget.style.borderColor = t.color} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.borderLeftColor = t.color; }}>
+      <div key={entry.id} onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)} style={{ background: "var(--bg-card)", borderLeft: "4px solid " + t.color, borderRadius: 14, padding: "14px 18px", cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4,0,0.2,1)", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)", borderLeftWidth: 4, borderLeftColor: t.color }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>{t.icon}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -81,7 +81,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
     const t = ARCHIVE_TYPES[entry.type] || ARCHIVE_TYPES.other;
     const stats = getStats(entry);
     return (
-      <div key={entry.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderTop: "3px solid " + t.color, borderRadius: 10, padding: 14, transition: "all 0.15s", display: "flex", flexDirection: "column" }} onMouseOver={(e) => e.currentTarget.style.borderColor = t.color} onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.borderTopColor = t.color; }}>
+      <div key={entry.id} style={{ background: "var(--bg-card)", borderTop: "4px solid " + t.color, borderRadius: 14, padding: 16, transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(0,0,0,0.1)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><span style={{ fontSize: 20 }}>{t.icon}</span><span style={{ fontSize: 10, fontWeight: 600, color: t.color }}>{t.label}</span></div>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3, marginBottom: 6 }} dangerouslySetInnerHTML={{ __html: search.trim() ? highlightText(entry.title, search) : entry.title }}></div>
         {stats && stats.sent !== "0" && <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>
@@ -108,7 +108,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<Library size={22} color="#20A39E" />} title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} action={<div style={{ display: "flex", gap: 8 }}><button onClick={() => { const rows = (entries || []).map((e) => [new Date(e.date || e.created_at).toLocaleDateString("en-GB"), e.title, e.link || "", (e.tags || []).join(", ")].join("\t")); const csv = "Date\tTitle\tLink\tTags\n" + rows.join("\n"); const blob = new Blob([csv], { type: "text/tab-separated-values" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "marketing-archive-export.tsv"; a.click(); }} style={{ padding: "9px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Download size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> Export</button>{isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>}</div>} />
+      <PageHeader icon={<Library size={22} />} title="Marketing Archive" subtitle={entries.length + " pieces catalogued"} gradient="linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)" action={<div style={{ display: "flex", gap: 8 }}><button onClick={() => { const rows = (entries || []).map((e) => [new Date(e.date || e.created_at).toLocaleDateString("en-GB"), e.title, e.link || "", (e.tags || []).join(", ")].join("\t")); const csv = "Date\tTitle\tLink\tTags\n" + rows.join("\n"); const blob = new Blob([csv], { type: "text/tab-separated-values" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "marketing-archive-export.tsv"; a.click(); }} style={{ padding: "9px 14px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}><Download size={13} style={{ display: "inline", verticalAlign: "-2px" }} /> Export</button>{isAdmin && <button onClick={() => onManage()} style={{ padding: "9px 18px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><Plus size={14} style={{ display: "inline", marginRight: 4 }} />Add Entry</button>}</div>} />
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -279,7 +279,7 @@ export function LeadForm({ onSave, onBackToHub, currentUser }) {
   const valid = form.broker.trim() && form.enquiry.trim() && form.logged_by.trim();
   return (
     <div style={{ maxWidth: 560, width: "100%" }}><div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-      <PageHeader icon={<TrendingUp size={22} color="#20A39E" />} title="Log an Inbound Lead" subtitle="Record details of an inbound marketing lead" />
+      <PageHeader icon={<TrendingUp size={22} />} title="Log an Inbound Lead" subtitle="Record details of an inbound marketing lead" gradient="linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%)" />
       <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-secondary)" }}>Record an inbound marketing lead for tracking and follow-up.</p>
       <div style={{ marginBottom: 16 }}><label style={labelStyle}>Broker *</label><input style={inputStyle} value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })} placeholder="e.g. Acme Insurance" /></div>
       <div style={{ marginBottom: 16 }}><label style={labelStyle}>Enquiry *</label><textarea rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} value={form.enquiry} onChange={(e) => setForm({ ...form, enquiry: e.target.value })} placeholder="What is the lead about?" /></div>
@@ -369,7 +369,7 @@ export function LeadsDashboard({ leads, onUpdate, onDelete }) {
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<TrendingUp size={22} color="#20A39E" />} title="Leads Dashboard" subtitle={leads.length + " total lead" + (leads.length !== 1 ? "s" : "") + " logged"} />
+      <PageHeader icon={<TrendingUp size={22} />} title="Leads Dashboard" subtitle={leads.length + " total lead" + (leads.length !== 1 ? "s" : "") + " logged"} gradient="linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%)" />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }} className="hub-analytics-cols">
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 14, textAlign: "center" }}>
@@ -668,7 +668,7 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset, galleryI
 
   return (
     <div style={{ width: "100%" }}>
-      <PageHeader icon={<Palette size={22} color="#20A39E" />} title="Brand Assets" subtitle="Logos, colours, fonts, and brand guidelines" />
+      <PageHeader icon={<Palette size={22} />} title="Brand Assets" subtitle="Logos, colours, fonts, and brand guidelines" gradient="linear-gradient(135deg, #115e59 0%, #20A39E 100%)" />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Alps brand colours, typography, logos, and icons.</p>
         <button onClick={downloadBrandPack} style={{ padding: "8px 16px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}><Download size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Download Brand Pack</button>
@@ -1005,7 +1005,7 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 800 }}>
-      <PageHeader icon={<Star size={22} color="#20A39E" />} title="Testimonials" subtitle="Broker testimonials and feedback" action={isAdmin && <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Testimonial"}</button>} />
+      <PageHeader icon={<Star size={22} />} title="Testimonials" subtitle="Broker testimonials and feedback" gradient="linear-gradient(135deg, #b45309 0%, #f59e0b 100%)" action={isAdmin && <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Testimonial"}</button>} />
 
       {showAdd && isAdmin && (
         <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginBottom: 24 }}>
@@ -1163,7 +1163,7 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
 
   return (
     <div style={{ width: "100%", maxWidth: 900 }}>
-      <PageHeader icon={<FolderOpen size={22} color="#20A39E" />} title="Content Stockroom" subtitle="Submit content ideas, files, and text for the marketing team" action={<button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "var(--border)" : "var(--brand)", border: "none", borderRadius: 8, color: showAdd ? "var(--text-secondary)" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Content"}</button>} />
+      <PageHeader icon={<FolderOpen size={22} />} title="Content Stockroom" subtitle="Submit content ideas, files, and text for the marketing team" gradient="linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%)" action={<button onClick={() => setShowAdd(!showAdd)} style={{ padding: "7px 14px", background: showAdd ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{showAdd ? "Cancel" : "+ Add Content"}</button>} />
 
       {justSubmitted && (
         <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 8, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1366,7 +1366,7 @@ export function BrandAssetManagement({ isAdmin }) {
     const lastUp = tp.last_updated ? new Date(tp.last_updated) : null;
     const stale = lastUp ? Math.floor((Date.now() - lastUp.getTime()) / 86400000) > 180 : false;
     return (
-      <div key={tp.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + st.color, borderRadius: 10, padding: "12px 16px" }}>
+      <div key={tp.id} style={{ background: "var(--bg-card)", borderLeft: "4px solid " + st.color, borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>{tp.name}{stale && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>6+ months</span>}</div>
@@ -1385,7 +1385,7 @@ export function BrandAssetManagement({ isAdmin }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 960 }}>
-      <PageHeader icon={<Target size={22} color="#8b5cf6" />} title="Brand Asset Management" subtitle="Track where the Alps brand lives and keep it consistent" />
+      <PageHeader icon={<Target size={22} />} title="Brand Asset Management" subtitle="Track where the Alps brand lives and keep it consistent" gradient="linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)" />
 
       {/* Summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
@@ -1599,7 +1599,7 @@ export function AlpsGallery({ images, isAdmin, onUpload, onDelete }) {
     <div style={{ width: "100%", maxWidth: 960 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <PageHeader icon={<Image size={22} color="#20A39E" />} title="Alps Gallery" subtitle="Browse and download team photos" />
+          <PageHeader icon={<Image size={22} />} title="Alps Gallery" subtitle="Browse and download Alps team photos" gradient="linear-gradient(135deg, #115e59 0%, #20A39E 100%)" />
           <p style={{ margin: 0, fontSize: 14, color: "var(--text-secondary)" }}>Browse and download photos. Click any image to save it.</p>
         </div>
         <div style={{ position: "relative", minWidth: 200 }}>
