@@ -6,7 +6,7 @@ import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, M
 import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals, WeeklyReport } from "./components/Admin.jsx";
 import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, BrandAssetManagement, AlpsGallery, ContentStockroom } from "./components/Resources.jsx";
 import { QRCodeGenerator, EmailSignatureGenerator, FirstPolicySold } from "./components/Tools.jsx";
-import { FileChip, FilePreview, PageHeader, HubHome, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
+import { FileChip, FilePreview, PageHeader, HubHome, HubErrorBoundary, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
 
 
 const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/qr': 'qr_generator', '/signatures': 'signatures', '/first-policy': 'first_policy', '/testimonials': 'testimonials', '/brand-management': 'brand_management', '/gallery': 'gallery', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/admin': 'admin' };
@@ -1151,7 +1151,7 @@ const handleAddComment = async (id, author, text) => {
         </aside>
 
         {/* Main column */}
-        <div className={"hub-main-col " + (["archive", "brand_assets", "testimonials", "brand_management", "gallery", "gallery", "gallery", "stockroom"].includes(view) ? "hub-accent-resources" : ["qr_generator", "signatures", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
+        <div className={"hub-main-col " + (["archive", "brand_assets", "testimonials", "brand_management", "gallery", "stockroom"].includes(view) ? "hub-accent-resources" : ["qr_generator", "signatures", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
           {/* Desktop top bar: page title + profile */}
           <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
@@ -1180,7 +1180,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
 
-          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "testimonials", "brand_management", "gallery", "gallery", "gallery", "activity", "weekly", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "testimonials", "brand_management", "gallery", "activity", "weekly", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
         {loading ? (
           <div style={{ width: "100%", maxWidth: 860 }}>
             <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
@@ -1199,7 +1199,7 @@ const handleAddComment = async (id, author, text) => {
             </div>
           </div>
         ) : view === "hub" ? (
-          <HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} stockroomItems={stockroomItems} />
+          <HubErrorBoundary><HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} stockroomItems={stockroomItems} /></HubErrorBoundary>
         ) : view === "form" ? (
           <div style={{ maxWidth: 560, width: "100%" }}>
             <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />

@@ -1,4 +1,21 @@
 import { useState, useRef, useEffect } from "react";
+import React from "react";
+
+export class HubErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error: error.toString() }; }
+  render() {
+    if (this.state.error) {
+      return React.createElement("div", { style: { padding: "40px", textAlign: "center" } },
+        React.createElement("h2", { style: { color: "#dc2626", fontSize: 18 } }, "Homepage Error"),
+        React.createElement("pre", { style: { fontSize: 12, color: "#666", whiteSpace: "pre-wrap", maxWidth: 600, margin: "12px auto", textAlign: "left", background: "#f5f5f5", padding: 16, borderRadius: 8 } }, this.state.error),
+        React.createElement("button", { onClick: () => this.setState({ error: null }), style: { marginTop: 12, padding: "8px 20px", background: "#6366f1", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer" } }, "Retry")
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import { renderMarkdown, SLA_TARGETS, PRIORITIES, ARCHIVE_TYPES } from "../constants.js";
 import { Linkedin, Facebook, Youtube, Instagram, Globe, ExternalLink as ExtLink, Sparkles, Lock, User, ClipboardList, Inbox, Palette, Bell, TrendingUp, CalendarDays } from "lucide-react";
 
