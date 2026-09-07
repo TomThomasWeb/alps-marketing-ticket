@@ -62,152 +62,122 @@ export function PageHeader({ title, subtitle, action, icon }) {
 }
 
 
+
 export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, notifications, calendarEvents, archiveEntries, oooActive, oooReturnDate, announcement, onQuickSubmit, currentUser, stockroomItems }) {
-  const now = new Date();
-  const hour = now.getHours();
+  const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const name = currentUser?.name?.split(" ")[0] || "";
-
-  const safeTickets = tickets || [];
-  const safeArchive = archiveEntries || [];
-  const safeStockroom = stockroomItems || [];
-  const safeLeads = leads || [];
-
-  const myActive = safeTickets.filter((t) => t.status !== "completed" && (t.createdBy === currentUser?.id || t.name === currentUser?.name));
-  const openTickets = safeTickets.filter((t) => t.status === "open").length;
-  const inProgress = safeTickets.filter((t) => t.status === "in_progress").length;
-  const stockroomPending = safeStockroom.filter((i) => i.status === "stockroom").length;
-  const recentArchive = [...safeArchive].sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at)).slice(0, 4);
-
-  const navCards = [
-    { id: "form", icon: "✏️", label: "Submit Request", desc: "Create a new marketing ticket", color: "#6366f1" },
-    { id: "archive", icon: "📂", label: "Marketing Archive", desc: safeArchive.length + " entries", color: "#8b5cf6", login: true },
-    { id: "stockroom", icon: "📦", label: "Content Stockroom", desc: stockroomPending > 0 ? stockroomPending + " pending review" : "Submit content ideas", color: "#0d9488", count: stockroomPending || null, login: true },
-    { id: "testimonials", icon: "⭐", label: "Testimonials", desc: "Broker feedback", color: "#ca8a04", login: true },
-    { id: "brand_assets", icon: "🎨", label: "Brand Assets & Gallery", desc: "Colours, logos, files", color: "#20A39E", login: true },
-    { id: "qr_generator", icon: "📱", label: "QR Generator", desc: "Create QR codes", color: "#0284c7" },
-  ];
-
-  const adminCards = isAdmin ? [
-    { id: "dashboard", icon: "📋", label: "Ticket Dashboard", desc: openTickets + " open, " + inProgress + " in progress", color: "#231d68", count: openTickets + inProgress || null },
-    { id: "weekly", icon: "📊", label: "Weekly Report", desc: "Performance metrics", color: "#7c3aed" },
-    { id: "brand_management", icon: "🎯", label: "Brand Management", desc: "Consistency tracker", color: "#8b5cf6" },
-    { id: "admin", icon: "⚙️", label: "Admin Panel", desc: "Settings & config", color: "#64748b" },
-  ] : [];
+  const firstName = (currentUser && currentUser.name) ? currentUser.name.split(" ")[0] : "";
+  const t = Array.isArray(tickets) ? tickets : [];
+  const a = Array.isArray(archiveEntries) ? archiveEntries : [];
+  const s = Array.isArray(stockroomItems) ? stockroomItems : [];
+  const myActive = t.filter(function(x) { return x.status !== "completed" && (x.createdBy === (currentUser && currentUser.id) || x.name === (currentUser && currentUser.name)); });
+  const openCount = t.filter(function(x) { return x.status === "open"; }).length;
+  const progressCount = t.filter(function(x) { return x.status === "in_progress"; }).length;
+  const pendingStock = s.filter(function(x) { return x.status === "stockroom"; }).length;
+  const recentEntries = a.slice(0, 4);
 
   return (
     <div style={{ width: "100%", maxWidth: 1000 }}>
-      {/* Hero greeting */}
       <div style={{ background: "linear-gradient(135deg, #231d68 0%, #464B99 50%, #6366f1 100%)", borderRadius: 20, padding: "36px 32px 32px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: 80, background: "rgba(255,255,255,0.05)" }}></div>
-        <div style={{ position: "absolute", bottom: -30, left: "30%", width: 100, height: 100, borderRadius: 50, background: "rgba(255,255,255,0.03)" }}></div>
-        <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em" }}>{greeting}{name ? ", " + name : ""} 👋</h1>
-        <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7 }}>
-          {myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") + " assigned to you" : "Welcome to the Alps Marketing Hub"}
-        </p>
-        {announcement && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, backdropFilter: "blur(4px)" }}>📢 {announcement}</div>}
+        <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>{greeting}{firstName ? ", " + firstName : ""}</h1>
+        <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7, position: "relative", zIndex: 1 }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "Welcome to the Alps Marketing Hub"}</p>
+        {announcement && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, position: "relative", zIndex: 1 }}>{announcement}</div>}
       </div>
 
-      {/* Quick stats for admin */}
       {isAdmin && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
-          {[
-            { label: "Open Tickets", value: openTickets, color: openTickets > 0 ? "#ca8a04" : "#16a34a", icon: "📋" },
-            { label: "In Progress", value: inProgress, color: "#0284c7", icon: "🔄" },
-            { label: "Stockroom Pending", value: stockroomPending, color: stockroomPending > 0 ? "#ca8a04" : "#16a34a", icon: "📦" },
-            { label: "This Month", value: safeArchive.filter((e) => { const d = new Date(e.date || e.created_at); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length, color: "#8b5cf6", icon: "📊" },
-          ].map((s) => (
-            <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ fontSize: 28 }}>{s.icon}</span>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: s.color, letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
-              </div>
-            </div>
-          ))}
+          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: openCount > 0 ? "#ca8a04" : "#16a34a" }}>{openCount}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Open Tickets</div>
+          </div>
+          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "#0284c7" }}>{progressCount}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>In Progress</div>
+          </div>
+          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: pendingStock > 0 ? "#ca8a04" : "#16a34a" }}>{pendingStock}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Stockroom Pending</div>
+          </div>
+          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "#8b5cf6" }}>{a.length}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Archive Entries</div>
+          </div>
         </div>
       )}
 
-      {/* Navigation cards */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Quick Access</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {navCards.filter((c) => !c.login || currentUser).map((card) => (
-            <div key={card.id} className="hub-nav-card" onClick={() => onNavigate(card.id)} style={{ background: "var(--bg-card)" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: card.color, borderRadius: "16px 16px 0 0" }}></div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Quick Access</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+        {[
+          { id: "form", icon: "\u270F\uFE0F", label: "Submit Request", desc: "Create a marketing ticket", color: "#6366f1" },
+          { id: "archive", icon: "\uD83D\uDCC2", label: "Marketing Archive", desc: a.length + " entries", color: "#8b5cf6", needLogin: true },
+          { id: "stockroom", icon: "\uD83D\uDCE6", label: "Content Stockroom", desc: pendingStock > 0 ? pendingStock + " pending" : "Submit ideas", color: "#0d9488", needLogin: true },
+          { id: "testimonials", icon: "\u2B50", label: "Testimonials", desc: "Broker feedback", color: "#ca8a04", needLogin: true },
+          { id: "brand_assets", icon: "\uD83C\uDFA8", label: "Brand Assets", desc: "Colours, logos, fonts", color: "#20A39E", needLogin: true },
+          { id: "qr_generator", icon: "\uD83D\uDCF1", label: "QR Generator", desc: "Create QR codes", color: "#0284c7" },
+        ].filter(function(c) { return !c.needLogin || currentUser; }).map(function(card) {
+          return (
+            <div key={card.id} onClick={function() { onNavigate(card.id); }} style={{ background: "var(--bg-card)", borderRadius: 16, padding: "22px 20px", cursor: "pointer", transition: "all 0.25s", border: "1px solid var(--border)", position: "relative", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={function(e) { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(0,0,0,0.1)"; }} onMouseOut={function(e) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: card.color }}></div>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 14, paddingTop: 4 }}>
                 <span style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{card.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3, display: "flex", alignItems: "center", gap: 8 }}>
-                    {card.label}
-                    {card.count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626" }}>{card.count}</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{card.desc}</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{card.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{card.desc}</div>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      {/* Admin cards */}
-      {adminCards.length > 0 && (
+      {isAdmin && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Admin</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {adminCards.map((card) => (
-              <div key={card.id} className="hub-nav-card" onClick={() => onNavigate(card.id)} style={{ background: "var(--bg-card)", padding: "18px 16px" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: card.color, borderRadius: "16px 16px 0 0" }}></div>
-                <span style={{ fontSize: 24, display: "block", marginBottom: 10 }}>{card.icon}</span>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{card.label}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{card.desc}</div>
-                {card.count > 0 && <span style={{ position: "absolute", top: 12, right: 12, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626" }}>{card.count}</span>}
-              </div>
-            ))}
+            {[
+              { id: "dashboard", icon: "\uD83D\uDCCB", label: "Dashboard", desc: openCount + " open", color: "#231d68" },
+              { id: "weekly", icon: "\uD83D\uDCCA", label: "Weekly Report", desc: "Performance", color: "#7c3aed" },
+              { id: "brand_management", icon: "\uD83C\uDFAF", label: "Brand Mgmt", desc: "Consistency", color: "#8b5cf6" },
+              { id: "admin", icon: "\u2699\uFE0F", label: "Admin Panel", desc: "Settings", color: "#64748b" },
+            ].map(function(card) {
+              return (
+                <div key={card.id} onClick={function() { onNavigate(card.id); }} style={{ background: "var(--bg-card)", borderRadius: 14, padding: "16px", cursor: "pointer", transition: "all 0.2s", border: "1px solid var(--border)", position: "relative", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }} onMouseOver={function(e) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.08)"; }} onMouseOut={function(e) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: card.color }}></div>
+                  <span style={{ fontSize: 22, display: "block", marginBottom: 8 }}>{card.icon}</span>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>{card.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{card.desc}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Active tickets */}
       {myActive.length > 0 && (
         <div style={{ borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", marginBottom: 20, background: "var(--bg-card)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.02em" }}>Your Active Tickets</span>
-            <button onClick={() => onNavigate("tracker")} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View All →</button>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Your Active Tickets</span>
+            <button onClick={function() { onNavigate("tracker"); }} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View All</button>
           </div>
-          {myActive.slice(0, 4).map((t, i) => (
-            <div key={t.id} onClick={() => onNavigate("tracker")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < Math.min(myActive.length, 4) - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
-              <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 8px", borderRadius: 6, flexShrink: 0 }}>{t.ref}</span>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: (PRIORITIES[t.priority] || {}).bg || "#eee", color: (PRIORITIES[t.priority] || {}).color || "#666" }}>{(PRIORITIES[t.priority] || {}).label || t.priority}</span>
-            </div>
-          ))}
+          {myActive.slice(0, 4).map(function(ticket, i) {
+            var p = (typeof PRIORITIES !== "undefined" && PRIORITIES[ticket.priority]) || {};
+            return (
+              <div key={ticket.id} onClick={function() { onNavigate("tracker"); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < Math.min(myActive.length, 4) - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s" }} onMouseOver={function(e) { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={function(e) { e.currentTarget.style.background = "transparent"; }}>
+                <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 8px", borderRadius: 6 }}>{ticket.ref}</span>
+                <span style={{ flex: 1, fontSize: 13, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ticket.title}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: p.bg || "#eee", color: p.color || "#666" }}>{p.label || ticket.priority}</span>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Recent archive */}
-      {recentArchive.length > 0 && currentUser && (
-        <div style={{ borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", background: "var(--bg-card)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.02em" }}>Recently Archived</span>
-            <button onClick={() => onNavigate("archive")} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View All →</button>
-          </div>
-          {recentArchive.map((e, i) => (
-            <div key={e.id} onClick={() => onNavigate("archive")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < recentArchive.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", transition: "background 0.15s" }} onMouseOver={(ev) => ev.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(ev) => ev.currentTarget.style.background = "transparent"}>
-              <span style={{ fontSize: 16 }}>{(ARCHIVE_TYPES[e.type] || {}).icon || "📄"}</span>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>{new Date(e.date || e.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Sign up prompt for non-logged-in */}
       {!currentUser && (
         <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06))", borderRadius: 16, padding: "28px 24px", textAlign: "center", marginTop: 20, border: "1px solid rgba(99,102,241,0.1)" }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>Get more from the Hub</div>
-          <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16, maxWidth: 400, margin: "0 auto 16px" }}>Create a free account to access the Marketing Archive, Brand Assets, Content Stockroom, and more.</div>
-          <button onClick={() => onNavigate("signup")} style={{ padding: "12px 28px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(35,29,104,0.2)" }}>Sign Up Free</button>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Create a free account to access the full Marketing Hub.</div>
+          <button onClick={function() { onNavigate("signup"); }} style={{ padding: "12px 28px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Sign Up Free</button>
         </div>
       )}
     </div>
