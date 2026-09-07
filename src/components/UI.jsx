@@ -99,7 +99,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
         <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: 80, background: "rgba(255,255,255,0.05)" }}></div>
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>{greeting}{firstName ? ", " + firstName : ""}</h1>
         <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7, position: "relative", zIndex: 1 }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "Welcome to the Alps Marketing Hub"}</p>
-        {announcement && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, position: "relative", zIndex: 1 }}>{announcement}</div>}
+        {announcement && announcement.active && announcement.text && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, position: "relative", zIndex: 1 }}>{announcement.text}</div>}
       </div>
 
       {isAdmin && (
