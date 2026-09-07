@@ -928,19 +928,30 @@ export function BrandAssets({ assets, isAdmin, onUpload, onDeleteAsset, galleryI
       </div>
 
       {/* Gallery */}
-      <div id="brand-gallery" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, marginTop: 20, scrollMarginTop: 80 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Alps Gallery</h3>
-          {isAdmin && <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--brand)", borderRadius: 8, cursor: "pointer", color: "#fff", fontSize: 12, fontWeight: 600 }}><Upload size={13} /> Upload<input type="file" accept="image/*" multiple onChange={async (e) => { if (onGalleryUpload) for (const f of e.target.files) await onGalleryUpload(f); e.target.value = ""; }} style={{ display: "none" }} /></label>}
+      <div id="brand-gallery" style={{ background: "var(--bg-card)", borderRadius: 16, padding: 28, marginTop: 24, scrollMarginTop: 80, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Alps Gallery</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>{(galleryImages || []).length} images</p>
+          </div>
+          {isAdmin && <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 18px", background: "linear-gradient(135deg, #231d68, #464B99)", borderRadius: 10, cursor: "pointer", color: "#fff", fontSize: 12, fontWeight: 600, boxShadow: "0 4px 12px rgba(35,29,104,0.2)" }}><Upload size={13} /> Upload Photos<input type="file" accept="image/*" multiple onChange={async (e) => { if (onGalleryUpload) for (const f of e.target.files) await onGalleryUpload(f); e.target.value = ""; }} style={{ display: "none" }} /></label>}
         </div>
         {(!galleryImages || galleryImages.length === 0) ? (
-          <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 13 }}>No gallery images yet.</div>
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 40, display: "block", marginBottom: 12, opacity: 0.3 }}>🖼</span>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>No gallery images yet</div>
+            <div style={{ fontSize: 12 }}>{isAdmin ? "Upload photos to build the Alps image library." : "Gallery images will appear here."}</div>
+          </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             {(galleryImages || []).map((img) => (
-              <div key={img.id} className="hub-gallery-card" style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", border: "1px solid var(--border)" }}>
-                <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                {isAdmin && <button className="hub-gallery-delete" onClick={() => onGalleryDelete(img.id)} style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: "rgba(220,38,38,0.9)", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", opacity: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>}
+              <div key={img.id} className="hub-gallery-card" style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", border: "1px solid var(--border)", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"} onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}>
+                <img src={img.url} alt={img.filename || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.7))", padding: "24px 10px 8px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <a href={img.url} download={img.filename} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 600, color: "#fff", textDecoration: "none", opacity: 0.8 }}><Download size={11} style={{display:"inline",verticalAlign:"-1px"}} /> Download</a>
+                  {img.category && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.2)", color: "#fff" }}>{img.category}</span>}
+                </div>
+                {isAdmin && <button className="hub-gallery-delete" onClick={() => onGalleryDelete(img.id)} style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, background: "rgba(220,38,38,0.9)", border: "none", color: "#fff", fontSize: 12, cursor: "pointer", opacity: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>}
               </div>
             ))}
           </div>
