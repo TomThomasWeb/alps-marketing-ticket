@@ -1415,7 +1415,7 @@ export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
 
   return (
     <div style={{ width: "100%", maxWidth: 900 }}>
-      <PageHeader icon={<BarChart3 size={22} />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" action={<button onClick={function() {
+      <PageHeader icon={<BarChart3 size={22} />} title="Weekly Report" subtitle={"Week of " + fmt(viewMon) + " — " + fmt(viewSun)} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" action={<div style={{ display: "flex", gap: 6 }}><button onClick={function() {
         var html = '<html><head><meta charset="utf-8"><title>Alps Marketing - Weekly Report</title><style>body{font-family:-apple-system,sans-serif;max-width:700px;margin:40px auto;color:#1e1b4b;padding:20px;}h1{font-size:22px;margin:0 0 4px;}p.sub{color:#666;font-size:13px;margin:0 0 24px;}.stats{display:flex;gap:12px;margin-bottom:24px;}.stat{flex:1;background:#f8f7ff;border-radius:12px;padding:16px;text-align:center;}.stat-val{font-size:28px;font-weight:800;}.stat-label{font-size:11px;color:#666;margin-top:4px;}.section{margin-bottom:20px;}.section h3{font-size:14px;color:#4338ca;margin:0 0 8px;border-bottom:2px solid #e8e5ff;padding-bottom:6px;}.item{padding:6px 0;font-size:13px;border-bottom:1px solid #f0f0f0;}.footer{margin-top:32px;padding-top:16px;border-top:2px solid #e8e5ff;font-size:11px;color:#999;}</style></head><body>';
         html += '<h1>Alps Marketing - Weekly Report</h1>';
         html += '<p class="sub">Week of ' + fmt(viewMon) + ' — ' + fmt(viewSun) + '</p>';

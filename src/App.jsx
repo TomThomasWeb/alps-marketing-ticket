@@ -799,7 +799,7 @@ const handleAddComment = async (id, author, text) => {
     hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
     profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
     archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
-    testimonials: <Star size={17} />, brand_management: <Target size={17} />, gallery: <Image size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
+    testimonials: <Star size={17} />, brand_management: <Target size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
     qr_generator: <QrCode size={17} />,
    
     dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
