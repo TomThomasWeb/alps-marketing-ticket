@@ -971,6 +971,18 @@ const handleAddComment = async (id, author, text) => {
         @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes floatA { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(12px,-8px) scale(1.05); } 66% { transform: translate(-6px,10px) scale(0.97); } }
+        @keyframes floatB { 0%,100% { transform: translate(0,0) scale(1); } 25% { transform: translate(-10px,6px) scale(1.03); } 50% { transform: translate(8px,-12px) scale(0.96); } 75% { transform: translate(-4px,-6px) scale(1.02); } }
+        @keyframes floatC { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(6px,-10px) rotate(5deg); } }
+        @keyframes breathe { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+        @keyframes barFill { from { width: 0%; } }
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes checkBounce { 0% { transform: scale(1); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        @keyframes confettiPop { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(0); opacity: 0; } }
+        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,0.4); } 70% { box-shadow: 0 0 0 10px rgba(22,163,74,0); } 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); } }
+        @keyframes cardStagger { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         [data-theme="light"] {
           --bg-page: #f8f9fb; --bg-card: #ffffff; --bg-input: #f4f5f7; --bg-header: #ffffff;
@@ -1005,7 +1017,44 @@ const handleAddComment = async (id, author, text) => {
         input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
         .hub-card-hover { transition: all 0.18s ease; }
         .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
-        .hub-view-enter { animation: slideIn 0.18s ease forwards; }
+        /* Page view transitions */
+        .hub-view-enter { animation: slideIn 0.2s ease forwards; }
+
+        /* Staggered entrance for child cards */
+        .hub-stagger > * { opacity: 0; animation: cardStagger 0.35s ease forwards; }
+        .hub-stagger > *:nth-child(1) { animation-delay: 0.0s; }
+        .hub-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+        .hub-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+        .hub-stagger > *:nth-child(4) { animation-delay: 0.15s; }
+        .hub-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+        .hub-stagger > *:nth-child(6) { animation-delay: 0.25s; }
+        .hub-stagger > *:nth-child(7) { animation-delay: 0.3s; }
+        .hub-stagger > *:nth-child(8) { animation-delay: 0.35s; }
+        .hub-stagger > *:nth-child(n+9) { animation-delay: 0.4s; }
+
+        /* Floating hero decorations */
+        .hub-float-a { animation: floatA 18s ease-in-out infinite; }
+        .hub-float-b { animation: floatB 22s ease-in-out infinite; }
+        .hub-float-c { animation: floatC 15s ease-in-out infinite; }
+
+        /* Breathing pulse for attention items */
+        .hub-breathe { animation: breathe 2s ease-in-out infinite; }
+
+        /* Progress bar fill */
+        .hub-bar-fill { animation: barFill 0.6s ease-out forwards; }
+
+        /* Nav card hover glow */
+        .hub-nav-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); border-color: rgba(99,102,241,0.15); }
+        .hub-nav-card .hub-nav-icon { transition: transform 0.25s ease; }
+        .hub-nav-card:hover .hub-nav-icon { transform: scale(1.12); }
+        .hub-nav-card .hub-nav-bar { height: 4px; transition: height 0.2s ease; }
+        .hub-nav-card:hover .hub-nav-bar { height: 6px; }
+
+        /* Quick submit success pulse */
+        .hub-pulse-green { animation: pulseGreen 0.6s ease; }
+
+        /* Check bounce */
+        .hub-check-bounce { animation: checkBounce 0.3s ease; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Page accent strips - full width */

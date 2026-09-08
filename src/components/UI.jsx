@@ -66,29 +66,42 @@ export function FilePreview({ files }) {
 
 
 
+function AnimatedCounter({ value, color }) {
+  const [display, setDisplay] = useState(0);
+  const numVal = typeof value === "number" ? value : parseInt(value) || 0;
+  useEffect(function() {
+    if (numVal === 0) { setDisplay(0); return; }
+    var start = 0; var dur = 400; var t0 = Date.now();
+    var frame = function() { var p = Math.min((Date.now() - t0) / dur, 1); var eased = 1 - Math.pow(1 - p, 3); setDisplay(Math.round(eased * numVal)); if (p < 1) requestAnimationFrame(frame); };
+    requestAnimationFrame(frame);
+  }, [numVal]);
+  return <span style={{ color: color }}>{display}</span>;
+}
+
 export function PageHeader({ title, subtitle, action, icon, gradient, stats }) {
-  const g = gradient || "linear-gradient(135deg, #231d68 0%, #464B99 100%)";
+  var g = gradient || "linear-gradient(135deg, #231d68 0%, #464B99 100%)";
   return (
     <div style={{ marginBottom: stats ? 0 : 32 }}>
       <div style={{ background: g, borderRadius: 20, padding: "32px 28px 28px", marginBottom: stats ? 16 : 0, color: "#fff", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.05)" }}></div>
-        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 80, height: 80, borderRadius: 40, background: "rgba(255,255,255,0.03)" }}></div>
+        <div className="hub-float-a" style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.06)" }}></div>
+        <div className="hub-float-b" style={{ position: "absolute", bottom: -25, left: "35%", width: 90, height: 90, borderRadius: 45, background: "rgba(255,255,255,0.04)" }}></div>
+        <div className="hub-float-c" style={{ position: "absolute", top: "40%", left: -15, width: 60, height: 60, borderRadius: 30, background: "rgba(255,255,255,0.03)" }}></div>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {icon && <span style={{ display: "flex", fontSize: 28, opacity: 0.9 }}>{icon}</span>}
             <div>
-              <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em" }}>{title}</h2>
-              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.7 }}>{subtitle}</p>}
+              <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", animation: "fadeIn 0.3s ease" }}>{title}</h2>
+              {subtitle && <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.7, animation: "fadeIn 0.4s ease" }}>{subtitle}</p>}
             </div>
           </div>
-          {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+          {action && <div style={{ flexShrink: 0, animation: "fadeIn 0.5s ease" }}>{action}</div>}
         </div>
       </div>
       {stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(" + stats.length + ", 1fr)", gap: 10, marginBottom: 28 }}>
+        <div className="hub-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(" + stats.length + ", 1fr)", gap: 10, marginBottom: 28 }}>
           {stats.map(function(s) { return (
             <div key={s.label} style={{ background: "var(--bg-card)", borderRadius: 14, padding: "16px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: s.color || "var(--brand)", letterSpacing: "-0.02em" }}>{s.value}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em" }}><AnimatedCounter value={s.value} color={s.color || "var(--brand)"} /></div>
               <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
             </div>
           ); })}
@@ -125,66 +138,65 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
   return (
     <div style={{ width: "100%", maxWidth: 1000 }}>
       <div style={{ background: "linear-gradient(135deg, #231d68 0%, #464B99 50%, #6366f1 100%)", borderRadius: 20, padding: "36px 32px 32px", marginBottom: 28, color: "#fff", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: 80, background: "rgba(255,255,255,0.05)" }}></div>
-        <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", position: "relative", zIndex: 1 }}>{greeting}{firstName ? ", " + firstName : ""}</h1>
-        <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7, position: "relative", zIndex: 1 }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "Welcome to the Alps Marketing Hub"}</p>
+        <div className="hub-float-a" style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: 80, background: "rgba(255,255,255,0.06)" }}></div>
+        <div className="hub-float-b" style={{ position: "absolute", bottom: -30, left: "25%", width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.04)" }}></div>
+        <div className="hub-float-c" style={{ position: "absolute", top: "30%", left: -20, width: 80, height: 80, borderRadius: 40, background: "rgba(255,255,255,0.03)" }}></div>
+        <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", position: "relative", zIndex: 1, animation: "fadeIn 0.3s ease" }}>{greeting}{firstName ? ", " + firstName : ""}</h1>
+        <p style={{ margin: "6px 0 0", fontSize: 14, opacity: 0.7, position: "relative", zIndex: 1, animation: "fadeIn 0.45s ease" }}>{myActive.length > 0 ? myActive.length + " active ticket" + (myActive.length !== 1 ? "s" : "") : "Welcome to the Alps Marketing Hub"}</p>
         {announcement && announcement.active && announcement.text && <div style={{ marginTop: 14, padding: "8px 14px", background: "rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, position: "relative", zIndex: 1 }}>{announcement.text}</div>}
-        <div style={{ marginTop: 18, display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
-          <input value={quickTitle} onChange={function(e) { setQuickTitle(e.target.value); }} onKeyDown={function(e) { if (e.key === "Enter") handleQuick(); }} placeholder="Quick request... type and press Enter" style={{ flex: 1, padding: "11px 16px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, color: "#fff", fontSize: 13, outline: "none" }} />
-          <button onClick={handleQuick} disabled={!quickTitle.trim()} style={{ padding: "11px 20px", background: quickSent ? "rgba(22,163,74,0.9)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", opacity: quickTitle.trim() ? 1 : 0.5 }}>{quickSent ? "Submitted!" : "Submit"}</button>
+        <div style={{ marginTop: 18, display: "flex", gap: 8, position: "relative", zIndex: 1, animation: "fadeIn 0.6s ease" }}>
+          <input value={quickTitle} onChange={function(e) { setQuickTitle(e.target.value); }} onKeyDown={function(e) { if (e.key === "Enter") handleQuick(); }} placeholder="Quick request... type and press Enter" style={{ flex: 1, padding: "11px 16px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, color: "#fff", fontSize: 13, outline: "none", transition: "all 0.2s" }} />
+          <button onClick={handleQuick} disabled={!quickTitle.trim()} className={quickSent ? "hub-pulse-green" : ""} style={{ padding: "11px 20px", background: quickSent ? "rgba(22,163,74,0.9)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.25s", opacity: quickTitle.trim() || quickSent ? 1 : 0.5, minWidth: 90 }}>{quickSent ? "\u2713 Sent!" : "Submit"}</button>
         </div>
       </div>
 
       {isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
-          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: openCount > 0 ? "#ca8a04" : "#16a34a" }}>{openCount}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Open Tickets</div>
-          </div>
-          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "#0284c7" }}>{progressCount}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>In Progress</div>
-          </div>
-          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: pendingStock > 0 ? "#ca8a04" : "#16a34a" }}>{pendingStock}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Stockroom Pending</div>
-          </div>
-          <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "#8b5cf6" }}>{a.length}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Archive Entries</div>
-          </div>
+        <div className="hub-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+          {[
+            { label: "Open Tickets", value: openCount, color: openCount > 0 ? "#ca8a04" : "#16a34a" },
+            { label: "In Progress", value: progressCount, color: "#0284c7" },
+            { label: "Stockroom Pending", value: pendingStock, color: pendingStock > 0 ? "#ca8a04" : "#16a34a" },
+            { label: "Archive Entries", value: a.length, color: "#8b5cf6" },
+          ].map(function(st) { return (
+            <div key={st.label} style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", textAlign: "center" }}>
+              <div style={{ fontSize: 28, fontWeight: 800 }}><AnimatedCounter value={st.value} color={st.color} /></div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{st.label}</div>
+            </div>
+          ); })}
         </div>
       )}
 
-      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Quick Access</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
-        {[
-          { id: "form", icon: "\u270F\uFE0F", label: "Submit Request", desc: "Create a marketing ticket", color: "#6366f1" },
-          { id: "archive", icon: "\uD83D\uDCC2", label: "Marketing Archive", desc: a.length + " entries", color: "#8b5cf6", needLogin: true },
-          { id: "stockroom", icon: "\uD83D\uDCE6", label: "Content Stockroom", desc: pendingStock > 0 ? pendingStock + " pending" : "Submit ideas", color: "#0d9488", needLogin: true },
-          { id: "testimonials", icon: "\u2B50", label: "Testimonials", desc: "Broker feedback", color: "#ca8a04", needLogin: true },
-          { id: "brand_assets", icon: "\uD83C\uDFA8", label: "Brand Assets", desc: "Colours, logos, fonts", color: "#20A39E", needLogin: true },
-          { id: "qr_generator", icon: "\uD83D\uDCF1", label: "QR Generator", desc: "Create QR codes", color: "#0284c7" },
-        ].filter(function(c) { return !c.needLogin || currentUser; }).map(function(card) {
-          return (
-            <div key={card.id} onClick={function() { onNavigate(card.id); }} style={{ background: "var(--bg-card)", borderRadius: 16, padding: "22px 20px", cursor: "pointer", transition: "all 0.25s", border: "1px solid var(--border)", position: "relative", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={function(e) { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(0,0,0,0.1)"; }} onMouseOut={function(e) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: card.color }}></div>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 14, paddingTop: 4 }}>
-                <span style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{card.icon}</span>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{card.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{card.desc}</div>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Quick Access</div>
+        <div className="hub-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { id: "form", icon: "\u270F\uFE0F", label: "Submit Request", desc: "Create a marketing ticket", color: "#6366f1" },
+            { id: "archive", icon: "\uD83D\uDCC2", label: "Marketing Archive", desc: a.length + " entries", color: "#8b5cf6", needLogin: true },
+            { id: "stockroom", icon: "\uD83D\uDCE6", label: "Content Stockroom", desc: pendingStock > 0 ? pendingStock + " pending" : "Submit ideas", color: "#0d9488", needLogin: true },
+            { id: "testimonials", icon: "\u2B50", label: "Testimonials", desc: "Broker feedback", color: "#ca8a04", needLogin: true },
+            { id: "brand_assets", icon: "\uD83C\uDFA8", label: "Brand Assets", desc: "Colours, logos, fonts", color: "#20A39E", needLogin: true },
+            { id: "qr_generator", icon: "\uD83D\uDCF1", label: "QR Generator", desc: "Create QR codes", color: "#0284c7" },
+          ].filter(function(c) { return !c.needLogin || currentUser; }).map(function(card) {
+            return (
+              <div key={card.id} className="hub-nav-card" onClick={function() { onNavigate(card.id); }} style={{ background: "var(--bg-card)" }}>
+                <div className="hub-nav-bar" style={{ position: "absolute", top: 0, left: 0, right: 0, background: card.color, borderRadius: "16px 16px 0 0" }}></div>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 14, paddingTop: 4 }}>
+                  <span className="hub-nav-icon" style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{card.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{card.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{card.desc}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {isAdmin && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Admin</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <div className="hub-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
             {[
               { id: "dashboard", icon: "\uD83D\uDCCB", label: "Dashboard", desc: openCount + " open", color: "#231d68" },
               { id: "weekly", icon: "\uD83D\uDCCA", label: "Weekly Report", desc: "Performance", color: "#7c3aed" },
