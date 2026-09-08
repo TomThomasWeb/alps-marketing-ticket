@@ -1,0 +1,1147 @@
+import { useState, useRef, useEffect } from "react";
+import { PRIORITIES, STATUS, STATUS_FALLBACK, SLA_TARGETS, TEMPLATES, getDueBadge, getSlaStatus, formatDate, renderMarkdown, addBusinessDays } from "../constants.js";
+import { FileChip, FilePreview, PageHeader } from "./UI.jsx";
+import { Search, ClipboardList, PenSquare, Star, Pin, Trash2, Copy, ChevronDown, Clock, CheckCircle2, Eye, ArrowRight, RotateCcw, MessageSquare, Filter, LayoutGrid, LayoutDashboard, List, Columns3, AlertCircle, User, CalendarDays, Save, Upload } from "lucide-react";
+
+function MentionInput({ value, onChange, onSubmit, placeholder, users }) {
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionPos, setMentionPos] = useState(0);
+  const inputRef = useRef(null);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    onChange(val);
+    const cursor = e.target.selectionStart;
+    const before = val.slice(0, cursor);
+    const atMatch = before.match(/@(\w*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1].toLowerCase());
+      setMentionPos(cursor);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+    }
+  };
+
+  const insertMention = (name) => {
+    const before = value.slice(0, mentionPos - mentionQuery.length - 1);
+    const after = value.slice(mentionPos);
+    const newVal = before + "@" + name + " " + after;
+    onChange(newVal);
+    setShowMentions(false);
+    setTimeout(() => { if (inputRef.current) { const pos = before.length + name.length + 2; inputRef.current.focus(); inputRef.current.setSelectionRange(pos, pos); } }, 0);
+  };
+
+  const filtered = (users || []).filter((u) => u.name.toLowerCase().includes(mentionQuery));
+
+  return (
+    <div style={{ flex: 1, position: "relative" }}>
+      <input ref={inputRef} value={value} onChange={handleChange} placeholder={placeholder} onKeyDown={(e) => { if (e.key === "Enter" && !showMentions) onSubmit(); if (e.key === "Escape") setShowMentions(false); }} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; setTimeout(() => setShowMentions(false), 200); }} />
+      {showMentions && filtered.length > 0 && (
+        <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", padding: 4, maxHeight: 160, overflowY: "auto", zIndex: 80, minWidth: 180 }}>
+          {filtered.slice(0, 6).map((u) => (
+            <button key={u.id} onMouseDown={(e) => { e.preventDefault(); insertMention(u.name); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 10px", border: "none", borderRadius: 6, background: "transparent", cursor: "pointer", textAlign: "left", fontSize: 12, color: "var(--text-primary)" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+              <span style={{ width: 22, height: 22, borderRadius: 11, background: u.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontWeight: 700, flexShrink: 0 }}>{u.name?.charAt(0)?.toUpperCase()}</span>
+              <span style={{ fontWeight: 600 }}>{u.name}</span>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{u.role}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplicate }) {
+  const [form, setForm] = useState(() => {
+    try { const d = localStorage.getItem("alps_ticket_draft"); if (d) { const parsed = JSON.parse(d); return { ...parsed, files: [] }; } } catch {}
+    return { name: "", title: "", description: "", priority: "medium", deadline: "", files: [] };
+  });
+  const [hasDraft, setHasDraft] = useState(() => { try { return !!localStorage.getItem("alps_ticket_draft"); } catch { return false; } });
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const fileRef = useRef();
+  useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
+  useEffect(() => {
+    if (duplicateData) {
+      setForm((f) => ({ ...f, title: duplicateData.title || "", description: duplicateData.description || "", priority: duplicateData.priority || "medium", deadline: duplicateData.deadline || "" }));
+      if (onClearDuplicate) onClearDuplicate();
+    }
+  }, [duplicateData]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (form.title.trim() || form.description.trim()) {
+        try { localStorage.setItem("alps_ticket_draft", JSON.stringify({ name: form.name, title: form.title, description: form.description, priority: form.priority, deadline: form.deadline })); setHasDraft(true); } catch {}
+      }
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [form.title, form.description, form.priority, form.deadline]);
+
+  const clearDraft = () => { try { localStorage.removeItem("alps_ticket_draft"); } catch {} setHasDraft(false); };
+  const update = (field, value) => { setForm((f) => ({ ...f, [field]: value })); if (errors[field]) setErrors((e) => ({ ...e, [field]: null })); };
+  const handleFiles = (e) => { const newFiles = Array.from(e.target.files); setForm((f) => ({ ...f, files: [...f.files, ...newFiles].slice(0, 5) })); e.target.value = ""; };
+  const removeFile = (idx) => setForm((f) => ({ ...f, files: f.files.filter((_, i) => i !== idx) }));
+
+  const validate = () => { const e = {}; if (!currentUser && !form.name.trim()) e.name = "Required"; if (!form.title.trim()) e.title = "Required"; if (!form.description.trim()) e.description = "Required"; setErrors(e); return Object.keys(e).length === 0; };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    await onSubmit({ ...form, actualFiles: form.files });
+    setSubmitting(false);
+    setSubmitted(true);
+    clearDraft();
+    setTimeout(() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); setSelectedTemplate(null); setSubmitted(false); }, 3000);
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+  const inputStyle = (field) => ({ width: "100%", padding: "12px 16px", background: "var(--bg-input)", border: "1.5px solid " + (errors[field] ? "#ef4444" : "var(--border)"), borderRadius: 10, color: "var(--text-primary)", fontSize: 14, outline: "none", transition: "border 0.2s, box-shadow 0.2s", boxSizing: "border-box", fontFamily: "inherit" });
+  const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6, letterSpacing: "0.02em" };
+
+  // Progress
+  const hasName = currentUser || form.name.trim();
+  const hasTitle = form.title.trim();
+  const hasDesc = form.description.trim();
+  const hasPriority = true;
+  const steps = [hasName, hasTitle, hasDesc, hasPriority].filter(Boolean).length;
+  const pct = Math.round(steps / 4 * 100);
+
+  // Submitted animation
+  if (submitted) return (
+    <div style={{ maxWidth: 560, width: "100%", textAlign: "center", padding: "80px 20px" }}>
+      <div style={{ width: 80, height: 80, borderRadius: 40, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", animation: "scaleIn 0.4s ease" }}>
+        <CheckCircle2 size={40} style={{ color: "#16a34a" }} />
+      </div>
+      <h2 style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>Request Submitted!</h2>
+      <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)" }}>We've got your request and will get started on it shortly.</p>
+    </div>
+  );
+
+  const lastUsed = (() => { try { return localStorage.getItem("alps_last_template"); } catch { return null; } })();
+
+  return (
+    <div style={{ maxWidth: 580, width: "100%" }}>
+      {/* Branded header */}
+      <div style={{ background: "linear-gradient(135deg, #231d68 0%, #464B99 100%)", borderRadius: 16, padding: "32px 28px 28px", marginBottom: 24, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, background: "rgba(255,255,255,0.06)" }}></div>
+        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 80, height: 80, borderRadius: 40, background: "rgba(255,255,255,0.04)" }}></div>
+        <PenSquare size={28} style={{ opacity: 0.6, marginBottom: 12 }} />
+        <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em" }}>Submit a Request</h1>
+        <p style={{ margin: 0, fontSize: 14, opacity: 0.7 }}>Tell us what you need and we'll get it done.</p>
+        {/* Step indicator */}
+        <div style={{ marginTop: 20, display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
+          {[{ n: 1, label: "What" }, { n: 2, label: "Priority" }, { n: 3, label: "Details" }].map(function(st) {
+            var active = wizardStep === st.n;
+            var done = wizardStep > st.n;
+            return <div key={st.n} style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: done ? "rgba(22,163,74,0.9)" : active ? "#fff" : "rgba(255,255,255,0.2)", color: done ? "#fff" : active ? "#231d68" : "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, margin: "0 auto 4px", transition: "all 0.3s" }}>{done ? "\u2713" : st.n}</div>
+              <div style={{ fontSize: 10, opacity: active ? 1 : 0.5 }}>{st.label}</div>
+            </div>;
+          })}
+        </div>
+      </div>
+
+      {hasDraft && form.title.trim() && !duplicateData && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 8, marginBottom: 16, fontSize: 12 }}>
+          <Save size={14} style={{ color: "var(--brand)" }} />
+          <span style={{ color: "var(--text-primary)", flex: 1 }}>Draft saved</span>
+          <button onClick={() => { setForm({ name: currentUser?.name || "", title: "", description: "", priority: "medium", deadline: "", files: [] }); clearDraft(); setSelectedTemplate(null); }} style={{ background: "none", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Discard</button>
+        </div>
+      )}
+
+      {/* Form card */}
+      <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "24px 24px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+
+        {/* STEP 1: What do you need */}
+        {wizardStep === 1 && (<>
+          {/* Visual template picker */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ ...labelStyle, fontSize: 13, marginBottom: 10 }}>What do you need?</label>
+            <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {TEMPLATES.map((tmpl, i) => (
+                <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = addBusinessDays(new Date(), sla.days); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} setSelectedTemplate(i); }} style={{ padding: "14px 10px", background: selectedTemplate === i ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (selectedTemplate === i ? "var(--brand)" : "var(--border)"), borderRadius: 12, cursor: "pointer", transition: "all 0.2s", textAlign: "center", position: "relative" }} onMouseOver={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--border)"; }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>{tmpl.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: selectedTemplate === i ? "var(--brand)" : "var(--text-primary)", marginBottom: 2 }}>{tmpl.label}</div>
+                  {lastUsed === tmpl.label && selectedTemplate !== i && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 7, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Recent</span>}
+                  {selectedTemplate === i && <span style={{ position: "absolute", top: 6, right: 6 }}><CheckCircle2 size={14} style={{ color: "var(--brand)" }} /></span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!currentUser && <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
+            <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.name && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.name}</span>}
+          </div>}
+          {currentUser && <div style={{ marginBottom: 18 }}><label style={labelStyle}>Submitting as</label><div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}><span style={{ width: 24, height: 24, borderRadius: 12, background: currentUser.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span><span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{currentUser.name}</span></div></div>}
+
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
+            <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.title && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.title}</span>}
+          </div>
+
+          <button onClick={function() { if (!form.title.trim()) { setErrors({ title: "Required" }); return; } setWizardStep(2); }} style={{ width: "100%", padding: "14px", background: form.title.trim() ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: form.title.trim() ? "pointer" : "not-allowed", opacity: form.title.trim() ? 1 : 0.5, transition: "all 0.2s" }}>Continue to Priority →</button>
+        </>)}
+
+        {/* STEP 2: Priority & deadline */}
+        {wizardStep === 2 && (<>
+          <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div>
+              <label style={labelStyle}>Priority</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {Object.entries(PRIORITIES).map(([key, p]) => (
+                  <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "2px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
+                    <span style={{ display: "block", fontSize: 16, marginBottom: 2 }}>{p.icon}</span>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong></div>
+            </div>
+            <div>
+              <label style={labelStyle}>Deadline</label>
+              <input type="date" min={today} style={{ ...inputStyle(null), cursor: "pointer" }} value={form.deadline} onChange={(e) => update("deadline", e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={function() { setWizardStep(1); }} style={{ flex: 1, padding: "14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>← Back</button>
+            <button onClick={function() { setWizardStep(3); }} style={{ flex: 2, padding: "14px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Continue to Details →</button>
+          </div>
+        </>)}
+
+        {/* STEP 3: Description & files */}
+        {wizardStep === 3 && (<>
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
+            <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
+              {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "\u2014", md: "\n- ", title: "Bullet list" }, { label: "\uD83D\uDD17", md: "[", title: "Link" }].map((btn) => (
+                <button key={btn.label} type="button" title={btn.title} onClick={() => {
+                  const ta = document.querySelector("textarea[placeholder*='Describe']");
+                  if (!ta) return;
+                  const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
+                  let ins;
+                  if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
+                  else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
+                  else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
+                  const next = form.description.slice(0, start) + ins + form.description.slice(end);
+                  update("description", next);
+                  setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
+                }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
+              ))}
+            </div>
+            <textarea rows={5} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need — include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.description && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.description}</span>}
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
+            <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
+            <button onClick={() => fileRef.current?.click()} style={{ padding: "12px 18px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 10, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.background = "var(--brand-light)"; e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "var(--bg-input)"; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}>
+              <Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files
+            </button>
+            {form.files.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                {form.files.map((f, i) => <FileChip key={i} name={f.name} onRemove={() => removeFile(i)} />)}
+              </div>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div style={{ padding: "12px 16px", background: "var(--bg-input)", borderRadius: 10, marginBottom: 18, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{form.title}</div>
+            <div>Priority: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{PRIORITIES[form.priority]?.label}</strong> · Deadline: {form.deadline || "None set"}</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={function() { setWizardStep(2); }} style={{ flex: 1, padding: "14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>← Back</button>
+            {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
+            <button onClick={handleSubmit} disabled={submitting || !ready} style={{ flex: 2, padding: "14px", background: ready ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 800, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", opacity: ready ? 1 : 0.5, boxShadow: ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none" }}>
+              {submitting ? "Submitting..." : "Submit Request →"}
+            </button>); })()}
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+
+export function TicketCard({ ticket, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser, hubUsers }) {
+  const [expanded, setExpanded] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteName, setNoteName] = useState(currentUser?.name || "");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingPriority, setEditingPriority] = useState(false);
+  const [editingDeadline, setEditingDeadline] = useState(false);
+  const [timeSpent, setTimeSpent] = useState("");
+  const [newDeadline, setNewDeadline] = useState(ticket.deadline || "");
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ title: ticket.title, description: ticket.description });
+  const p = PRIORITIES[ticket.priority];
+  const s = STATUS[ticket.status] || STATUS_FALLBACK;
+  const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const sla = getSlaStatus(ticket);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
+  const today = new Date().toISOString().split("T")[0];
+
+  const submitNote = () => {
+    const author = currentUser?.name || noteName.trim();
+    if (!noteText.trim() || !author) return;
+    onAddNote(ticket.id, author, noteText.trim());
+    setNoteText("");
+    if (!currentUser) setNoteName("");
+  };
+
+  const saveEdit = () => {
+    if (!editForm.title.trim()) return;
+    onEditTicket(ticket.id, { title: editForm.title.trim(), description: editForm.description.trim() });
+    setEditing(false);
+  };
+
+  const handlePriorityChange = (newPriority) => {
+    if (newPriority !== ticket.priority) {
+      onUpdatePriority(ticket.id, newPriority);
+    }
+    setEditingPriority(false);
+  };
+
+  const handleDeadlineSave = () => {
+    if (newDeadline !== ticket.deadline) {
+      onUpdateDeadline(ticket.id, newDeadline);
+    }
+    setEditingDeadline(false);
+  };
+
+  const [ctxMenu, setCtxMenu] = useState(null);
+  useEffect(() => { const cl = () => setCtxMenu(null); window.addEventListener("click", cl); return () => window.removeEventListener("click", cl); }, []);
+  const handleCtx = (e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY }); };
+
+  return (
+    <>
+    <div className={"hub-ticket-card priority-" + ticket.priority} onClick={() => setExpanded(!expanded)} onContextMenu={handleCtx} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", border: "1px solid " + (ticket.status === "completed" ? "var(--border-light)" : dueBadge && dueBadge.color === "#dc2626" ? "rgba(220,38,38,0.25)" : "var(--border)"), borderRadius: 12, padding: "16px 20px 16px 22px", cursor: "pointer", transition: "all 0.2s", opacity: ticket.status === "completed" ? 0.65 : 1 }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-hover)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, letterSpacing: "0.04em", background: "var(--brand-light)", padding: "2px 7px", borderRadius: 4 }}>{ticket.id}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: "1px solid " + p.border, letterSpacing: "0.03em" }}>{p.icon} {p.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color, letterSpacing: "0.03em" }}>{s.label}</span>
+            {dueBadge && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: dueBadge.bg, color: dueBadge.color, border: "1px solid " + dueBadge.border }}>{dueBadge.text}</span>}
+            {sla && sla.active && <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: sla.breached ? "rgba(220,38,38,0.08)" : "rgba(22,163,74,0.08)", color: sla.breached ? "#dc2626" : "#16a34a", border: "1px solid " + (sla.breached ? "rgba(220,38,38,0.2)" : "rgba(22,163,74,0.2)") }}>{sla.breached ? "\u23F0 SLA breached" : "\u23F1 " + Math.round(sla.pct * 100) + "% of " + sla.label}</span>}
+            {sla && sla.met !== undefined && <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: sla.met ? "rgba(22,163,74,0.08)" : "rgba(220,38,38,0.08)", color: sla.met ? "#16a34a" : "#dc2626" }}>{sla.met ? "\u2713 SLA met" : "\u2717 SLA missed"}</span>}
+          </div>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: expanded ? "normal" : "nowrap" }}>{ticket.title}</h3>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4, display: "flex", gap: 14, flexWrap: "wrap" }}>
+            <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
+            <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
+            <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+            {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 4 }}>
+          <span onClick={(e) => { e.stopPropagation(); onTogglePin(ticket.id); }} style={{ fontSize: 16, cursor: "pointer", transition: "all 0.15s", color: ticket.pinned ? "#eab308" : "#d1d5db", filter: ticket.pinned ? "drop-shadow(0 0 2px rgba(234,179,8,0.4))" : "none" }} title={ticket.pinned ? "Unpin ticket" : "Pin ticket"}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
+          <span style={{ fontSize: 18, color: "var(--text-muted)", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "none" }}>{"\u25BE"}</span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
+          {editing ? (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 4 }}>Title</label>
+                <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 4 }}>Description</label>
+                <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={4} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={saveEdit} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u2713"} Save Changes</button>
+                <button onClick={() => { setEditing(false); setEditForm({ title: ticket.title, description: ticket.description }); }} style={{ padding: "7px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(ticket.description) }}></div>
+          )}
+
+          {ticket.status !== "completed" && (
+            <div style={{ display: "flex", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Priority</div>
+                {editingPriority ? (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {Object.entries(PRIORITIES).map(([key, pr]) => (
+                      <button key={key} onClick={() => handlePriorityChange(key)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + (ticket.priority === key ? pr.color : "var(--border)"), background: ticket.priority === key ? pr.bg : "var(--bg-input)", color: ticket.priority === key ? pr.color : "var(--text-muted)", transition: "all 0.15s" }}>
+                        {pr.icon} {pr.label}
+                      </button>
+                    ))}
+                    <button onClick={() => setEditingPriority(false)} style={{ padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingPriority(true)} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "1.5px solid " + p.border, background: p.bg, color: p.color, transition: "all 0.15s" }} title="Click to change priority">
+                    {p.icon} {p.label} {"\u270E"}
+                  </button>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Deadline</div>
+                {editingDeadline ? (
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <input type="date" min={today} value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} style={{ padding: "5px 10px", border: "1px solid var(--brand)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxShadow: "0 0 0 3px var(--brand-glow)" }} />
+                    <button onClick={handleDeadlineSave} style={{ padding: "5px 10px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{"\u2713"} Save</button>
+                    <button onClick={() => { setEditingDeadline(false); setNewDeadline(ticket.deadline || ""); }} style={{ padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setNewDeadline(ticket.deadline || ""); setEditingDeadline(true); }} style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-body)", transition: "all 0.15s" }} title="Click to change deadline">
+                    <CalendarDays size={12} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.deadline ? formatDate(ticket.deadline) : "No deadline"} {"\u270E"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <FilePreview files={ticket.files} />
+
+          {ticket.notes && ticket.notes.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Comments</div>
+              <div style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}>
+              {ticket.notes.map((note, i) => (
+                <div key={i} style={{ background: note.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "var(--border)"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    {!note.auto && <span style={{ width: 22, height: 22, borderRadius: 11, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{note.author?.charAt(0)?.toUpperCase() || "?"}</span>}
+                    {note.auto && <span style={{ fontSize: 12 }}>{"\u2699\uFE0F"}</span>}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "var(--brand)" }}>{note.author}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                </div>
+              ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              {currentUser ? (
+                <span style={{ width: 34, height: 34, borderRadius: 17, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+              ) : (
+                <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} />
+              )}
+              <MentionInput value={noteText} onChange={setNoteText} onSubmit={submitNote} placeholder="Add a comment... (type @ to mention)" users={hubUsers} />
+              <button onClick={submitNote} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                Send
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {ticket.status === "completed" && (
+              <button onClick={() => onReopen(ticket.id)} style={{ padding: "8px 16px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, color: "#6366f1", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(99,102,241,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(99,102,241,0.1)"}>
+                {"\u21A9"} Reopen Ticket
+              </button>
+            )}
+            {ticket.status !== "completed" && (
+              <>
+                {ticket.status === "open" && (
+                  <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "8px 16px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.25)", borderRadius: 8, color: "#0284c7", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(2,132,199,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(2,132,199,0.1)"}>
+                    {"\u25B6"} Start Progress
+                  </button>
+                )}
+                {ticket.status === "in_progress" && (
+                  <button onClick={() => onStatusChange(ticket.id, "review")} style={{ padding: "8px 16px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 8, color: "#8b5cf6", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(139,92,246,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(139,92,246,0.1)"}>
+                    <><Eye size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Send for Review</>
+                  </button>
+                )}
+                {ticket.status === "review" && (
+                  <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "8px 16px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.25)", borderRadius: 8, color: "#0284c7", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(2,132,199,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(2,132,199,0.1)"}>
+                    {"\u21A9"} Back to Progress
+                  </button>
+                )}
+                <select value={timeSpent} onChange={(e) => setTimeSpent(e.target.value)} style={{ padding: "8px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, color: "var(--text-secondary)", outline: "none", cursor: "pointer" }}><option value="">Time spent?</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 hour</option><option value="2h">2 hours</option><option value="half_day">Half day</option><option value="full_day">Full day</option><option value="multi_day">Multi-day</option></select>
+                <button onClick={() => onComplete(ticket.id, timeSpent)} style={{ padding: "8px 16px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 8, color: "#16a34a", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "rgba(22,163,74,0.18)"} onMouseOut={(e) => e.target.style.background = "rgba(22,163,74,0.1)"}>
+                  {"\u2713"} Mark Complete
+                </button>
+              </>
+            )}
+            {!editing && (
+              <button onClick={() => { setEditing(true); setEditForm({ title: ticket.title, description: ticket.description }); }} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                {"\u270E"} Edit
+              </button>
+            )}
+            <button onClick={() => onDuplicate(ticket)} style={{ padding: "8px 16px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+              <><Copy size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Clone</>
+            </button>
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} style={{ padding: "8px 16px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", marginLeft: "auto" }} onMouseOver={(e) => e.target.style.background = "rgba(220,38,38,0.12)"} onMouseOut={(e) => e.target.style.background = "rgba(220,38,38,0.06)"}>
+                <Trash2 size={12} /> Delete
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+                <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>Are you sure?</span>
+                <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "6px 12px", background: "#dc2626", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Yes, delete
+                </button>
+                <button onClick={() => setConfirmDelete(false)} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+    {ctxMenu && (
+      <div className="hub-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={(e) => e.stopPropagation()}>
+        {ticket.status === "open" && <button onClick={() => { onStatusChange(ticket.id, "in_progress"); setCtxMenu(null); }}><ArrowRight size={14} /> Start</button>}
+        {ticket.status === "in_progress" && <button onClick={() => { onStatusChange(ticket.id, "review"); setCtxMenu(null); }}><Eye size={14} /> Send for Review</button>}
+        {ticket.status !== "completed" && <button onClick={() => { onComplete(ticket.id); setCtxMenu(null); }}><CheckCircle2 size={14} /> Complete</button>}
+        {ticket.status === "completed" && <button onClick={() => { onReopen(ticket.id); setCtxMenu(null); }}><RotateCcw size={14} /> Reopen</button>}
+        <button onClick={() => { onTogglePin(ticket.id); setCtxMenu(null); }}><Pin size={14} /> {ticket.pinned ? "Unpin" : "Pin"}</button>
+        <button onClick={() => { onDuplicate(ticket); setCtxMenu(null); }}><Copy size={14} /> Clone</button>
+        <button className="danger" onClick={() => { onDelete(ticket.id); setCtxMenu(null); }}><Trash2 size={14} /> Delete</button>
+      </div>
+    )}
+    </>
+  );
+}
+
+
+export function GridCard({ ticket, onStatusChange, onComplete, onDelete, onReopen, onTogglePin }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const p = PRIORITIES[ticket.priority];
+  const s = STATUS[ticket.status] || STATUS_FALLBACK;
+  const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
+  const isOverdue = dueBadge && dueBadge.color === "#dc2626";
+
+  return (
+    <div className={"hub-ticket-card priority-" + ticket.priority} style={{ background: ticket.status === "completed" ? "var(--bg-completed)" : "var(--bg-card)", borderLeft: "4px solid " + p.color, borderRadius: 14, padding: "16px 16px 14px 18px", opacity: ticket.status === "completed" ? 0.6 : 1, display: "flex", flexDirection: "column", gap: 8, transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)", minHeight: 140, boxShadow: isOverdue ? "0 0 12px rgba(220,38,38,0.15)" : "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 4px 20px rgba(220,38,38,0.2)" : "0 4px 20px rgba(35,29,104,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = isOverdue ? "0 0 12px rgba(220,38,38,0.15)" : "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; e.currentTarget.style.transform = "none"; }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontFamily: "monospace", color: "#fff", fontWeight: 700, background: "var(--brand)", padding: "3px 10px", borderRadius: 8 }}>{ticket.id}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: p.bg, color: p.color }}>{p.icon} {p.label}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+        <span onClick={() => onTogglePin(ticket.id)} style={{ fontSize: 14, cursor: "pointer", marginLeft: "auto", color: ticket.pinned ? "#eab308" : "#d1d5db", transition: "transform 0.15s" }} onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.2)"} onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}>{ticket.pinned ? "\u2605" : "\u2606"}</span>
+      </div>
+      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--brand)", textDecoration: ticket.status === "completed" ? "line-through" : "none", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{ticket.title}</h4>
+      <div style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 2, marginTop: "auto" }}>
+        <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
+          {dueBadge && <span style={{ fontSize: 10, fontWeight: 700, color: dueBadge.color }}>{dueBadge.text}</span>}
+        </div>
+        {ticket.completedAt && <span style={{ color: "#16a34a", fontSize: 10 }}>{"\u2713"} {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+      </div>
+      {ticket.notes && ticket.notes.length > 0 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><MessageSquare size={11} style={{display:"inline",verticalAlign:"-1px"}} /> {ticket.notes.length} note{ticket.notes.length !== 1 ? "s" : ""}</span>}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 2 }}>
+        {ticket.status === "completed" && <button onClick={() => onReopen(ticket.id)} style={{ padding: "4px 8px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 5, color: "#6366f1", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u21A9"}</button>}
+        {ticket.status === "open" && <button onClick={() => onStatusChange(ticket.id, "in_progress")} style={{ padding: "4px 8px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 5, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"}</button>}
+        {ticket.status === "in_progress" && <button onClick={() => onStatusChange(ticket.id, "review")} style={{ padding: "4px 8px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 5, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}><Eye size={12} /></button>}
+        {ticket.status !== "completed" && <button onClick={() => onComplete(ticket.id)} style={{ padding: "4px 8px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 5, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"}</button>}
+        {!confirmDelete ? (
+          <button onClick={() => setConfirmDelete(true)} style={{ padding: "4px 8px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 5, color: "#dc2626", fontSize: 11, cursor: "pointer", marginLeft: "auto" }}><Trash2 size={12} /></button>
+        ) : (
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+            <button onClick={() => { onDelete(ticket.id); setConfirmDelete(false); }} style={{ padding: "4px 8px", background: "#dc2626", border: "none", borderRadius: 5, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Delete</button>
+            <button onClick={() => setConfirmDelete(false)} style={{ padding: "4px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text-secondary)", fontSize: 10, cursor: "pointer" }}>No</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+export function StatsBar({ tickets }) {
+  const stats = {
+    total: tickets.length,
+    open: tickets.filter((t) => t.status === "open").length,
+    inProgress: tickets.filter((t) => t.status === "in_progress").length,
+    review: tickets.filter((t) => t.status === "review").length,
+    completed: tickets.filter((t) => t.status === "completed").length,
+    critical: tickets.filter((t) => t.priority === "critical" && t.status !== "completed").length,
+  };
+  const statCards = [
+    { label: "Total", value: stats.total, color: "var(--brand)", bg: "rgba(35,29,104,0.06)" },
+    { label: "Open", value: stats.open, color: "#6366f1", bg: "rgba(99,102,241,0.06)" },
+    { label: "In Progress", value: stats.inProgress, color: "#0284c7", bg: "rgba(2,132,199,0.06)" },
+    { label: "Review", value: stats.review, color: "#8b5cf6", bg: "rgba(139,92,246,0.06)" },
+    { label: "Completed", value: stats.completed, color: "#16a34a", bg: "rgba(22,163,74,0.06)" },
+    { label: "Critical", value: stats.critical, color: "#dc2626", bg: "rgba(220,38,38,0.06)" },
+  ];
+  return (
+    <div className="hub-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10 }}>
+      {statCards.map((s) => (
+        <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "14px 16px", border: "1px solid " + s.color + "15", textAlign: "center" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+export function Dashboard({ tickets, onStatusChange, onComplete, onAddNote, onDelete, onUpdatePriority, onUpdateDeadline, onReopen, onTogglePin, onDuplicate, onEditTicket, currentUser, hubUsers }) {
+  const [filter, setFilter] = useState("active");
+  const [sortBy, setSortBy] = useState("priority");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("list");
+  const [selected, setSelected] = useState({});
+  const [savedFilters, setSavedFilters] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_dash_filters") || "[]"); } catch { return []; } });
+  const [showSaveFilter, setShowSaveFilter] = useState(false);
+  const [filterName, setFilterName] = useState("");
+  const saveFilter = () => { if (!filterName.trim()) return; const preset = { name: filterName.trim(), filter, sortBy, viewMode }; const next = [...savedFilters.filter((f) => f.name !== preset.name), preset]; setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} setFilterName(""); setShowSaveFilter(false); };
+  const loadFilter = (preset) => { setFilter(preset.filter); setSortBy(preset.sortBy); if (preset.viewMode) setViewMode(preset.viewMode); };
+  const deleteFilter = (name) => { const next = savedFilters.filter((f) => f.name !== name); setSavedFilters(next); try { localStorage.setItem("alps_dash_filters", JSON.stringify(next)); } catch {} };
+  const [detailId, setDetailId] = useState(null);
+  const detailTicket = detailId ? tickets.find((t) => t.id === detailId || t.ref === detailId) : null;
+  const [mineOnly, setMineOnly] = useState(false);
+  const queueTickets = tickets.filter((t) => t.status !== "completed").sort((a, b) => { const po = { critical: 0, high: 1, medium: 2, low: 3 }; return po[a.priority] - po[b.priority]; });
+  const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  const selectedIds = Object.keys(selected).filter((k) => selected[k]);
+  const toggleSelect = (id) => setSelected((p) => ({ ...p, [id]: !p[id] }));
+  const clearSelection = () => setSelected({});
+  const batchAction = (action) => { selectedIds.forEach((id) => { if (action === "complete") onComplete(id); else if (action === "in_progress") onStatusChange(id, "in_progress"); else if (action === "review") onStatusChange(id, "review"); }); clearSelection(); };
+
+  const filtered = tickets.filter((t) => {
+    if (mineOnly && currentUser && t.createdBy !== currentUser.id && t.name !== currentUser.name) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!t.id.toLowerCase().includes(q) && !t.name.toLowerCase().includes(q) && !t.title.toLowerCase().includes(q) && !(t.description || "").toLowerCase().includes(q)) return false;
+    }
+    if (filter === "all") return true;
+    if (filter === "active") return t.status !== "completed";
+    return t.status === filter;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    // Pinned tickets always come first
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    const effectiveSort = viewMode === "grid" ? "deadline" : sortBy;
+    if (effectiveSort === "priority") return priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (effectiveSort === "deadline") return (a.deadline || "9999") < (b.deadline || "9999") ? -1 : 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const filterTabs = [
+    { key: "all", label: "All" }, { key: "active", label: "Active" }, { key: "open", label: "Open" },
+    { key: "in_progress", label: "In Progress" }, { key: "review", label: "Review" }, { key: "completed", label: "Completed" },
+  ];
+
+  return (
+    <div style={{ width: "100%" }}>
+      <PageHeader icon={<LayoutDashboard size={22} />} title="Ticket Dashboard" subtitle="Manage and track all marketing requests" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" stats={[{ label: "Open", value: tickets.filter(function(x){return x.status==="open";}).length, color: "#ca8a04" }, { label: "In Progress", value: tickets.filter(function(x){return x.status==="in_progress";}).length, color: "#0284c7" }, { label: "Completed", value: tickets.filter(function(x){return x.status==="completed";}).length, color: "#16a34a" }, { label: "This Week", value: tickets.filter(function(x){var d=new Date(x.created_at);var w=new Date();w.setDate(w.getDate()-7);return d>=w;}).length, color: "#8b5cf6" }]} action={
+        <div style={{ position: "relative", minWidth: 200 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.5)", pointerEvents: "none" }}><Search size={14} /></span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref, name, title..." style={{ width: "100%", padding: "9px 12px 9px 34px", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 13, outline: "none" }} />
+        </div>
+      } />
+
+      <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", position: "sticky", top: 52, zIndex: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+        {(() => {
+          const open = tickets.filter((t) => t.status === "open").length;
+          const inP = tickets.filter((t) => t.status === "in_progress").length;
+          const rev = tickets.filter((t) => t.status === "review").length;
+          const total = open + inP + rev;
+          const pct = tickets.length > 0 ? Math.round((tickets.filter((t) => t.status === "completed").length / tickets.length) * 100) : 0;
+          return <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{total > 5 ? "●" : total > 2 ? "●" : "●"}</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{total} active ticket{total !== 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{open} open {"\u2022"} {inP} in progress{rev > 0 ? " \u2022 " + rev + " review" : ""}</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: pct + "%", background: pct > 80 ? "#16a34a" : pct > 50 ? "#ca8a04" : "var(--brand)", borderRadius: 3, transition: "width 0.3s" }}></div>
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 3, textAlign: "right" }}>{pct}% completed</div>
+            </div>
+          </>;
+        })()}
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <StatsBar tickets={tickets} />
+      </div>
+
+      <div className="hub-filter-bar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
+          {filterTabs.map((tab) => (
+            <button key={tab.key} onClick={() => setFilter(tab.key)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", transition: "all 0.2s", background: filter === tab.key ? "var(--brand)" : "transparent", color: filter === tab.key ? "#fff" : "var(--text-secondary)" }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {currentUser && <button onClick={() => setMineOnly(!mineOnly)} style={{ padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (mineOnly ? "var(--brand)" : "var(--border)"), background: mineOnly ? "var(--brand)" : "transparent", color: mineOnly ? "#fff" : "var(--text-muted)", transition: "all 0.15s" }}>Mine</button>}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 2, background: "var(--bg-card)", borderRadius: 6, padding: 2, border: "1px solid var(--border)" }}>
+            <button onClick={() => setViewMode("list")} title="List view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "list" ? "var(--brand)" : "transparent", color: viewMode === "list" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u2630"}</button>
+            <button onClick={() => setViewMode("kanban")} title="Kanban view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "kanban" ? "var(--brand)" : "transparent", color: viewMode === "kanban" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}>{"\u25A8"}</button>
+            <button onClick={() => setViewMode("queue")} title="Queue view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "queue" ? "var(--brand)" : "transparent", color: viewMode === "queue" ? "#fff" : "var(--text-muted)", fontSize: 12, transition: "all 0.15s" }}><List size={13} /></button>
+            <button onClick={() => setViewMode("grid")} title="Grid view" style={{ padding: "5px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: viewMode === "grid" ? "var(--brand)" : "transparent", color: viewMode === "grid" ? "#fff" : "var(--text-muted)", fontSize: 14, lineHeight: 1, transition: "all 0.2s" }}>{"\u25A6"}</button>
+          </div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--brand)", fontSize: 13, cursor: "pointer", outline: "none" }}>
+            <option value="priority">Sort: Priority</option>
+            <option value="deadline">Sort: Deadline</option>
+            <option value="newest">Sort: Newest</option>
+          </select>
+          {savedFilters.length > 0 && (
+            <select onChange={(e) => { const p = savedFilters.find((f) => f.name === e.target.value); if (p) loadFilter(p); e.target.value = ""; }} style={{ padding: "6px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer", outline: "none" }}>
+              <option value="">Saved views...</option>
+              {savedFilters.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+          )}
+          <button onClick={() => setShowSaveFilter(!showSaveFilter)} title="Save current view" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border)", background: showSaveFilter ? "var(--brand-light)" : "var(--bg-input)", color: showSaveFilter ? "var(--brand)" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><Save size={14} /></button>
+        </div>
+      </div>
+      {showSaveFilter && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>Save as:</span>
+          <input value={filterName} onChange={(e) => setFilterName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveFilter(); }} placeholder="e.g. High priority overdue" style={{ flex: 1, padding: "6px 10px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none" }} />
+          <button onClick={saveFilter} disabled={!filterName.trim()} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: filterName.trim() ? 1 : 0.4 }}>Save</button>
+          {savedFilters.length > 0 && <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>{savedFilters.map((f) => (
+            <span key={f.name} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "var(--bg-input)", borderRadius: 4, fontSize: 11, color: "var(--text-muted)" }}>{f.name}<button onClick={() => deleteFilter(f.name)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", padding: 0, fontSize: 12, lineHeight: 1 }}>×</button></span>
+          ))}</div>}
+        </div>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "var(--brand-light)", border: "1px solid var(--brand-glow)", borderRadius: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand)" }}>{selectedIds.length} selected</span>
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            <button onClick={() => batchAction("in_progress")} style={{ padding: "5px 12px", background: "rgba(2,132,199,0.1)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 6, color: "#0284c7", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u25B6"} Start All</button>
+            <button onClick={() => batchAction("review")} style={{ padding: "5px 12px", background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 6, color: "#8b5cf6", fontSize: 11, fontWeight: 600, cursor: "pointer" }}><><Eye size={12} style={{display:"inline",verticalAlign:"-1px"}} /> Review All</></button>
+            <button onClick={() => batchAction("complete")} style={{ padding: "5px 12px", background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 6, color: "#16a34a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{"\u2713"} Complete All</button>
+            <button onClick={clearSelection} style={{ padding: "5px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>{"\u2715"}</button>
+          </div>
+        </div>
+      )}
+
+      {sorted.length === 0 ? (
+        <div className="hub-empty">
+          <div className="hub-empty-icon">{search.trim() ? <Search size={40} /> : <ClipboardList size={40} />}</div>
+          <p className="hub-empty-title">{search.trim() ? 'No tickets matching "' + search.trim() + '"' : "No tickets found" + (filter !== "all" ? " for this filter" : "")}</p>
+          <p className="hub-empty-desc">{search.trim() ? "Try different keywords or clear your search" : filter !== "all" ? "Try a different filter or check All tickets" : "Tickets will appear here once submitted"}</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((t) => <TicketCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={(id, ts) => onComplete(id, ts)} onAddNote={onAddNote} onDelete={onDelete} onUpdatePriority={onUpdatePriority} onUpdateDeadline={onUpdateDeadline} onReopen={onReopen} onTogglePin={onTogglePin} onDuplicate={onDuplicate} onEditTicket={onEditTicket} currentUser={currentUser} hubUsers={hubUsers} />)}
+        </div>
+      ) : viewMode === "queue" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {queueTickets.length === 0 ? (
+            <div className="hub-empty" style={{ padding: "40px 20px" }}>
+              <div className="hub-empty-icon"><CheckCircle2 size={32} /></div>
+              <p className="hub-empty-title">Queue clear</p>
+              <p className="hub-empty-desc">No active tickets — nice work!</p>
+            </div>
+          ) : queueTickets.map((t) => {
+            const p = PRIORITIES[t.priority];
+            const s = STATUS[t.status] || STATUS_FALLBACK;
+            return (
+              <div key={t.id} onClick={() => setDetailId(detailId === t.id ? null : t.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: detailId === t.id ? "var(--brand-light)" : "var(--bg-card)", border: "1px solid " + (detailId === t.id ? "var(--brand)" : "var(--border)"), borderRadius: 8, transition: "all 0.15s", cursor: "pointer" }} className="hub-card-hover">
+                <input type="checkbox" checked={!!selected[t.id]} onChange={() => toggleSelect(t.id)} style={{ accentColor: "var(--brand)", cursor: "pointer", flexShrink: 0 }} />
+                <span style={{ fontSize: 14 }}>{p?.icon}</span>
+                <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 7px", borderRadius: 4, flexShrink: 0 }}>{t.ref || t.id}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.name} {t.deadline ? "\u2022 " + new Date(t.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, flexShrink: 0 }}>{s.label}</span>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  {t.status === "open" && <button onClick={() => onStatusChange(t.id, "in_progress")} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(2,132,199,0.3)", background: "rgba(2,132,199,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#0284c7" }}>Start</button>}
+                  {t.status === "in_progress" && <button onClick={() => onStatusChange(t.id, "review")} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#8b5cf6" }}>Review</button>}
+                  {(t.status === "in_progress" || t.status === "review") && <button onClick={() => onComplete(t.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(22,163,74,0.3)", background: "rgba(22,163,74,0.06)", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#16a34a" }}>Done</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : viewMode === "kanban" ? (
+        <div className="hub-kanban" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, overflowX: "auto" }}>
+          {[{ key: "open", label: "Open", color: "#6366f1", icon: "→" }, { key: "in_progress", label: "In Progress", color: "#0284c7", icon: "⟳" }, { key: "review", label: "Review", color: "#8b5cf6", icon: "◎" }, { key: "completed", label: "Completed", color: "#16a34a", icon: "\u2705" }].map((col) => {
+            const colTickets = tickets.filter((t) => t.status === col.key).sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+            return (
+              <div key={col.key} style={{ minWidth: 200 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "0 4px" }}>
+                  <span style={{ fontSize: 12 }}>{col.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: col.color }}>{col.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-input)", padding: "1px 6px", borderRadius: 8, marginLeft: "auto" }}>{colTickets.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 100, padding: 4, background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
+                  {colTickets.length === 0 ? (
+                    <div style={{ padding: "20px 8px", textAlign: "center", fontSize: 11, color: "var(--text-muted)" }}>No tickets</div>
+                  ) : colTickets.map((t) => {
+                    const p = PRIORITIES[t.priority];
+                    const dueBadge = getDueBadge(t.deadline, t.status);
+                    return (
+                      <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", cursor: "default", transition: "all 0.15s" }} onMouseOver={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }} onMouseOut={(e) => { e.currentTarget.style.boxShadow = "none"; }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                          <span style={{ fontSize: 9, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 3 }}>{t.id}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: p?.color, background: p?.bg, padding: "1px 5px", borderRadius: 8 }}>{p?.icon}</span>
+                          {dueBadge && <span style={{ fontSize: 9, fontWeight: 600, color: dueBadge.color, marginLeft: "auto" }}>{dueBadge.text}</span>}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{t.name}</div>
+                        <div style={{ display: "flex", gap: 3, marginTop: 6 }}>
+                          {col.key === "open" && <button onClick={() => onStatusChange(t.id, "in_progress")} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(2,132,199,0.2)", background: "rgba(2,132,199,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#0284c7" }}>Start</button>}
+                          {col.key === "in_progress" && <button onClick={() => onStatusChange(t.id, "review")} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(139,92,246,0.2)", background: "rgba(139,92,246,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#8b5cf6" }}>Review</button>}
+                          {col.key === "review" && <button onClick={() => onComplete(t.id)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid rgba(22,163,74,0.2)", background: "rgba(22,163,74,0.06)", fontSize: 9, fontWeight: 600, cursor: "pointer", color: "#16a34a" }}>Done</button>}
+                          {col.key !== "completed" && <button onClick={() => onComplete(t.id)} style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--border)", background: "transparent", fontSize: 9, cursor: "pointer", color: "var(--text-muted)" }}>{"\u2713"}</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+          {sorted.map((t) => <GridCard key={t.id} ticket={t} onStatusChange={onStatusChange} onComplete={onComplete} onDelete={onDelete} onReopen={onReopen} onTogglePin={onTogglePin} />)}
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {detailTicket && (
+        <div style={{ position: "fixed", top: 52, right: 0, bottom: 0, width: 380, background: "var(--bg-card)", borderLeft: "1px solid var(--border)", boxShadow: "-4px 0 20px rgba(0,0,0,0.06)", zIndex: 50, overflowY: "auto", animation: "slideIn 0.15s ease", padding: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <span style={{ fontSize: 14, fontFamily: "monospace", fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "3px 10px", borderRadius: 6 }}>{detailTicket.ref || detailTicket.id}</span>
+            <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: 0 }}>✕</button>
+          </div>
+          <h3 style={{ margin: "0 0 10px", fontSize: 17, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3 }}>{detailTicket.title}</h3>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: (PRIORITIES[detailTicket.priority]?.bg || "var(--bg-input)"), color: (PRIORITIES[detailTicket.priority]?.color || "var(--text-muted)"), border: "1px solid " + (PRIORITIES[detailTicket.priority]?.border || "var(--border)") }}>{PRIORITIES[detailTicket.priority]?.icon} {PRIORITIES[detailTicket.priority]?.label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: (STATUS[detailTicket.status]?.bg || "var(--bg-input)"), color: (STATUS[detailTicket.status]?.color || "var(--text-muted)") }}>{STATUS[detailTicket.status]?.label || detailTicket.status}</span>
+          </div>
+          <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--text-muted)", marginBottom: 16, flexWrap: "wrap" }}>
+            <span><User size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {detailTicket.name}</span>
+            {detailTicket.deadline && <span><CalendarDays size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> {formatDate(detailTicket.deadline)}</span>}
+            <span>Created {new Date(detailTicket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+          </div>
+          {detailTicket.description && <div style={{ fontSize: 13, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 16, padding: "12px 14px", background: "var(--bg-input)", borderRadius: 8, border: "1px solid var(--border)" }} dangerouslySetInnerHTML={{ __html: renderMarkdown(detailTicket.description) }}></div>}
+          <FilePreview files={detailTicket.files} />
+          {(detailTicket.notes || []).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 8 }}>Comments ({detailTicket.notes.length})</div>
+              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                {detailTicket.notes.map((n, i) => (
+                  <div key={i} style={{ padding: "8px 10px", background: n.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, marginBottom: 4, fontSize: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}><span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{n.author}</span><span style={{ fontSize: 10, color: "var(--text-muted)" }}>{(() => { const d = (Date.now() - new Date(n.timestamp)) / 60000; return d < 60 ? Math.floor(d) + "m" : d < 1440 ? Math.floor(d / 60) + "h" : Math.floor(d / 1440) + "d"; })()}</span></div>
+                    <div style={{ color: "var(--text-secondary)", lineHeight: 1.4 }}>{n.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, marginTop: 16, flexWrap: "wrap" }}>
+            {detailTicket.status === "open" && <button onClick={() => onStatusChange(detailTicket.id, "in_progress")} style={{ padding: "7px 14px", background: "rgba(2,132,199,0.08)", border: "1px solid rgba(2,132,199,0.2)", borderRadius: 8, color: "#0284c7", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Start</button>}
+            {detailTicket.status === "in_progress" && <button onClick={() => onStatusChange(detailTicket.id, "review")} style={{ padding: "7px 14px", background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 8, color: "#8b5cf6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Send for Review</button>}
+            {detailTicket.status !== "completed" && <button onClick={() => onComplete(detailTicket.id)} style={{ padding: "7px 14px", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 8, color: "#16a34a", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Complete</button>}
+            {detailTicket.status === "completed" && <button onClick={() => onReopen(detailTicket.id)} style={{ padding: "7px 14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#6366f1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Reopen</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export function MeetingTodos({ onBulkCreate, currentUser }) {
+  const [items, setItems] = useState([""]);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(null);
+
+  const addItem = () => setItems([...items, ""]);
+  const updateItem = (i, val) => { const next = [...items]; next[i] = val; setItems(next); };
+  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
+
+  const now = new Date();
+  const dow = now.getDay();
+  const thisMon = new Date(now); thisMon.setDate(now.getDate() - ((dow + 6) % 7));
+  const weekNum = Math.ceil(((now - new Date(now.getFullYear(), 0, 1)) / 86400000 + new Date(now.getFullYear(), 0, 1).getDay() + 1) / 7);
+  const weekTag = "W" + weekNum + "-" + now.getFullYear();
+
+  const handleCreate = async () => {
+    const valid = items.filter((i) => i.trim());
+    if (valid.length === 0) return;
+    setCreating(true);
+    await onBulkCreate(valid.map((title) => ({ title: title.trim(), tag: weekTag })));
+    setCreated(valid.length);
+    setItems([""]);
+    setCreating(false);
+    setTimeout(() => setCreated(null), 4000);
+  };
+
+  if (created) return (
+    <div style={{ maxWidth: 560, width: "100%", textAlign: "center", padding: "60px 20px" }}>
+      <div style={{ width: 64, height: 64, borderRadius: 32, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", animation: "scaleIn 0.4s ease" }}><CheckCircle2 size={32} style={{ color: "#16a34a" }} /></div>
+      <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>{created} Tickets Created</h2>
+      <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Tagged as <strong>{weekTag}</strong> with 5 business day deadlines.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 580, width: "100%" }}>
+      <div style={{ background: "linear-gradient(135deg, #0d9488 0%, #20A39E 100%)", borderRadius: 16, padding: "28px 24px 24px", marginBottom: 24, color: "#fff", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: 50, background: "rgba(255,255,255,0.06)" }}></div>
+        <ClipboardList size={24} style={{ opacity: 0.6, marginBottom: 10 }} />
+        <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800 }}>Weekly Meeting To-Dos</h1>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>Add each to-do as a separate line. Each becomes a ticket tagged <strong>{weekTag}</strong> with a 5 business day deadline.</p>
+      </div>
+
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 24, height: 24, borderRadius: 12, background: "var(--bg-input)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>{i + 1}</span>
+              <input value={item} onChange={(e) => updateItem(i, e.target.value)} placeholder={"To-do item " + (i + 1) + "..."} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (i === items.length - 1) addItem(); } }} style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} autoFocus={i === items.length - 1} />
+              {items.length > 1 && <button onClick={() => removeItem(i)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 16, padding: "0 4px" }}>✕</button>}
+            </div>
+          ))}
+        </div>
+        <button onClick={addItem} style={{ width: "100%", padding: "10px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 8, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, marginBottom: 20 }}>+ Add another item</button>
+        <button onClick={handleCreate} disabled={creating || items.every((i) => !i.trim())} style={{ width: "100%", padding: "14px", background: items.some((i) => i.trim()) ? "linear-gradient(135deg, #0d9488, #20A39E)" : "var(--border)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: creating ? "wait" : "pointer", opacity: items.some((i) => i.trim()) ? 1 : 0.5, transition: "all 0.3s", boxShadow: items.some((i) => i.trim()) ? "0 4px 16px rgba(13,148,136,0.25)" : "none" }}>
+          {creating ? "Creating..." : "Create " + items.filter((i) => i.trim()).length + " Ticket" + (items.filter((i) => i.trim()).length !== 1 ? "s" : "")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, currentUser, onEditTicket, onApprove, onRequestChanges }) {
+  const [trackRef, setTrackRef] = useState(submittedRef || "");
+  const [noteText, setNoteText] = useState("");
+  const [noteName, setNoteName] = useState(currentUser?.name || "");
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [feedbackText, setFeedbackText] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  const ticket = tickets.find((t) => t.id.toLowerCase() === trackRef.trim().toLowerCase());
+
+  const submitNote = () => {
+    const author = currentUser?.name || noteName.trim();
+    if (!noteText.trim() || !author || !ticket) return;
+    onAddNote(ticket.id, author, noteText.trim());
+    setNoteText("");
+    if (!currentUser) setNoteName("");
+  };
+
+  const saveEdit = () => {
+    if (!editForm.title?.trim()) return;
+    onEditTicket(ticket.id, { title: editForm.title.trim(), description: (editForm.description || "").trim() });
+    setEditing(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 560, width: "100%" }}>
+      {submittedRef && (
+        <div style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 12, padding: 24, marginBottom: 20, textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(22,163,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 22 }}>{"\u2713"}</div>
+          <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "var(--brand)" }}>Ticket Submitted!</h2>
+          <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--text-secondary)" }}>Your reference number is:</p>
+          <div style={{ display: "inline-block", background: "var(--brand)", color: "#fff", padding: "10px 28px", borderRadius: 10, fontSize: 28, fontFamily: "monospace", fontWeight: 800, letterSpacing: "0.08em" }}>{submittedRef}</div>
+          <p style={{ margin: "14px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>Keep this reference to track your ticket's progress below.</p>
+        </div>
+      )}
+
+      {!submittedRef && <PageHeader icon={<Search size={22} />} title="Track a Ticket" subtitle={currentUser ? "Your submitted tickets" : "Enter your ticket reference to check its status"} gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" />}
+
+      {/* My tickets list for logged-in users */}
+      {currentUser && !submittedRef && !trackRef.trim() && (() => {
+        const myTickets = tickets.filter((t) => t.name === currentUser.name || t.createdBy === currentUser.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        if (myTickets.length === 0) return <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)", marginBottom: 16 }}><span style={{ fontSize: 40, display: "block", marginBottom: 8, opacity: 0.6 }}>📋</span><div style={{ fontSize: 14, fontWeight: 600 }}>No tickets submitted yet</div><div style={{ fontSize: 12, marginTop: 4 }}>When you submit a request, it will appear here.</div></div>;
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your Tickets ({myTickets.length})</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {myTickets.map((t) => {
+                const p = PRIORITIES[t.priority] || {};
+                const s = STATUS[t.status] || STATUS_FALLBACK;
+                const hasNew = t.notes && t.notes.length > 0 && t.notes.some((n) => n.author !== currentUser.name);
+                return (
+                  <div key={t.id} onClick={() => setTrackRef(t.id)} style={{ background: "var(--bg-card)", borderLeft: "4px solid " + (p.color || "#94a3b8"), borderRadius: 14, padding: "14px 18px", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff", background: "var(--brand)", padding: "3px 10px", borderRadius: 8 }}>{t.id}</span>
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+                      {hasNew && <span className="hub-breathe" style={{ width: 8, height: 8, borderRadius: 4, background: "#dc2626", flexShrink: 0 }}></span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {p.label || t.priority}{t.notes && t.notes.length > 0 ? " · " + t.notes.length + " comment" + (t.notes.length !== 1 ? "s" : "") : ""}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 20, marginBottom: 10 }}>Or search by reference</div>
+          </div>
+        );
+      })()}
+
+      <div style={{ marginBottom: 16 }}>
+        {!submittedRef && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input value={trackRef} onChange={(e) => setTrackRef(e.target.value.toUpperCase())} placeholder="Enter ticket ref e.g. M001" style={{ flex: 1, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "monospace", fontWeight: 600, outline: "none", letterSpacing: "0.04em" }} />
+          </div>
+        )}
+
+        {trackRef.trim() && !ticket && (
+          <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>
+            <p style={{ fontSize: 14, margin: 0 }}>No ticket found with reference "{trackRef.trim()}"</p>
+          </div>
+        )}
+
+        {ticket && (() => {
+          const p = PRIORITIES[ticket.priority];
+          const s = STATUS[ticket.status] || STATUS_FALLBACK;
+          const dueBadge = getDueBadge(ticket.deadline, ticket.status);
+  const TIME_LABELS = { "15m": "15 min", "30m": "30 min", "1h": "1 hour", "2h": "2 hours", "half_day": "Half day", "full_day": "Full day", "multi_day": "Multi-day" };
+          return (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontFamily: "monospace", color: "var(--brand)", fontWeight: 700, background: "var(--brand-light)", padding: "3px 9px", borderRadius: 5 }}>{ticket.id}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: p.bg, color: p.color, border: "1px solid " + p.border }}>{p.icon} {p.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+                {dueBadge && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: dueBadge.bg, color: dueBadge.color, border: "1px solid " + dueBadge.border }}>{dueBadge.text}</span>}
+              </div>
+              <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: "var(--brand)" }}>{ticket.title}</h4>
+              <div style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderMarkdown(ticket.description) }}></div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+                <span><><User size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {ticket.name}</></span>
+                <span><><CalendarDays size={13} style={{display:"inline",verticalAlign:"-2px"}} /> {formatDate(ticket.deadline)}</></span>
+                <span style={{ opacity: 0.6 }}>Created {new Date(ticket.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                {ticket.completedAt && <span style={{ color: "#16a34a" }}>{"\u2713"} Completed {new Date(ticket.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>}
+              </div>
+
+              {/* Status timeline */}
+              <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
+                {[
+                  { key: "open", label: "Submitted", icon: "→" },
+                  { key: "in_progress", label: "In Progress", icon: "⟳" },
+                  { key: "review", label: "Review", icon: "◎" },
+                  { key: "completed", label: "Completed", icon: "\u2713" },
+                ].map((step, idx) => {
+                  const statusOrder = { open: 0, in_progress: 1, review: 2, completed: 3 };
+                  const current = statusOrder[ticket.status] ?? 0;
+                  const active = idx <= current;
+                  return (
+                    <div key={step.key} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: active ? "var(--brand)" : "var(--bar-bg)", color: active ? "#fff" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px", fontSize: 14, fontWeight: 700, transition: "all 0.3s" }}>{step.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: active ? "var(--brand)" : "var(--text-muted)" }}>{step.label}</div>
+                      {idx < 3 && <div style={{ position: "absolute", top: 15, left: "60%", right: "-40%", height: 2, background: idx < current ? "var(--brand)" : "var(--bar-bg)", zIndex: -1 }}></div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Edit ticket */}
+              {ticket.status !== "completed" && !editing && (
+                <button onClick={() => { setEditing(true); setEditForm({ title: ticket.title, description: ticket.description }); }} style={{ padding: "7px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
+                  {"\u270E"} Edit Ticket
+                </button>
+              )}
+              {editing && (
+                <div style={{ marginBottom: 14, padding: 14, background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Title</label>
+                    <input value={editForm.title || ""} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Description</label>
+                    <textarea value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={saveEdit} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{"\u2713"} Save</button>
+                    <button onClick={() => setEditing(false)} style={{ padding: "7px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Approval workflow */}
+              {ticket.status === "review" && onApprove && (
+                <div style={{ marginBottom: 14, padding: 16, background: "rgba(139,92,246,0.04)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", marginBottom: 8 }}><Eye size={12} /> This ticket is ready for your review</div>
+                  <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>The marketing team has completed the work. Please review and either approve or request changes.</p>
+                  {!showFeedback ? (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => onApprove(ticket.id)} style={{ padding: "9px 20px", background: "#16a34a", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{"\u2705"} Approve</button>
+                      <button onClick={() => setShowFeedback(true)} style={{ padding: "9px 20px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}><><RotateCcw size={13} style={{display:"inline",verticalAlign:"-1px"}} /> Request Changes</></button>
+                    </div>
+                  ) : (
+                    <div>
+                      <textarea value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} placeholder="What changes are needed?" rows={2} style={{ width: "100%", padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "var(--text-primary)", outline: "none", resize: "vertical", fontFamily: "inherit", marginBottom: 8, boxSizing: "border-box" }} />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { onRequestChanges(ticket.id, feedbackText.trim()); setShowFeedback(false); setFeedbackText(""); }} style={{ padding: "7px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Send Feedback</button>
+                        <button onClick={() => { setShowFeedback(false); setFeedbackText(""); }} style={{ padding: "7px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Comments thread */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Comments & Updates {ticket.notes && ticket.notes.length > 0 && <span style={{ fontWeight: 500, color: "var(--text-muted)", textTransform: "none", letterSpacing: 0 }}>({ticket.notes.length})</span>}</div>
+                {(!ticket.notes || ticket.notes.length === 0) && <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)", fontSize: 12, background: "var(--bg-input)", borderRadius: 10, marginBottom: 10 }}>No comments yet. Add one below to start the conversation.</div>}
+                {ticket.notes && ticket.notes.length > 0 && (
+                  <div style={{ maxHeight: 350, overflowY: "auto", paddingRight: 4, marginBottom: 10, position: "relative", paddingLeft: 20 }}>
+                    <div style={{ position: "absolute", left: 7, top: 0, bottom: 0, width: 2, background: "var(--border)", borderRadius: 1 }}></div>
+                    {ticket.notes.map((note, i) => {
+                      var isMe = currentUser && note.author === currentUser.name;
+                      return (
+                        <div key={i} style={{ position: "relative", marginBottom: 10 }}>
+                          <div style={{ position: "absolute", left: -17, top: 6, width: 10, height: 10, borderRadius: 5, background: note.auto ? "#6366f1" : isMe ? "var(--brand)" : "#16a34a", border: "2px solid var(--bg-card)" }}></div>
+                          <div style={{ background: note.auto ? "rgba(99,102,241,0.05)" : isMe ? "rgba(35,29,104,0.04)" : "var(--bg-input)", borderRadius: 12, padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                              {!note.auto && <span style={{ width: 22, height: 22, borderRadius: 11, background: isMe ? "var(--brand)" : "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>{note.author?.charAt(0)?.toUpperCase() || "?"}</span>}
+                              {note.auto && <span style={{ fontSize: 12 }}>{"\u2699\uFE0F"}</span>}
+                              <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : isMe ? "var(--brand)" : "#16a34a" }}>{note.author}{isMe ? " (you)" : ""}</span>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add comment */}
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  {currentUser ? (
+                    <span style={{ width: 34, height: 34, borderRadius: 17, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                  ) : (
+                    <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 110, padding: "10px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, display: "flex", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: "4px 4px 4px 12px", alignItems: "center" }}>
+                    <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Write a comment..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 0", background: "transparent", border: "none", color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+                    <button onClick={submitNote} disabled={!noteText.trim()} style={{ padding: "8px 16px", background: noteText.trim() ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: noteText.trim() ? "pointer" : "default", opacity: noteText.trim() ? 1 : 0.4, transition: "all 0.2s" }}>Send</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <button onClick={onBackToForm} style={{ width: "100%", padding: "11px 24px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }} onMouseOver={(e) => e.target.style.background = "var(--brand)"} onMouseOut={(e) => e.target.style.background = "var(--brand)"}>
+        {"\u2190"} Submit Another Ticket
+      </button>
+    </div>
+  );
+}
+
+

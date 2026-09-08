@@ -1,0 +1,1434 @@
+import { useState, useEffect, useRef } from "react";
+import { Home, PenSquare, Search, User, TrendingUp, Library, Palette, Image, CalendarDays, Briefcase, Target, ArrowLeftRight, QrCode, Crop, Repeat, FileText, ClipboardList, BookOpen, LayoutDashboard, BarChart3, PieChart, Clock, Settings, ChevronDown, ChevronsLeft, ChevronsRight, Plus, Menu, Sun, Moon, LogIn, LogOut, MoreHorizontal, X, ExternalLink, Wand2, Star, FolderOpen } from "lucide-react";
+import { supabase } from "./supabaseClient.js";
+import { ALPS_LOGO, PRIORITIES, STATUS, SLA_TARGETS, ARCHIVE_TYPES, TEMPLATES, getNextRef, formatDate, renderMarkdown, loadSlaSettings, saveSlaSettings, loadArchiveTypes, saveArchiveTypes, loadTemplates, saveTemplates } from "./constants.js";
+import { TicketForm, TicketCard, GridCard, StatsBar, Dashboard, SubmitterView, MeetingTodos } from "./components/Tickets.jsx";
+import { AnalyticsPanel, AdminPanel, RecurringSchedules, TeamGoals, MonthlySummary, WeeklyReport } from "./components/Admin.jsx";
+import { MarketingArchive, ArchiveForm, LeadForm, LeadsDashboard, BrandAssets, Testimonials, BrandAssetManagement, AlpsGallery, ContentStockroom } from "./components/Resources.jsx";
+import { QRCodeGenerator, EmailSignatureGenerator, FirstPolicySold } from "./components/Tools.jsx";
+import { FileChip, FilePreview, PageHeader, HubHome, MyWeek, HubErrorBoundary, LoginPage, SignUpPage, ProfilePage, Toast, OnboardingOverlay, NotificationsCenter, ActivityLog } from "./components/UI.jsx";
+
+
+const PATH_MAP = { '/': 'hub', '/submit': 'form', '/submitted': 'submitted', '/track': 'tracker', '/login': 'password', '/signup': 'signup', '/profile': 'profile', '/dashboard': 'dashboard', '/activity': 'activity', '/analytics': 'analytics', '/weekly': 'weekly', '/archive': 'archive', '/archive/new': 'archive_add', '/archive/edit': 'archive_edit', '/leads/new': 'lead_form', '/leads': 'leads_dashboard', '/brand-assets': 'brand_assets', '/qr': 'qr_generator', '/signatures': 'signatures', '/first-policy': 'first_policy', '/testimonials': 'testimonials', '/brand-management': 'brand_management', '/gallery': 'gallery', '/stockroom': 'stockroom', '/meeting-todos': 'meeting_todos', '/monthly': 'monthly_summary', '/my-week': 'my_week', '/admin': 'admin' };
+const VIEW_PATH = Object.fromEntries(Object.entries(PATH_MAP).map(([k, v]) => [v, k]));
+const getHash = () => window.location.hash.replace(/^#/, '') || '/';
+
+export default function App() {
+  const [_path, _setPath] = useState(getHash);
+  useEffect(() => { const h = () => _setPath(getHash()); window.addEventListener("hashchange", h); if (!window.location.hash) window.location.hash = "#/"; return () => window.removeEventListener("hashchange", h); }, []);
+  const view = PATH_MAP[_path] || "hub";
+  const setView = (v) => { window.location.hash = "#" + (VIEW_PATH[v] || "/"); };
+
+  const [tickets, setTickets] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { const u = localStorage.getItem('alps_hub_user'); return u ? JSON.parse(u) : null; } catch { return null; }
+  });
+  const dashUnlocked = !!currentUser;
+  const isAdmin = currentUser?.role === "admin";
+  const isEditor = currentUser?.role === "admin" || currentUser?.role === "editor";
+  const userRole = currentUser?.role || "viewer";
+  const [hubUsers, setHubUsers] = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastSubmittedRef, setLastSubmittedRef] = useState(null);
+  const [archiveEntries, setArchiveEntries] = useState([]);
+  const [editArchiveEntry, setEditArchiveEntry] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [brandAssets, setBrandAssets] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [stockroomItems, setStockroomItems] = useState([]);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [testimonialItems, setTestimonialItems] = useState([]);
+  const [recurringSchedules, setRecurringSchedules] = useState([]);
+  const [oooActive, setOooActive] = useState(false);
+  const [oooReturnDate, setOooReturnDate] = useState("");
+  const [oooStartDate, setOooStartDate] = useState("");
+  const [oooSummaryDismissed, setOooSummaryDismissed] = useState(false);
+  const [dashPassword, setDashPassword] = useState("Sunnyside!");
+  const [announcement, setAnnouncement] = useState({ text: "", active: false, link: "" });
+  const [kbArticles, setKbArticles] = useState([]);
+  const [teamGoals, setTeamGoals] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const [dashboardTab, setDashboardTab] = useState("tickets");
+  const [duplicateData, setDuplicateData] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(() => { try { return !localStorage.getItem("alps_hub_onboarded"); } catch { return false; } });
+  const [dark, setDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    // Load persisted notifications
+    supabase.from("notifications").select("*").order("time", { ascending: false }).limit(50).then(({ data, error }) => {
+      if (data && !error) setNotifications(data);
+    }).catch(() => {});
+    loadSlaSettings().catch(() => {});
+    loadArchiveTypes().catch(() => {});
+    loadTemplates().catch(() => {});
+  }, []);
+
+  const addNotification = async (icon, title, body, action, forUser) => {
+    const n = { icon, title, body, action, time: new Date().toISOString(), read: false };
+    setNotifications((prev) => [n, ...prev].slice(0, 50));
+    await supabase.from("notifications").insert({ icon, title, body, action, time: n.time, read: false, for_user: forUser || null });
+  };
+  const clearNotifications = async () => { setNotifications([]); await supabase.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000"); };
+  const toast = (message, type = "info", onUndo) => { const id = Date.now(); setToasts((prev) => [...prev, { id, message, type, onUndo }]); setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), onUndo ? 6000 : 4000); };
+  const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
+  const markAllRead = async () => { setNotifications((prev) => prev.map((n) => ({ ...n, read: true }))); await supabase.from("notifications").update({ read: true }).eq("read", false); };
+
+  const persistNotif = (n) => { supabase.from("notifications").insert(n).then(() => {}).catch(() => {}); };
+
+  // Load tickets from Supabase and subscribe to real-time changes
+  useEffect(() => {
+    async function fetchTickets() {
+      const { data } = await supabase.from("tickets").select("*").order("created_at", { ascending: false });
+      if (data) setTickets(data.map(mapRow));
+      setLoading(false);
+    }
+    fetchTickets();
+
+    const channel = supabase.channel("tickets-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tickets" }, (payload) => {
+        fetchTickets();
+        if (payload.new) {
+          const t = payload.new;
+          const p = PRIORITIES[t.priority];
+          setNotifications((prev) => [{ icon: "📝", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: "📝", title: "New Ticket: " + t.ref, body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + " from " + t.name, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("New Ticket: " + t.ref, {
+              body: (p ? p.icon + " " + p.label + " \u2022 " : "") + t.title + "\nFrom: " + t.name,
+              icon: "/alps-logo.webp",
+            });
+          }
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tickets" }, (payload) => {
+        fetchTickets();
+        if (payload.new && payload.old && payload.new.status !== payload.old.status) {
+          const t = payload.new;
+          const statusLabels = { new: "New", open: "Open", in_progress: "In Progress", review: "Ready for Review", completed: "Completed" };
+          setNotifications((prev) => [{ icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "◎" : "⟳", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50));
+          { const _n = { icon: t.status === "completed" ? "\u2705" : t.status === "review" ? "◎" : "⟳", title: (t.ref || "Ticket") + " \u2192 " + (statusLabels[t.status] || t.status), body: t.title, action: "dashboard", time: new Date().toISOString(), read: false }; persistNotif(_n); }
+        }
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "tickets" }, () => {
+        fetchTickets();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+
+  // Load archive
+  useEffect(() => {
+    async function fa() { const { data } = await supabase.from("archive_entries").select("*").order("date", { ascending: false }); if (data) setArchiveEntries(data); }
+    fa();
+    const ch = supabase.channel("archive-rt").on("postgres_changes", { event: "*", schema: "public", table: "archive_entries" }, () => { fa(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load leads
+  useEffect(() => {
+    async function fl() { const { data } = await supabase.from("leads").select("*").order("created_at", { ascending: false }); if (data) setLeads(data); }
+    fl();
+    const ch = supabase.channel("leads-rt").on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, (payload) => { fl(); if (payload.new) { const l = payload.new; setNotifications((prev) => [{ icon: "📈", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }, ...prev].slice(0, 50)); persistNotif({ icon: "📈", title: "New Lead Logged", body: l.broker + " \u2022 " + l.enquiry, action: "leads_dashboard", time: new Date().toISOString(), read: false }); } }).on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, () => { fl(); }).on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, () => { fl(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load brand assets
+  useEffect(() => {
+    async function fb() { const { data } = await supabase.from("brand_assets").select("*").order("asset_name", { ascending: true }); if (data) setBrandAssets(data); }
+    fb();
+    const ch = supabase.channel("brand-rt").on("postgres_changes", { event: "*", schema: "public", table: "brand_assets" }, () => { fb(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+
+
+  // Load calendar events
+  useEffect(() => {
+    async function fc() { const { data } = await supabase.from("calendar_events").select("*").order("date", { ascending: true }); if (data) setCalendarEvents(data); }
+    fc();
+    const ch = supabase.channel("calendar-rt").on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => { fc(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load gallery images
+  useEffect(() => {
+    async function fg() { const { data } = await supabase.from("gallery_images").select("*").order("uploaded_at", { ascending: false }); if (data) setGalleryImages(data); }
+    fg();
+    const ch = supabase.channel("gallery-rt").on("postgres_changes", { event: "*", schema: "public", table: "gallery_images" }, () => { fg(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load testimonials
+  useEffect(() => {
+    async function fbt() { const { data } = await supabase.from("testimonials").select("*").order("created_at", { ascending: false }); if (data) setTestimonialItems(data); }
+    fbt();
+    const ch = supabase.channel("testimonials-rt").on("postgres_changes", { event: "*", schema: "public", table: "testimonials" }, () => { fbt(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+
+  // Load stockroom items
+  useEffect(() => {
+    async function fsr() { const { data } = await supabase.from("content_stockroom").select("*").order("created_at", { ascending: false }); if (data) setStockroomItems(data); }
+    fsr();
+    const ch = supabase.channel("stockroom-rt").on("postgres_changes", { event: "*", schema: "public", table: "content_stockroom" }, () => { fsr(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load team goals
+  useEffect(() => {
+    async function ftg() { const { data } = await supabase.from("team_goals").select("*").order("created_at", { ascending: true }); if (data) setTeamGoals(data); }
+    ftg();
+    const ch = supabase.channel("goals-rt").on("postgres_changes", { event: "*", schema: "public", table: "team_goals" }, () => { ftg(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load recurring schedules
+  useEffect(() => {
+    async function frs() { const { data } = await supabase.from("recurring_tickets").select("*").order("created_at", { ascending: true }); if (data) setRecurringSchedules(data); }
+    frs();
+    const ch = supabase.channel("recurring-rt").on("postgres_changes", { event: "*", schema: "public", table: "recurring_tickets" }, () => { frs(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Deadline reminder notifications
+  useEffect(() => {
+    if (!currentUser || tickets.length === 0) return;
+    const checkDeadlines = () => {
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      tickets.forEach((t) => {
+        if (t.status === "completed" || !t.deadline) return;
+        const target = new Date(t.deadline + "T00:00:00");
+        const days = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+        const key = "deadline_notif_" + t.id + "_" + t.deadline;
+        try { if (localStorage.getItem(key)) return; } catch {}
+        if (days === 1) {
+          addNotification("\u23F0", "Due Tomorrow", (t.ref || t.id) + ": " + t.title + " is due tomorrow", "dashboard");
+          try { localStorage.setItem(key, "1"); } catch {}
+        } else if (days === 0) {
+          addNotification("⚠", "Due Today", (t.ref || t.id) + ": " + t.title + " is due today!", "dashboard");
+          try { localStorage.setItem(key, "1"); } catch {}
+        } else if (days < 0) {
+          const oKey = key + "_overdue";
+          try { if (localStorage.getItem(oKey)) return; } catch {}
+          addNotification("●", "Overdue", (t.ref || t.id) + ": " + t.title + " is " + Math.abs(days) + " day" + (Math.abs(days) !== 1 ? "s" : "") + " overdue", "dashboard");
+          try { localStorage.setItem(oKey, "1"); } catch {}
+        }
+      });
+    };
+    checkDeadlines();
+    const interval = setInterval(checkDeadlines, 3600000); // Check every hour
+    return () => clearInterval(interval);
+  }, [tickets, currentUser]);
+
+  // Load hub users
+  useEffect(() => {
+    async function fu() { const { data } = await supabase.from("hub_users").select("*").order("created_at", { ascending: true }); if (data) setHubUsers(data); }
+    fu();
+    const ch = supabase.channel("users-rt").on("postgres_changes", { event: "*", schema: "public", table: "hub_users" }, () => { fu(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Load audit log
+  useEffect(() => {
+    async function fal() { const { data } = await supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(50); if (data) setAuditLog(data); }
+    fal();
+    const ch = supabase.channel("audit-rt").on("postgres_changes", { event: "*", schema: "public", table: "audit_log" }, () => { fal(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const logAudit = async (action) => {
+    await supabase.from("audit_log").insert({ user_name: currentUser?.name || "System", action }).catch(() => {});
+  };
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    try { localStorage.setItem("alps_hub_user", JSON.stringify(user)); } catch {}
+    if (view === "password") setView("hub");
+    supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", user.id).then(() => {});
+  };
+
+  // Update last_seen_at periodically
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", currentUser.id).then(() => {});
+    const interval = setInterval(() => {
+      supabase.from("hub_users").update({ last_seen_at: new Date().toISOString() }).eq("id", currentUser.id).then(() => {});
+    }, 5 * 60 * 1000); // every 5 minutes
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try { localStorage.removeItem("alps_hub_user"); } catch {}
+    setView("hub");
+  };
+
+  // User management
+  const handleAddUser = async (u) => {
+    const { error } = await supabase.from("hub_users").insert({ name: u.name, username: u.username, password: u.password, role: u.role || "user" });
+    if (error) toast("Failed to add user", "error"); else { toast("User added", "success"); logAudit("Added user: " + u.name); }
+  };
+  const handleUpdateUser = async (id, u) => {
+    const updates = { name: u.name, username: u.username, role: u.role, approved: u.approved !== undefined ? u.approved : true };
+    if (u.password) updates.password = u.password;
+    const { error } = await supabase.from("hub_users").update(updates).eq("id", id);
+    if (error) toast("Failed to update", "error"); else { toast("User updated", "success"); logAudit("Updated user: " + u.name); }
+  };
+  const handleSignUp = async (u) => {
+    const { error } = await supabase.from("hub_users").insert({ name: u.name, email: u.email || "", username: u.username, password: u.password, role: u.role || "viewer", approved: false });
+    if (error) toast("Sign up failed: " + error.message, "error"); else toast("Account created - pending approval", "success");
+  };
+
+  const handleDeleteUser = async (id) => {
+    const user = hubUsers.find((u) => u.id === id);
+    const { error } = await supabase.from("hub_users").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else { toast("User deleted", "success"); logAudit("Deleted user: " + (user?.name || "Unknown")); }
+  };
+
+  // Load OOO settings
+  useEffect(() => {
+    async function loadSettings() {
+      const { data: oooData } = await supabase.from("app_settings").select("*").eq("key", "ooo").single();
+      if (oooData && oooData.value) {
+        try {
+          const v = typeof oooData.value === "string" ? JSON.parse(oooData.value) : oooData.value;
+          setOooActive(v.active || false);
+          setOooReturnDate(v.return_date || "");
+          setOooStartDate(v.start_date || "");
+        } catch {}
+      }
+      const { data: pwData } = await supabase.from("app_settings").select("*").eq("key", "dashboard_password").single();
+      if (pwData && pwData.value) {
+        try { const v = typeof pwData.value === "string" ? JSON.parse(pwData.value) : pwData.value; if (v.password) setDashPassword(v.password); } catch {}
+      }
+      const { data: annData } = await supabase.from("app_settings").select("*").eq("key", "announcement").single();
+      if (annData && annData.value) {
+        try { const v = typeof annData.value === "string" ? JSON.parse(annData.value) : annData.value; setAnnouncement(v); } catch {}
+      }
+    }
+    loadSettings();
+    const ch = supabase.channel("ooo-rt").on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => { loadSettings(); }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  const handleChangePassword = async (newPw) => {
+    const value = { password: newPw };
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "dashboard_password").single();
+    if (existing) { await supabase.from("app_settings").update({ value }).eq("key", "dashboard_password"); }
+    else { await supabase.from("app_settings").insert({ key: "dashboard_password", value }); }
+    setDashPassword(newPw);
+    toast("Password updated", "success"); logAudit("Changed dashboard password");
+  };
+
+  const handleUpdateAnnouncement = async (ann) => {
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "announcement").single();
+    if (existing) { await supabase.from("app_settings").update({ value: ann }).eq("key", "announcement"); }
+    else { await supabase.from("app_settings").insert({ key: "announcement", value: ann }); }
+    setAnnouncement(ann);
+    toast(ann.active ? "Announcement published" : "Announcement saved", "success"); logAudit(ann.active ? "Published announcement" : "Updated announcement");
+  };
+
+  const toggleOoo = async (active, returnDate) => {
+    const value = { active, return_date: returnDate || "", start_date: active ? new Date().toISOString().substring(0, 10) : oooStartDate };
+    const { data: existing } = await supabase.from("app_settings").select("id").eq("key", "ooo").single();
+    if (existing) {
+      await supabase.from("app_settings").update({ value }).eq("key", "ooo");
+    } else {
+      await supabase.from("app_settings").insert({ key: "ooo", value });
+    }
+    setOooActive(active);
+    setOooReturnDate(returnDate || "");
+    if (active) { setOooStartDate(value.start_date); setOooSummaryDismissed(false); }
+    toast(active ? "Out of office enabled" : "Welcome back!", active ? "info" : "success");
+    logAudit(active ? "Enabled OOO" : "Disabled OOO");
+  };
+
+  // Auto-create tickets from due recurring schedules
+  useEffect(() => {
+    if (recurringSchedules.length === 0) return;
+    const createDueTickets = async () => {
+      const now = new Date();
+      for (const s of recurringSchedules) {
+        if (s.paused) continue;
+        if (s.end_date && new Date(s.end_date) < now) continue;
+        let isDue = false;
+        if (!s.last_created) {
+          isDue = true;
+        } else {
+          const last = new Date(s.last_created);
+          const diff = (now - last) / 86400000;
+          if (s.frequency === "weekly" && diff >= 7) isDue = true;
+          else if (s.frequency === "fortnightly" && diff >= 14) isDue = true;
+          else if (s.frequency === "monthly") { const next = new Date(last); next.setMonth(next.getMonth() + 1); isDue = now >= next; }
+          else if (s.frequency === "quarterly") { const next = new Date(last); next.setMonth(next.getMonth() + 3); isDue = now >= next; }
+        }
+        if (isDue) {
+          const ref = await getNextRef();
+          const { error } = await supabase.from("tickets").insert({
+            ref,
+            name: "Recurring Schedule",
+            title: s.title,
+            description: (s.description || "") + "\n\nAuto-created from recurring schedule.",
+            priority: s.priority,
+            status: "open",
+            file_names: [],
+            notes: [],
+          });
+          if (!error) {
+            await supabase.from("recurring_tickets").update({ last_created: now.toISOString() }).eq("id", s.id);
+            toast("Recurring ticket created: " + s.title, "success");
+          }
+        }
+      }
+    };
+    createDueTickets();
+  }, [recurringSchedules]);
+
+  // Recurring schedule CRUD handlers
+  const handleCreateRecurring = async (form) => {
+    const { error } = await supabase.from("recurring_tickets").insert({
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      frequency: form.frequency,
+      day_of_week: (form.frequency === "weekly" || form.frequency === "fortnightly") ? form.day_of_week : null,
+      end_date: form.end_date || null,
+      paused: false,
+      last_created: null,
+    });
+    if (error) toast("Failed to create schedule", "error"); else toast("Recurring schedule created", "success");
+  };
+
+  const handleUpdateRecurring = async (id, form) => {
+    const { error } = await supabase.from("recurring_tickets").update({
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      frequency: form.frequency,
+      day_of_week: (form.frequency === "weekly" || form.frequency === "fortnightly") ? form.day_of_week : null,
+      end_date: form.end_date || null,
+    }).eq("id", id);
+    if (error) toast("Failed to update schedule", "error"); else toast("Schedule updated", "success");
+  };
+
+  const handleDeleteRecurring = async (id) => {
+    const { error } = await supabase.from("recurring_tickets").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else toast("Schedule deleted", "success");
+  };
+
+  const handlePauseRecurring = async (id, paused) => {
+    const { error } = await supabase.from("recurring_tickets").update({ paused }).eq("id", id);
+    if (error) toast("Failed to update", "error"); else toast(paused ? "Schedule paused" : "Schedule resumed", "success");
+  };
+
+
+  // Team Goals handlers
+  const handleGoalSave = async (g) => {
+    if (g.id) { await supabase.from("team_goals").update({ title: g.title, target: g.target, metric: g.metric, period: g.period }).eq("id", g.id); toast("Goal updated", "success"); }
+    else { await supabase.from("team_goals").insert({ title: g.title, target: g.target, metric: g.metric, period: g.period }); toast("Goal added", "success"); }
+  };
+  const handleGoalDelete = async (id) => { await supabase.from("team_goals").delete().eq("id", id); toast("Goal deleted", "success"); };
+
+  const handleTestimonialSave = async (item) => {
+    const { error } = await supabase.from("testimonials").insert({ broker: item.broker, name: item.name, submitted_date: item.submitted_date, consent: item.consent, text: item.text, file_url: item.file_url, type: item.type });
+    if (error) toast("Failed to save testimonial", "error"); else toast("Testimonial saved", "success");
+  };
+
+  const handleTestimonialDelete = async (id) => {
+    const { error } = await supabase.from("testimonials").delete().eq("id", id);
+    if (error) toast("Failed to delete", "error"); else toast("Testimonial deleted", "success");
+  };
+
+  const handleGalleryUpload = async (file, category) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = "gallery/" + Date.now() + "_" + safeName;
+    const { error: uploadError } = await supabase.storage.from("ticket-attachments").upload(path, file);
+    if (uploadError) { toast("Upload failed: " + uploadError.message, "error"); return; }
+    const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+    const { error } = await supabase.from("gallery_images").insert({ url: urlData.publicUrl, filename: file.name, category, storage_path: path });
+    if (error) toast("Failed to save image", "error"); else toast("Image uploaded", "success");
+  };
+
+  const handleGalleryDelete = async (id, storagePath) => {
+    if (storagePath) await supabase.storage.from("ticket-attachments").remove([storagePath]);
+    const { error } = await supabase.from("gallery_images").delete().eq("id", id);
+    if (error) toast("Failed to delete image", "error"); else toast("Image deleted", "success");
+  };
+
+  function mapRow(row) {
+    // Handle both old format (["filename.pdf"]) and new format ([{name, url}])
+    const rawFiles = row.file_names || [];
+    const files = rawFiles.map((f) => typeof f === "string" ? { name: f, url: null } : f);
+    return {
+      id: row.ref,
+      dbId: row.id,
+      name: row.name,
+      title: row.title,
+      description: row.description,
+      priority: row.priority,
+      deadline: row.deadline || "",
+      status: row.status,
+      createdAt: row.created_at,
+      completedAt: row.completed_at || null,
+      timeSpent: row.time_spent || null,
+      updatedAt: row.updated_at || row.created_at,
+      pinned: row.pinned || false,
+      files,
+      notes: row.notes || [],
+      createdBy: row.created_by || null,
+      tags: row.tags || [],
+    };
+  }
+
+  const handleSubmit = async (formData) => {
+    const ref = await getNextRef();
+
+    // Upload files to Supabase Storage
+    const uploadedFiles = [];
+    if (formData.actualFiles && formData.actualFiles.length > 0) {
+      for (const file of formData.actualFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = ref + "/" + Date.now() + "_" + safeName;
+        const { error: uploadError } = await supabase.storage.from("ticket-attachments").upload(path, file);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+          uploadedFiles.push({ name: file.name, url: urlData.publicUrl });
+        }
+      }
+    }
+
+    const { error } = await supabase.from("tickets").insert({
+      ref,
+      name: currentUser ? currentUser.name : formData.name,
+      title: formData.title,
+      description: formData.description,
+      priority: formData.priority,
+      deadline: formData.deadline || null,
+      status: "open",
+      created_by: currentUser ? currentUser.id : null,
+      file_names: uploadedFiles,
+      notes: [],
+    });
+    if (!error) {
+      setLastSubmittedRef(ref);
+      setView("submitted");
+      toast("Ticket " + ref + " submitted", "success");
+      if (currentUser) { addNotification("📝", "Ticket Submitted", "Your ticket " + ref + " has been submitted. You'll be notified when it's updated.", "tracker", currentUser.id); }
+      try { localStorage.removeItem("alps_hub_draft"); } catch {}
+    } else { toast("Failed to submit ticket", "error"); }
+  };
+
+  const handleStatusChange = async (id, status) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const prev = ticket.status;
+      setTickets((ts) => ts.map((t) => t.id === id ? { ...t, status } : t));
+      const { error } = await supabase.from("tickets").update({ status }).eq("id", ticket.dbId);
+      if (error) { toast("Failed to update status", "error"); setTickets((ts) => ts.map((t) => t.id === id ? { ...t, status: prev } : t)); }
+      else if (ticket.createdBy) { const sl = { open: "reopened", in_progress: "now in progress", review: "ready for your review", completed: "completed" }; addNotification(status === "review" ? "◎" : "📋", "Ticket Update", "Your ticket " + (ticket.ref || ticket.id) + " is " + (sl[status] || status), "profile", ticket.createdBy); }
+    }
+  };
+
+  const handleComplete = async (id, timeSpent) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const prevStatus = ticket.status;
+      const { error } = await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString(), time_spent: timeSpent || null }).eq("id", ticket.dbId);
+      if (error) { toast("Failed to complete ticket", "error"); return; }
+      toast("Ticket completed", "success", () => {
+        supabase.from("tickets").update({ status: prevStatus, completed_at: null, time_spent: null }).eq("id", ticket.dbId);
+      });
+      if (ticket.createdBy) addNotification("\u2705", "Ticket Completed", "Your ticket " + (ticket.ref || ticket.id) + ": " + ticket.title + " has been completed!", "profile", ticket.createdBy);
+    }
+  };
+
+  const handleReopen = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const autoNote = { author: "System", text: "Ticket reopened", timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ status: "open", completed_at: null, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleTogglePin = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const newVal = !ticket.pinned;
+      setTickets((ts) => ts.map((t) => t.id === id ? { ...t, pinned: newVal } : t));
+      const { error } = await supabase.from("tickets").update({ pinned: newVal }).eq("id", ticket.dbId);
+      if (error) setTickets((ts) => ts.map((t) => t.id === id ? { ...t, pinned: !newVal } : t));
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const { data: rawRow } = await supabase.from("tickets").select("*").eq("id", ticket.dbId).single();
+      const { error } = await supabase.from("tickets").delete().eq("id", ticket.dbId);
+      if (error) { toast("Failed to delete", "error"); return; }
+      toast("Ticket deleted", "info", rawRow ? () => {
+        const { id: _id, ...rest } = rawRow;
+        supabase.from("tickets").insert(rest);
+      } : undefined);
+    }
+  };
+
+const handleAddComment = async (id, author, text) => {
+  await handleAddNote(id, author, text);
+  const ticket = tickets.find((t) => t.id === id);
+  if (!ticket) return;
+  // Notify ticket creator
+  if (ticket.createdBy && currentUser && ticket.createdBy !== currentUser.id) {
+    addNotification("💬", "New Comment", author + " commented on " + (ticket.ref || ticket.id), "profile", ticket.createdBy);
+  }
+  // @mention notifications
+  const mentions = text.match(/@(\w[\w\s]*?)(?=\s@|\s*$|[,.!?])/g);
+  if (mentions) {
+    mentions.forEach((m) => {
+      const name = m.slice(1).trim().toLowerCase();
+      const user = hubUsers.find((u) => u.name.toLowerCase() === name || u.name.toLowerCase().startsWith(name));
+      if (user && user.id !== currentUser?.id) {
+        addNotification("💬", "You were mentioned", author + " mentioned you on " + (ticket.ref || ticket.id) + ": \"" + text.slice(0, 60) + (text.length > 60 ? "..." : "") + "\"", "profile", user.id);
+      }
+    });
+  }
+};
+
+  const handleEditTicket = async (id, updates) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const changes = {};
+      if (updates.title && updates.title !== ticket.title) changes.title = updates.title;
+      if (updates.description !== undefined && updates.description !== ticket.description) changes.description = updates.description;
+      if (Object.keys(changes).length === 0) return;
+      const parts = [];
+      if (changes.title) parts.push("title");
+      if (changes.description !== undefined) parts.push("description");
+      const autoNote = { author: currentUser?.name || "User", text: "Edited " + parts.join(" and "), timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ ...changes, notes: newNotes }).eq("id", ticket.dbId);
+      toast("Ticket updated", "success");
+    }
+  };
+
+  const handleApproveTicket = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const autoNote = { author: currentUser?.name || "Submitter", text: "Approved \u2014 work accepted", timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ status: "completed", completed_at: new Date().toISOString(), notes: newNotes }).eq("id", ticket.dbId);
+      toast("\u2705 Ticket approved and completed", "success");
+      addNotification("\u2705", "Approved", (ticket.ref || ticket.id) + " was approved by " + (currentUser?.name || "submitter"), "dashboard");
+    }
+  };
+
+  const handleRequestChanges = async (id, feedback) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const autoNote = { author: currentUser?.name || "Submitter", text: "Changes requested: " + (feedback || "Please revise"), timestamp: new Date().toISOString(), auto: false };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ status: "in_progress", notes: newNotes }).eq("id", ticket.dbId);
+      toast("Changes requested \u2014 ticket moved back to In Progress", "info");
+      addNotification("⟳", "Changes Requested", (currentUser?.name || "Submitter") + " requested changes on " + (ticket.ref || ticket.id) + ": " + (feedback || "Please revise"), "dashboard");
+    }
+  };
+
+  const handleDuplicate = (ticket) => {
+    setDuplicateData({ title: ticket.title + " (copy)", description: ticket.description, priority: ticket.priority, deadline: ticket.deadline });
+    setView("form");
+    toast("Pre-filled from " + (ticket.ref || ticket.id), "info");
+  };
+
+  const handleAddNote = async (id, author, text) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const newNotes = [...(ticket.notes || []), { author, text, timestamp: new Date().toISOString() }];
+      await supabase.from("tickets").update({ notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleUpdatePriority = async (id, newPriority) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const oldLabel = PRIORITIES[ticket.priority]?.label || ticket.priority;
+      const newLabel = PRIORITIES[newPriority]?.label || newPriority;
+      const autoNote = { author: "System", text: "Priority changed from " + oldLabel + " to " + newLabel, timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ priority: newPriority, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+  const handleUpdateDeadline = async (id, newDeadline) => {
+    const ticket = tickets.find((t) => t.id === id);
+    if (ticket) {
+      const oldDate = ticket.deadline ? formatDate(ticket.deadline) : "No deadline";
+      const newDate = newDeadline ? formatDate(newDeadline) : "No deadline";
+      const autoNote = { author: "System", text: "Deadline changed from " + oldDate + " to " + newDate, timestamp: new Date().toISOString(), auto: true };
+      const newNotes = [...(ticket.notes || []), autoNote];
+      await supabase.from("tickets").update({ deadline: newDeadline || null, notes: newNotes }).eq("id", ticket.dbId);
+    }
+  };
+
+
+  const handleArchiveSave = async (data) => {
+    const clean = { ...data };
+    if (!clean.file_url) delete clean.file_url;
+    let error;
+    if (editArchiveEntry && editArchiveEntry !== "new") { ({ error } = await supabase.from("archive_entries").update(clean).eq("id", editArchiveEntry)); }
+    else { ({ error } = await supabase.from("archive_entries").insert(clean)); }
+    if (error) { toast("Failed to save archive entry", "error"); return; }
+    toast("Archive entry saved", "success");
+    setEditArchiveEntry(null); setView("archive");
+  };
+  const handleArchiveDelete = async (id) => { await supabase.from("archive_entries").delete().eq("id", id); setEditArchiveEntry(null); setView("archive"); };
+  const handleLeadSave = async (data) => { const { error } = await supabase.from("leads").insert({ ...data, created_by: currentUser ? currentUser.id : null }); if (error) toast("Failed to save lead: " + error.message, "error"); else toast("Lead logged successfully", "success"); };
+  const handleLeadUpdate = async (id, updates) => { const { error } = await supabase.from("leads").update(updates).eq("id", id); if (error) toast("Failed to update lead", "error"); };
+  const handleLeadDelete = async (id) => { const { error } = await supabase.from("leads").delete().eq("id", id); if (error) toast("Failed to delete lead", "error"); else toast("Lead deleted", "success"); };
+  const handleAssetUpload = async (file, name, category) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = "brand/" + Date.now() + "_" + safeName;
+    const { error } = await supabase.storage.from("ticket-attachments").upload(path, file);
+    if (error) { toast("Upload failed: " + error.message, "error"); return; }
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("ticket-attachments").getPublicUrl(path);
+      await supabase.from("brand_assets").insert({ asset_name: name, category, file_url: urlData.publicUrl, file_path: path });
+    }
+  };
+  const handleAssetDelete = async (id, fileUrl) => {
+    const asset = brandAssets.find((a) => a.id === id);
+    if (asset && asset.file_path) { await supabase.storage.from("ticket-attachments").remove([asset.file_path]); }
+    await supabase.from("brand_assets").delete().eq("id", id);
+  };
+
+  // Stockroom handlers
+  const handleStockroomAdd = async (item) => { const { error } = await supabase.from("content_stockroom").insert(item); if (error) toast("Failed to add", "error"); else toast("Added to stockroom", "success"); };
+  const handleStockroomStatus = async (id, status) => { await supabase.from("content_stockroom").update({ status }).eq("id", id); };
+  const handleStockroomDelete = async (id) => { await supabase.from("content_stockroom").delete().eq("id", id); };
+
+  // Meeting to-dos bulk create
+  const handleBulkCreate = async (items) => {
+    for (const item of items) {
+      const ref = await getNextRef();
+      const deadline = new Date();
+      let added = 0;
+      while (added < 5) { deadline.setDate(deadline.getDate() + 1); if (deadline.getDay() !== 0 && deadline.getDay() !== 6) added++; }
+      await supabase.from("tickets").insert({ ref, name: currentUser?.name || "Meeting", title: item.title, description: "Weekly meeting to-do", priority: "medium", status: "open", created_by: currentUser?.id || null, deadline: deadline.toISOString().split("T")[0], file_names: [], notes: [], tags: [item.tag] });
+    }
+    toast(items.length + " tickets created", "success");
+  };
+
+
+  const dismissOnboarding = () => { setShowOnboarding(false); try { localStorage.setItem("alps_hub_onboarded", "1"); } catch {} };
+  const activeCount = tickets.filter((t) => t.status !== "completed").length;
+  const myTicketCount = currentUser ? tickets.filter((t) => (t.createdBy === currentUser.id || t.name === currentUser.name) && t.status !== "completed").length : 0;
+  const unreadNotifs = currentUser ? notifications.filter((n) => !n.read && (!n.for_user || n.for_user === currentUser.id)).length : 0;
+  const [mobileNav, setMobileNav] = useState(false);
+  const [mobileMore, setMobileMore] = useState(false);
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [sideCollapsed, setSideCollapsed] = useState(() => { try { return localStorage.getItem("alps_sidebar_collapsed") === "1"; } catch { return false; } });
+  const [sideSearch, setSideSearch] = useState("");
+  const [openGroups, setOpenGroups] = useState(() => { try { const s = localStorage.getItem("alps_sidebar_groups"); return s ? JSON.parse(s) : { resources: true, tools: true, admin: true }; } catch { return { resources: true, tools: true, admin: true }; } });
+
+  const toggleCollapsed = () => { const next = !sideCollapsed; setSideCollapsed(next); try { localStorage.setItem("alps_sidebar_collapsed", next ? "1" : "0"); } catch {} };
+  const toggleGroup = (g) => { setOpenGroups((prev) => { const next = { ...prev, [g]: !prev[g] }; try { localStorage.setItem("alps_sidebar_groups", JSON.stringify(next)); } catch {} return next; }); };
+  const [recentPages, setRecentPages] = useState(() => { try { return JSON.parse(localStorage.getItem("alps_recent_pages") || "[]"); } catch { return []; } });
+  const loginRequired = ["lead_form", "archive", "brand_assets", "testimonials", "signatures", "first_policy"];
+  const adminOnly = ["dashboard", "leads_dashboard", "analytics", "weekly", "admin"];
+  const nav = (v) => {
+    if (adminOnly.includes(v) && !isAdmin) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
+    if (loginRequired.includes(v) && !currentUser) { setView("password"); setMobileNav(false); setMobileMore(false); return; }
+    setView(v); setMobileNav(false); setMobileMore(false);
+    if (v !== "hub" && v !== "password" && v !== "signup") {
+      setRecentPages((prev) => { const next = [v, ...prev.filter((p) => p !== v)].slice(0, 3); try { localStorage.setItem("alps_recent_pages", JSON.stringify(next)); } catch {} return next; });
+    }
+  };
+
+  // Page titles for top bar
+  const PAGE_TITLES = { hub: "Home", form: "Submit a Ticket", submitted: "Ticket Submitted", tracker: "Track a Ticket", password: "Log In", signup: "Sign Up", profile: "My Profile", dashboard: "Ticket Dashboard", activity: "Activity Log", analytics: "Analytics", archive: "Marketing Archive", archive_add: "New Archive Entry", archive_edit: "Edit Archive Entry", lead_form: "Log a Lead", leads_dashboard: "Leads Dashboard", brand_assets: "Brand Assets", qr_generator: "QR Generator", signatures: "Email Signatures", first_policy: "Celebration Generator", testimonials: "Testimonials", brand_management: "Brand Management", gallery: "Alps Gallery", stockroom: "Content Stockroom", meeting_todos: "Meeting To-Dos", monthly_summary: "Monthly Summary", my_week: "My Week", weekly: "Weekly Report", admin: "Admin Panel" };
+  const BREADCRUMB_PARENT = { archive_add: "archive", archive_edit: "archive", leads_dashboard: "lead_form", activity: "dashboard", submitted: "form" };
+  const pageTitle = PAGE_TITLES[view] || "Marketing Hub";
+  const parentView = BREADCRUMB_PARENT[view];
+  const parentTitle = parentView ? PAGE_TITLES[parentView] : null;
+
+  // Ctrl+K shortcut to focus sidebar search
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); if (sideCollapsed) setSideCollapsed(false); } };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [sideCollapsed]);
+
+  // All sidebar items for search
+  const allNavItems = [
+    { id: "hub", label: "Home", group: "" },
+    { id: "form", label: "Submit Ticket", group: "" },
+    { id: "tracker", label: "Track Ticket", group: "" },
+    ...(currentUser ? [{ id: "profile", label: "My Tickets", group: "" }, { id: "lead_form", label: "Log a Lead", group: "" }] : []),
+    { id: "archive", label: "Marketing Archive", group: "resources" },
+    { id: "brand_assets", label: "Brand Assets", group: "resources" },
+    ...(currentUser ? [
+      { id: "testimonials", label: "Testimonials", group: "resources" },
+    ] : []),
+    { id: "qr_generator", label: "QR Generator", group: "tools" },
+    { id: "signatures", label: "Email Signatures", group: "tools" },
+    { id: "first_policy", label: "Celebrations", group: "tools" },
+    ...(currentUser ? [
+    ] : []),
+    ...(isAdmin ? [
+      { id: "dashboard", label: "Ticket Dashboard", group: "admin" },
+      { id: "leads_dashboard", label: "Leads Dashboard", group: "admin" },
+      { id: "analytics", label: "Analytics", group: "admin" },
+      { id: "activity", label: "Activity Log", group: "admin" },
+      { id: "admin", label: "Admin Panel", group: "admin" },
+    ] : []),
+  ];
+  const filteredNav = sideSearch.trim() ? allNavItems.filter((i) => i.label.toLowerCase().includes(sideSearch.toLowerCase())) : null;
+
+  // Icon map using lucide-react
+  const I = {
+    hub: <Home size={17} />, form: <PenSquare size={17} />, tracker: <Search size={17} />,
+    profile: <User size={17} />, lead_form: <TrendingUp size={17} />,
+    archive: <Library size={17} />, brand_assets: <Palette size={17} />, gallery: <Image size={17} />,
+    testimonials: <Star size={17} />, brand_management: <Target size={17} />, gallery: <Image size={17} />, stockroom: <Library size={17} />, meeting_todos: <ClipboardList size={17} />,
+    qr_generator: <QrCode size={17} />,
+   
+    dashboard: <LayoutDashboard size={17} />, leads_dashboard: <BarChart3 size={17} />,
+    analytics: <PieChart size={17} />, activity: <Clock size={17} />, weekly: <BarChart3 size={17} />, admin: <Settings size={17} />,
+    signatures: <ExternalLink size={17} />, first_policy: <Wand2 size={17} />,
+  };
+
+  const SidebarLink = ({ id, label, badge, iconColor }) => {
+    const active = view === id;
+    const recent = !active && recentPages.includes(id);
+    return (<button onClick={() => nav(id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "7px 0" : "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: active ? "var(--brand-light)" : "transparent", color: active ? "var(--brand)" : "var(--text-secondary)", fontSize: 13, fontWeight: active ? 600 : 500, textAlign: "left", transition: "all 0.12s", borderLeft: active ? "3px solid var(--brand)" : "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => { if (!active) e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseOut={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+      <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: active ? "var(--brand)" : iconColor || "var(--text-muted)" }}>{I[id] || <FileText size={17} />}</span>
+      {!sideCollapsed && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>{label}</span>}
+      {!sideCollapsed && recent && <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--brand)", opacity: 0.35, flexShrink: 0 }}></span>}
+      {!sideCollapsed && badge > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: 9, background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{badge}</span>}
+    </button>);
+  };
+
+  const SidebarGroup = ({ id, label, children }) => {
+    const isOpen = openGroups[id] !== false;
+    return (
+      <div style={{ marginBottom: 4 }}>
+        {!sideCollapsed && label && (
+          <button onClick={() => toggleGroup(id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: "10px 14px 4px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <span>{label}</span>
+            <ChevronDown size={12} style={{ transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }} />
+          </button>
+        )}
+        {sideCollapsed && label && <div style={{ height: 1, background: "var(--border)", margin: "6px 10px" }}></div>}
+        {(isOpen || sideCollapsed) && <div style={{ padding: "0 6px" }}>{children}</div>}
+      </div>
+    );
+  };
+
+  const sidebarContent = (mobile) => (<>
+    {!mobile && (
+      <div style={{ padding: "14px 14px 6px", display: "flex", alignItems: "center", gap: 10, justifyContent: sideCollapsed ? "center" : "space-between" }}>
+        {!sideCollapsed ? (
+          <div onClick={() => nav("hub")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={ALPS_LOGO} alt="Alps" style={{ height: 26, objectFit: "contain" }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", letterSpacing: "-0.02em" }}>Marketing Hub</span>
+          </div>
+        ) : (
+          <img src={ALPS_LOGO} alt="Alps" style={{ height: 24, objectFit: "contain", cursor: "pointer" }} onClick={() => nav("hub")} />
+        )}
+        <button onClick={toggleCollapsed} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}>
+          {sideCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+        </button>
+      </div>
+    )}
+    {mobile && (
+      <div style={{ padding: "14px", display: "flex", alignItems: "center", gap: 10 }}>
+        <img src={ALPS_LOGO} alt="Alps" style={{ height: 26 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Marketing Hub</span>
+      </div>
+    )}
+
+    {/* Search */}
+    {!sideCollapsed && (
+      <div style={{ padding: "6px 10px 8px" }}>
+        <div style={{ position: "relative" }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
+          <input ref={searchRef} value={sideSearch} onChange={(e) => setSideSearch(e.target.value)} placeholder="Search...  Ctrl+K" style={{ width: "100%", padding: "7px 10px 7px 30px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, color: "var(--text-primary)", outline: "none", boxSizing: "border-box" }} />
+        </div>
+      </div>
+    )}
+
+    {/* Search results */}
+    {filteredNav ? (
+      <div style={{ padding: "0 6px", flex: 1, overflowY: "auto" }}>
+        {filteredNav.length === 0 ? (
+          <div style={{ padding: "16px 10px", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No results</div>
+        ) : filteredNav.map((item) => (
+          <SidebarLink key={item.id} id={item.id} label={item.label} />
+        ))}
+      </div>
+    ) : (<>
+      {/* Quick actions */}
+      <div style={{ padding: "6px 10px 4px" }}>
+        <button onClick={() => nav("form")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: sideCollapsed && !mobile ? "9px" : "9px 12px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 12px rgba(35,29,104,0.2)" }}>
+          <Plus size={16} />
+          {(!sideCollapsed || mobile) && <span>New Request</span>}
+        </button>
+      </div>
+
+      {/* Personal */}
+      {currentUser && (
+        <div style={{ padding: "4px 6px" }}>
+          <SidebarLink id="profile" label="My Tickets" badge={myTicketCount} />
+        </div>
+      )}
+
+      {/* Groups */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <SidebarGroup id="tickets" label="Tickets">
+          <SidebarLink id="form" label="Submit Request" />
+          <SidebarLink id="tracker" label="Track Ticket" />
+          {isAdmin && <SidebarLink id="meeting_todos", "my_week" label="Meeting To-Dos" />}
+          <SidebarLink id="my_week" label="My Week" iconColor="#6366f1" />
+          <SidebarLink id="lead_form" label="Log a Lead" iconColor="#0d9488" />
+        </SidebarGroup>
+        {currentUser && <SidebarGroup id="content" label="Content">
+          <SidebarLink id="archive" label="Marketing Archive" iconColor="#8b5cf6" />
+          <SidebarLink id="stockroom" label="Content Stockroom" iconColor="#20A39E" />
+          <SidebarLink id="testimonials" label="Testimonials" iconColor="#ca8a04" />
+        </SidebarGroup>}
+        {currentUser && <SidebarGroup id="brand" label="Brand">
+          <SidebarLink id="brand_assets" label="Brand Assets" />
+          <SidebarLink id="gallery" label="Alps Gallery" />
+          <button onClick={() => window.open("https://whitelabel.alpsltd.co.uk/", "_blank")} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: sideCollapsed ? "8px 0" : "7px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500, textAlign: "left", transition: "all 0.12s", borderLeft: "3px solid transparent", justifyContent: sideCollapsed ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+            <span style={{ flexShrink: 0, display: "flex", alignItems: "center", color: "var(--text-muted)" }}><ExternalLink size={17} /></span>
+            {!sideCollapsed && <span style={{ flex: 1 }}>White-Labelled Assets</span>}
+            {!sideCollapsed && <ExternalLink size={11} style={{ opacity: 0.3 }} />}
+          </button>
+        </SidebarGroup>}
+        {currentUser && <SidebarGroup id="tools" label="Tools">
+          <SidebarLink id="qr_generator" label="QR Generator" />
+          <SidebarLink id="signatures" label="Email Signatures" />
+          <SidebarLink id="first_policy" label="Celebrations" />
+        </SidebarGroup>}
+        {isAdmin && (
+          <SidebarGroup id="admin" label="Admin">
+            <SidebarLink id="dashboard" label="Ticket Dashboard" badge={activeCount} />
+            <SidebarLink id="leads_dashboard" label="Leads Dashboard" />
+            <SidebarLink id="analytics" label="Analytics" />
+            <SidebarLink id="weekly" label="Weekly Report" iconColor="#8b5cf6" />
+            <SidebarLink id="monthly_summary" label="Monthly Summary" iconColor="#8b5cf6" />
+            <SidebarLink id="brand_management" label="Brand Management" iconColor="#8b5cf6" />
+            <SidebarLink id="activity" label="Activity Log" />
+            <SidebarLink id="admin" label="Admin Panel" />
+          </SidebarGroup>
+        )}
+        {!currentUser && !sideCollapsed && (
+          <div style={{ margin: "12px 10px", padding: "14px", background: "var(--brand-light)", borderRadius: 10, border: "1px solid rgba(99,102,241,0.15)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 6 }}>Create a free account</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>Unlock the Archive, Brand Assets, and more.</div>
+            <button onClick={() => nav("signup")} style={{ width: "100%", padding: "7px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sign Up Free</button>
+          </div>
+        )}
+      </div>
+    </>)}
+
+    {/* Bottom: dark mode */}
+    <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border)" }}>
+      <button onClick={() => setDark(!dark)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 10px", borderRadius: 6, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-muted)", fontSize: 12, justifyContent: sideCollapsed && !mobile ? "center" : "flex-start" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>
+        {dark ? <Sun size={15} /> : <Moon size={15} />}
+        {(!sideCollapsed || mobile) && <span>{dark ? "Light mode" : "Dark mode"}</span>}
+      </button>
+      {!currentUser && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "4px 0" }}>
+          <button onClick={() => nav("password")} style={{ padding: "8px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+          <button onClick={() => nav("signup")} style={{ padding: "7px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+        </div>
+      )}
+    </div>
+  </>);
+
+
+  return (
+    <div data-theme={dark ? "dark" : "light"} style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: "var(--text-primary)", transition: "background 0.3s, color 0.3s" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
+        ::selection { background: #231d68; color: white; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(35,29,104,0.12); border-radius: 3px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+        @keyframes shakeAnim { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes floatA { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(12px,-8px) scale(1.05); } 66% { transform: translate(-6px,10px) scale(0.97); } }
+        @keyframes floatB { 0%,100% { transform: translate(0,0) scale(1); } 25% { transform: translate(-10px,6px) scale(1.03); } 50% { transform: translate(8px,-12px) scale(0.96); } 75% { transform: translate(-4px,-6px) scale(1.02); } }
+        @keyframes floatC { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(6px,-10px) rotate(5deg); } }
+        @keyframes breathe { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+        @keyframes barFill { from { width: 0%; } }
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes checkBounce { 0% { transform: scale(1); } 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        @keyframes confettiPop { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(0); opacity: 0; } }
+        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,0.4); } 70% { box-shadow: 0 0 0 10px rgba(22,163,74,0); } 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); } }
+        @keyframes cardStagger { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        [data-theme="light"] {
+          --bg-page: #f8f9fb; --bg-card: #ffffff; --bg-input: #f4f5f7; --bg-header: #ffffff;
+          --bg-completed: #fafafa; --bg-hover: #f1f3f9;
+          --border: #e2e6ee; --border-light: #f0f2f6;
+          --text-primary: #1a1d2e; --text-body: #4a5068; --text-secondary: #6b7190; --text-muted: #9399b2;
+          --brand: #231d68; --brand-light: rgba(35,29,104,0.06); --brand-glow: rgba(35,29,104,0.1);
+          --shadow: 0 1px 3px rgba(0,0,0,0.04); --shadow-hover: 0 4px 16px rgba(35,29,104,0.1);
+          --nav-bg: #ffffff; --nav-inactive: #6b7190;
+          --bar-bg: #e8ebf0; --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --sidebar-bg: #ffffff;
+        }
+        [data-theme="dark"] {
+          --bg-page: #0c1021; --bg-card: #161b2e; --bg-input: #0c1021; --bg-header: #131729;
+          --bg-completed: #141828; --bg-hover: #1a2038;
+          --border: #252d45; --border-light: #1a2038;
+          --text-primary: #e4e8f0; --text-body: #b4bcd0; --text-secondary: #8892b0; --text-muted: #5a6380;
+          --brand: #818cf8; --brand-light: rgba(129,140,248,0.12); --brand-glow: rgba(129,140,248,0.15);
+          --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-hover: 0 4px 16px rgba(0,0,0,0.4);
+          --nav-bg: #0c1021; --nav-inactive: #8892b0;
+          --bar-bg: #252d45; --card-radius: 12px; --btn-radius: 8px; --input-radius: 8px;
+          --sidebar-bg: #131729;
+        }
+        [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.2); }
+        [data-theme="dark"] ::selection { background: #818cf8; }
+        [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select { color-scheme: dark; }
+
+        button { transition: all 0.15s ease; }
+        button:hover:not(:disabled) { filter: brightness(1.05); }
+        button:active:not(:disabled) { transform: scale(0.98); }
+        input, textarea, select { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        input:focus, textarea:focus, select:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
+        .hub-card-hover { transition: all 0.18s ease; }
+        .hub-card-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: var(--brand) !important; }
+        /* Page view transitions */
+        .hub-view-enter { animation: slideIn 0.2s ease forwards; }
+
+        /* Staggered entrance for child cards */
+        .hub-stagger > * { opacity: 0; animation: cardStagger 0.35s ease forwards; }
+        .hub-stagger > *:nth-child(1) { animation-delay: 0.0s; }
+        .hub-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+        .hub-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+        .hub-stagger > *:nth-child(4) { animation-delay: 0.15s; }
+        .hub-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+        .hub-stagger > *:nth-child(6) { animation-delay: 0.25s; }
+        .hub-stagger > *:nth-child(7) { animation-delay: 0.3s; }
+        .hub-stagger > *:nth-child(8) { animation-delay: 0.35s; }
+        .hub-stagger > *:nth-child(n+9) { animation-delay: 0.4s; }
+
+        /* Floating hero decorations */
+        .hub-float-a { animation: floatA 18s ease-in-out infinite; }
+        .hub-float-b { animation: floatB 22s ease-in-out infinite; }
+        .hub-float-c { animation: floatC 15s ease-in-out infinite; }
+
+        /* Breathing pulse for attention items */
+        .hub-breathe { animation: breathe 2s ease-in-out infinite; }
+
+        /* Progress bar fill */
+        .hub-bar-fill { animation: barFill 0.6s ease-out forwards; }
+
+        /* Nav card hover glow */
+        .hub-nav-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); border-color: rgba(99,102,241,0.15); }
+        .hub-nav-card .hub-nav-icon { transition: transform 0.25s ease; }
+        .hub-nav-card:hover .hub-nav-icon { transform: scale(1.12); }
+        .hub-nav-card .hub-nav-bar { height: 4px; transition: height 0.2s ease; }
+        .hub-nav-card:hover .hub-nav-bar { height: 6px; }
+
+        /* Quick submit success pulse */
+        .hub-pulse-green { animation: pulseGreen 0.6s ease; }
+
+        /* Check bounce */
+        .hub-check-bounce { animation: checkBounce 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Page accent strips - full width */
+        .hub-main-col::before { content: ""; display: block; height: 4px; margin-top: 52px; opacity: 0.8; }
+        .hub-accent-resources .hub-main-col::before { background: linear-gradient(90deg, #20A39E, transparent 50%); }
+        .hub-accent-tools .hub-main-col::before { background: linear-gradient(90deg, #0284c7, transparent 50%); }
+        .hub-accent-admin .hub-main-col::before { background: linear-gradient(90deg, #8b5cf6, transparent 50%); }
+        .hub-accent-tickets .hub-main-col::before { background: linear-gradient(90deg, #6366f1, transparent 50%); }
+        .hub-accent-none .hub-main-col::before { display: none; }
+
+        /* Card system - depth via shadows, not borders */
+        .hub-card { background: var(--bg-card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); transition: all 0.25s ease; }
+        .hub-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-color: rgba(99,102,241,0.15); }
+        .hub-card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+
+        /* Navigation cards */
+        .hub-nav-card { border-radius: 16px; padding: 22px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); border: 1px solid rgba(0,0,0,0.04); position: relative; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); }
+        .hub-nav-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); border-color: rgba(99,102,241,0.15); }
+        .hub-nav-card:active { transform: translateY(-1px); }
+
+        /* Button hierarchy */
+        .hub-btn-primary { background: linear-gradient(135deg, #231d68, #464B99); border: none; color: #fff; font-weight: 600; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(35,29,104,0.2); transition: all 0.2s; }
+        .hub-btn-primary:hover { box-shadow: 0 6px 20px rgba(35,29,104,0.3); transform: translateY(-1px); }
+        .hub-btn-secondary { background: transparent; border: 1.5px solid var(--border); color: var(--text-secondary); font-weight: 600; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .hub-btn-secondary:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-light); }
+        .hub-btn-danger { background: none; border: none; color: #dc2626; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+        .hub-btn-danger:hover { opacity: 1; }
+
+        /* Sidebar gradient */
+        .hub-sidebar-inner { background: linear-gradient(180deg, #1a1538 0%, #0f0e1a 100%); }
+        [data-theme="light"] .hub-sidebar-inner { background: linear-gradient(180deg, #fafafa 0%, #f1f1f4 100%); }
+        .hub-sidebar-group-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px !important; font-weight: 700 !important; }
+
+        /* Section labels */
+        .hub-section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+
+        /* Interactive cards with hover lift */
+        .hub-card-interactive { background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); transition: all 0.25s cubic-bezier(0.4,0,0.2,1); cursor: pointer; }
+        .hub-card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); border-color: rgba(99,102,241,0.15); }
+
+        /* Static cards with subtle depth */
+        .hub-card-static { background: var(--bg-card); border-radius: 14px; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03); }
+
+        /* List rows with hover */
+        .hub-list-row { transition: background 0.15s ease; cursor: pointer; }
+        .hub-list-row:hover { background: var(--bg-hover) !important; }
+
+        /* Empty states */
+        .hub-empty { text-align: center; padding: 56px 24px; }
+        .hub-empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.8; }
+        .hub-empty-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+        .hub-empty-desc { font-size: 13px; color: var(--text-muted); max-width: 360px; margin: 0 auto; line-height: 1.5; }
+
+        /* Context menu */
+        .hub-ctx-menu { position: fixed; z-index: 300; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); padding: 4px; min-width: 180; animation: fadeInScale 0.12s ease; }
+        .hub-ctx-menu button { display: flex; align-items: center; gap: 8; width: 100%; padding: 8px 12px; border: none; border-radius: 6px; background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; cursor: pointer; text-align: left; transition: background 0.1s; }
+        .hub-ctx-menu button:hover { background: var(--bg-hover); }
+        .hub-ctx-menu button.danger { color: #dc2626; }
+        .hub-ctx-menu button.danger:hover { background: rgba(220,38,38,0.06); }
+        .hub-gallery-card:hover .hub-gallery-delete { opacity: 1 !important; }
+        .hub-cal-event:hover .hub-cal-del { display: flex !important; }
+        .hub-desktop-only { display: block; }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Typography & spacing polish */
+        .hub-page-title { font-size: 22px !important; font-weight: 800 !important; letter-spacing: -0.02em; }
+        .hub-section-gap { margin-bottom: 28px !important; }
+        .hub-empty { padding: 48px 20px !important; }
+        .hub-empty-icon { opacity: 0.2 !important; margin-bottom: 14px !important; }
+        .hub-empty-title { font-size: 16px !important; font-weight: 700 !important; margin-bottom: 6px !important; }
+        .hub-empty-desc { font-size: 13px !important; line-height: 1.6 !important; max-width: 300px; margin: 0 auto !important; }
+
+        /* Polished inputs */
+        .hub-input { width: 100%; padding: 11px 14px; background: var(--bg-input); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 14px; outline: none; transition: border 0.2s, box-shadow 0.2s; box-sizing: border-box; font-family: inherit; }
+        .hub-input:focus { border-color: var(--brand) !important; box-shadow: 0 0 0 3px var(--brand-light); }
+        .hub-input::placeholder { color: var(--text-muted); }
+        .hub-input.error { border-color: #ef4444; }
+        .hub-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
+        .hub-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .hub-label .required { color: var(--brand); font-weight: 700; }
+        textarea.hub-input { resize: vertical; min-height: 100px; line-height: 1.5; }
+        select.hub-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%239399b2' stroke-width='2' stroke-linecap='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+        /* Consistent empty states */
+        .hub-empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+        .hub-empty .hub-empty-icon { margin-bottom: 14px; opacity: 0.25; }
+        .hub-empty .hub-empty-title { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+        .hub-empty .hub-empty-desc { margin: 0; font-size: 13px; line-height: 1.5; }
+
+        /* Priority left border on ticket cards */
+        .hub-ticket-card { position: relative; overflow: hidden; }
+        .hub-ticket-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; }
+        .hub-ticket-card.priority-critical::before { background: #dc2626; }
+        .hub-ticket-card.priority-high::before { background: #ea580c; }
+        .hub-ticket-card.priority-medium::before { background: #ca8a04; }
+        .hub-ticket-card.priority-low::before { background: #6366f1; }
+        .hub-skeleton { background: linear-gradient(90deg, var(--bar-bg) 25%, var(--bg-card) 50%, var(--bar-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; border-radius: 6px; }
+
+        .hub-sidebar { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); height: 100vh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; transition: width 0.2s ease; z-index: 40; }
+        .hub-sidebar.collapsed { width: 60px; }
+
+        .hub-mobile-header { display: none; position: sticky; top: 0; z-index: 50; background: var(--bg-header); border-bottom: 1px solid var(--border); padding: 10px 16px; align-items: center; justify-content: space-between; }
+        .hub-mobile-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-header); border-top: 1px solid var(--border); padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px); z-index: 100; justify-content: space-around; }
+        .hub-mobile-bottom button { background: none; border: none; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-muted); font-size: 9px; font-weight: 600; }
+        .hub-mobile-bottom button.active { color: var(--brand); }
+        .hub-mobile-overlay { display: none; position: fixed; inset: 0; z-index: 200; }
+        .hub-mobile-more { display: none; position: fixed; bottom: 56px; left: 0; right: 0; z-index: 150; padding: 16px; background: var(--bg-card); border-top: 1px solid var(--border); box-shadow: 0 -4px 20px rgba(0,0,0,0.1); border-radius: 16px 16px 0 0; max-height: 60vh; overflow-y: auto; }
+
+        @media (max-width: 768px) {
+          .hub-sidebar { display: none !important; }
+          .hub-main-col { margin-left: 0 !important; }
+          .hub-desktop-topbar { left: 0 !important; }
+          .hub-desktop-only { display: none !important; }
+          .hub-mobile-header { display: flex !important; }
+          .hub-mobile-bottom { display: flex !important; }
+          .hub-mobile-overlay.open { display: block !important; }
+          .hub-mobile-more.open { display: block !important; }
+          .hub-desktop-topbar { display: none !important; }
+          .hub-app-shell { min-height: auto !important; }
+          .hub-main { padding: 16px 14px 76px 14px !important; max-width: 100% !important; }
+        }
+        @media (max-width: 900px) {
+          .hub-layout-main { grid-template-columns: 1fr !important; }
+          .hub-dash-grid, .hub-resource-grid { grid-template-columns: 1fr 1fr !important; }
+          .hub-hero-split, .hub-editor-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 640px) {
+          .hub-home-grid, .hub-resource-grid, .hub-template-grid, .hub-gallery-grid, .hub-priority-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-hero-grid, .hub-hero-split, .hub-editor-grid, .hub-layout-main, .hub-tickets-grid { grid-template-columns: 1fr !important; }
+          .hub-dash-grid { grid-template-columns: 1fr !important; }
+          .hub-color-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .hub-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .hub-filter-bar { flex-direction: column; align-items: stretch !important; }
+          .hub-analytics-metrics { grid-template-columns: repeat(2, 1fr) !important; }
+          .hub-analytics-cols { grid-template-columns: 1fr !important; }
+          .hub-profile-stats { grid-template-columns: repeat(3, 1fr) !important; }
+          .hub-week-compare { flex-direction: column; gap: 10px !important; }
+          .hub-type-filter { display: none !important; }
+        }
+      `}</style>
+
+      {/* Mobile header - outside flex container */}
+      <div className="hub-mobile-header">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setMobileNav(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", padding: "4px", display: "flex" }}><Menu size={22} /></button>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--brand)" }}>{pageTitle}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); nav(v); }} isAdmin={isAdmin} />
+          {currentUser ? (
+            <button onClick={() => nav("profile")} style={{ width: 30, height: 30, borderRadius: 15, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", position: "relative" }}>{currentUser.name?.charAt(0)?.toUpperCase()}{unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+          ) : (
+            <button onClick={() => nav("password")} style={{ padding: "6px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", minHeight: "100vh" }} className="hub-app-shell">
+        {/* Desktop sidebar */}
+        <aside className={"hub-sidebar hub-sidebar-inner" + (sideCollapsed ? " collapsed" : "")}>
+          {sidebarContent(false)}
+        </aside>
+
+        {/* Main column */}
+        <div className={"hub-main-col " + (["archive", "brand_assets", "testimonials", "brand_management", "gallery", "monthly_summary", "my_week", "monthly_summary", "my_week", "stockroom"].includes(view) ? "hub-accent-resources" : ["qr_generator", "signatures", "first_policy"].includes(view) ? "hub-accent-tools" : ["dashboard", "analytics", "weekly", "admin", "leads_dashboard", "activity"].includes(view) ? "hub-accent-admin" : ["form", "tracker", "submitted", "meeting_todos", "my_week"].includes(view) ? "hub-accent-tickets" : "hub-accent-none")} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", marginLeft: sideCollapsed ? 60 : 248, transition: "margin-left 0.2s ease" }}>
+          {/* Desktop top bar: page title + profile */}
+          <div className="hub-desktop-topbar" style={{ padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", background: "var(--bg-header)", position: "fixed", top: 0, right: 0, left: sideCollapsed ? 60 : 248, zIndex: 40, transition: "left 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+              {view !== "hub" && <button onClick={() => nav("hub")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}><Home size={15} /></button>}
+              {view !== "hub" && parentView && <><span style={{ color: "var(--border)", fontSize: 12 }}>/</span><button onClick={() => nav(parentView)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 13, fontWeight: 500, padding: 0 }}>{parentTitle}</button></>}
+              {view !== "hub" && <span style={{ color: "var(--border)", fontSize: 12 }}>/</span>}
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{pageTitle}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <NotificationsCenter notifications={notifications} onClear={clearNotifications} onNavigate={(v) => { markAllRead(); setView(v); }} isAdmin={isAdmin} />
+              {currentUser ? (
+                <>
+                  <button onClick={() => nav("profile")} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 5px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 20, cursor: "pointer", transition: "all 0.15s", position: "relative" }} onMouseOver={(e) => e.currentTarget.style.borderColor = "var(--brand)"} onMouseOut={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+                    <span style={{ width: 26, height: 26, borderRadius: 13, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{currentUser.name.split(" ")[0]}</span>
+                    {unreadNotifs > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: 8, background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadNotifs}</span>}
+                  </button>
+                  <button onClick={handleLogout} title="Log out" style={{ padding: "6px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}><LogOut size={15} /></button>
+                </>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => nav("password")} style={{ padding: "6px 14px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Log In</button>
+                  <button onClick={() => nav("signup")} style={{ padding: "6px 14px", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <main key={view} className="hub-main hub-view-enter" style={{ maxWidth: ["dashboard", "archive", "leads_dashboard", "analytics", "admin", "testimonials", "brand_management", "gallery", "monthly_summary", "my_week", "monthly_summary", "my_week", "activity", "weekly", "monthly_summary", "stockroom"].includes(view) ? 1200 : 1000, width: "100%", margin: "0 auto", padding: "28px 32px", paddingTop: 80, flex: 1 }}>
+        {loading ? (
+          <div style={{ width: "100%", maxWidth: 860 }}>
+            <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
+              <div className="hub-skeleton" style={{ width: 120, height: 14, marginBottom: 8 }}></div>
+              <div className="hub-skeleton" style={{ width: 260, height: 28, marginBottom: 20 }}></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                <div className="hub-skeleton" style={{ height: 64, borderRadius: 12 }}></div>
+                <div className="hub-skeleton" style={{ height: 64, borderRadius: 12 }}></div>
+              </div>
+              <div className="hub-skeleton" style={{ width: 140, height: 14 }}></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+              {[1,2,3,4,5,6].map((i) => (
+                <div key={i} className="hub-skeleton" style={{ height: 100, borderRadius: 12 }}></div>
+              ))}
+            </div>
+          </div>
+        ) : view === "hub" ? (
+          <HubErrorBoundary><HubHome onNavigate={(id) => nav(id)} tickets={tickets} dashUnlocked={dashUnlocked} isAdmin={isAdmin} leads={leads} notifications={notifications} calendarEvents={calendarEvents} archiveEntries={archiveEntries} oooActive={oooActive} oooReturnDate={oooReturnDate} announcement={announcement} onQuickSubmit={handleSubmit} currentUser={currentUser} stockroomItems={stockroomItems} /></HubErrorBoundary>
+        ) : view === "form" ? (
+          <div style={{ maxWidth: 560, width: "100%" }}>
+            <TicketForm onSubmit={handleSubmit} currentUser={currentUser} duplicateData={duplicateData} onClearDuplicate={() => setDuplicateData(null)} />
+            {tickets.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "var(--brand)", letterSpacing: "0.02em" }}>Ticket Overview</h3>
+                <StatsBar tickets={tickets} />
+              </div>
+            )}
+          </div>
+        ) : view === "submitted" ? (
+          <SubmitterView tickets={tickets} submittedRef={lastSubmittedRef} onAddNote={handleAddNote} onBackToForm={() => setView("form")} currentUser={currentUser} onEditTicket={handleEditTicket} onApprove={handleApproveTicket} onRequestChanges={handleRequestChanges} />
+        ) : view === "tracker" ? (
+          <SubmitterView tickets={tickets} submittedRef={null} onAddNote={handleAddNote} onBackToForm={() => setView("form")} currentUser={currentUser} onEditTicket={handleEditTicket} onApprove={handleApproveTicket} onRequestChanges={handleRequestChanges} />
+        ) : view === "password" ? (
+          <LoginPage hubUsers={hubUsers} onLogin={handleLogin} onGoToSignUp={() => setView("signup")} />
+        ) : view === "signup" ? (
+          <SignUpPage hubUsers={hubUsers} onSignUp={handleSignUp} onGoToLogin={() => setView("password")} />
+        ) : view === "activity" ? (
+          <ActivityLog tickets={tickets} />
+        ) : view === "analytics" ? (
+          <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={isAdmin} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+        ) : view === "weekly" ? (
+          <WeeklyReport tickets={tickets} leads={leads} archiveEntries={archiveEntries} isAdmin={isAdmin} />
+        ) : view === "monthly_summary" ? (
+          <MonthlySummary tickets={tickets} leads={leads} archiveEntries={archiveEntries} testimonials={testimonialItems} stockroomItems={stockroomItems} />
+        ) : view === "my_week" ? (
+          <MyWeek tickets={tickets} archiveEntries={archiveEntries} stockroomItems={stockroomItems} currentUser={currentUser} onNavigate={(v) => nav(v)} />
+        ) : view === "archive" ? (
+          <MarketingArchive entries={archiveEntries} isAdmin={isAdmin} onManage={(id) => { if (id) { setEditArchiveEntry(id); setView("archive_edit"); } else { setEditArchiveEntry("new"); setView("archive_add"); } }} />
+        ) : (view === "archive_add" || view === "archive_edit") ? (
+          <ArchiveForm entry={editArchiveEntry !== "new" ? archiveEntries.find((e) => e.id === editArchiveEntry) : null} onSave={handleArchiveSave} onCancel={() => setView("archive")} onDelete={handleArchiveDelete} />
+        ) : view === "lead_form" ? (
+          <LeadForm currentUser={currentUser} onSave={handleLeadSave} onBackToHub={() => setView("hub")} />
+        ) : view === "leads_dashboard" ? (
+          <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
+        ) : view === "brand_assets" ? (
+          <BrandAssets assets={brandAssets} isAdmin={isAdmin} onUpload={handleAssetUpload} onDeleteAsset={handleAssetDelete} galleryImages={galleryImages} onGalleryUpload={handleGalleryUpload} onGalleryDelete={handleGalleryDelete} />
+        ) : view === "qr_generator" ? (
+          <QRCodeGenerator />
+        ) : view === "signatures" ? (
+          <EmailSignatureGenerator />
+        ) : view === "first_policy" ? (
+          <FirstPolicySold isAdmin={isAdmin} />
+        ) : view === "testimonials" ? (
+          <Testimonials items={testimonialItems} isAdmin={isAdmin} onSave={handleTestimonialSave} onDelete={handleTestimonialDelete} />
+        ) : view === "brand_management" ? (
+          <BrandAssetManagement isAdmin={isAdmin} />
+        ) : view === "gallery" ? (
+          <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
+        ) : view === "stockroom" ? (
+          <ContentStockroom items={stockroomItems} currentUser={currentUser} isAdmin={isAdmin} onAdd={handleStockroomAdd} onUpdateStatus={handleStockroomStatus} onDelete={handleStockroomDelete} />
+        ) : view === "meeting_todos", "my_week" ? (
+          <MeetingTodos onBulkCreate={handleBulkCreate} currentUser={currentUser} />
+        ) : view === "profile" ? (
+          <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} onUpdateUser={handleUpdateUser} hubUsers={hubUsers} />
+        ) : view === "admin" ? (
+          <AdminPanel oooActive={oooActive} oooReturnDate={oooReturnDate} oooStartDate={oooStartDate} onToggleOoo={toggleOoo} tickets={tickets} leads={leads} archiveEntries={archiveEntries} oooSummaryDismissed={oooSummaryDismissed} onDismissSummary={() => setOooSummaryDismissed(true)} calendarEvents={calendarEvents} dashboardPassword={dashPassword} onChangePassword={handleChangePassword} announcement={announcement} onUpdateAnnouncement={handleUpdateAnnouncement} recurringSchedules={recurringSchedules} onCreateRecurring={handleCreateRecurring} onUpdateRecurring={handleUpdateRecurring} onDeleteRecurring={handleDeleteRecurring} onPauseRecurring={handlePauseRecurring} teamGoals={teamGoals} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} onSaveSla={saveSlaSettings} onSaveArchiveTypes={saveArchiveTypes} onSaveTemplates={saveTemplates} />
+        ) : (
+          <div style={{ width: "100%" }}>
+            <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 3, border: "1px solid var(--border)", marginBottom: 20, width: "fit-content" }}>
+              {[{ key: "tickets", label: "Tickets" }, { key: "leads", label: "Leads" }, { key: "analytics", label: "Analytics" }].map((tab) => (
+                <button key={tab.key} onClick={() => setDashboardTab(tab.key)} style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: dashboardTab === tab.key ? "var(--brand)" : "transparent", color: dashboardTab === tab.key ? "#fff" : "var(--nav-inactive)" }}>{tab.label}</button>
+              ))}
+            </div>
+            {dashboardTab === "tickets" ? (
+              <Dashboard tickets={tickets} onStatusChange={handleStatusChange} onComplete={handleComplete} onAddNote={handleAddNote} onDelete={handleDelete} onUpdatePriority={handleUpdatePriority} onUpdateDeadline={handleUpdateDeadline} onReopen={handleReopen} onTogglePin={handleTogglePin} onDuplicate={handleDuplicate} onEditTicket={handleEditTicket} currentUser={currentUser} hubUsers={hubUsers} />
+            ) : dashboardTab === "leads" ? (
+              <LeadsDashboard leads={leads} onUpdate={handleLeadUpdate} onDelete={handleLeadDelete} />
+            ) : (
+              <AnalyticsPanel tickets={tickets} archiveEntries={archiveEntries} leads={leads} teamGoals={teamGoals} isAdmin={isAdmin} onGoalSave={handleGoalSave} onGoalDelete={handleGoalDelete} galleryImages={galleryImages} kbArticles={kbArticles} hubUsers={hubUsers} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} auditLog={auditLog} />
+            )}
+          </div>
+        )}
+          </main>
+
+          {/* Global quick-add FAB */}
+          {view !== "form" && view !== "lead_form" && view !== "archive_add" && (
+            <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100 }} className="hub-desktop-only">
+              {quickAdd && (
+                <div style={{ position: "absolute", bottom: 56, right: 0, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.12)", padding: 6, minWidth: 200, animation: "fadeInScale 0.15s ease" }}>
+                  <button onClick={() => { setQuickAdd(false); nav("form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><PenSquare size={16} style={{ color: "#6366f1" }} />Submit a Ticket</button>
+                  <button onClick={() => { setQuickAdd(false); nav("lead_form"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><TrendingUp size={16} style={{ color: "#0d9488" }} />Log a Lead</button>
+                  {isAdmin && <button onClick={() => { setQuickAdd(false); nav("archive_add"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><Library size={16} style={{ color: "#8b5cf6" }} />Archive Entry</button>}
+                  {isAdmin && <button onClick={() => { setQuickAdd(false); nav("testimonials"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><Star size={16} style={{ color: "#ca8a04" }} />Testimonial</button>}
+                  <button onClick={() => { setQuickAdd(false); nav("stockroom"); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "var(--text-primary)", fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}><FolderOpen size={16} style={{ color: "#20A39E" }} />Content Stockroom</button>
+                </div>
+              )}
+              <button onClick={() => setQuickAdd(!quickAdd)} style={{ width: 48, height: 48, borderRadius: 24, background: "var(--brand)", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", boxShadow: "0 4px 16px var(--brand-glow)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", transform: quickAdd ? "rotate(45deg)" : "none" }}><Plus size={22} /></button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div className="hub-mobile-bottom">
+        <button onClick={() => nav("hub")} className={view === "hub" ? "active" : ""}><Home size={20} /><span>Home</span></button>
+        <button onClick={() => nav("form")} className={view === "form" ? "active" : ""}><PenSquare size={20} /><span>Submit</span></button>
+        <button onClick={() => { setLastSubmittedRef(null); nav("tracker"); }} className={view === "tracker" ? "active" : ""}><Search size={20} /><span>Track</span></button>
+        {currentUser ? (
+          <button onClick={() => nav("profile")} className={view === "profile" ? "active" : ""} style={{ position: "relative" }}><User size={20} /><span>Profile</span>{unreadNotifs > 0 && <span style={{ position: "absolute", top: 2, right: "calc(50% - 14px)", width: 7, height: 7, borderRadius: 4, background: "#dc2626" }}></span>}</button>
+        ) : (
+          <button onClick={() => nav("password")} className={view === "password" ? "active" : ""}><LogIn size={20} /><span>Login</span></button>
+        )}
+        <button onClick={() => setMobileMore(!mobileMore)} className={mobileMore ? "active" : ""}><MoreHorizontal size={20} /><span>More</span></button>
+      </div>
+
+      {/* Mobile "More" sheet */}
+      <div className={"hub-mobile-more" + (mobileMore ? " open" : "")}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Quick Access</span>
+          <button onClick={() => setMobileMore(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}><X size={18} /></button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {[
+            { id: "archive", icon: <Library size={20} />, label: "Archive" },
+            { id: "brand_assets", icon: <Palette size={20} />, label: "Brand" },
+            { id: "qr_generator", icon: <QrCode size={20} />, label: "QR" },
+            { id: "signatures", icon: <ExternalLink size={20} />, label: "Signatures" },
+            { id: "first_policy", icon: <Wand2 size={20} />, label: "Celebrate" },
+            { id: "whitelabel", icon: <ExternalLink size={20} />, label: "White Label", href: "https://whitelabel.alpsltd.co.uk/" },
+            ...(currentUser ? [
+              { id: "testimonials", icon: <Star size={20} />, label: "Testimonials" },
+            ] : []),
+            ...(isAdmin ? [
+              { id: "dashboard", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
+              { id: "analytics", icon: <PieChart size={20} />, label: "Analytics" },
+              { id: "admin", icon: <Settings size={20} />, label: "Admin" },
+            ] : []),
+          ].map((item) => (
+            <button key={item.id} onClick={() => item.href ? window.open(item.href, "_blank") : nav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 4px", background: view === item.id ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (view === item.id ? "var(--brand)" : "transparent"), borderRadius: 10, cursor: "pointer", color: view === item.id ? "var(--brand)" : "var(--text-secondary)", fontSize: 10, fontWeight: 600 }}>
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile nav overlay */}
+      <div className={"hub-mobile-overlay" + (mobileNav ? " open" : "")}>
+        <div onClick={() => setMobileNav(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}></div>
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 280, background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", overflowY: "auto", animation: "fadeIn 0.15s ease" }}>
+          <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <img src={ALPS_LOGO} alt="Alps" style={{ height: 24 }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>Marketing Hub</span>
+            </div>
+            <button onClick={() => setMobileNav(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px", display: "flex" }}><X size={18} /></button>
+          </div>
+          {sidebarContent(true)}
+        </div>
+      </div>
+
+      {/* Close more sheet when clicking outside */}
+      {mobileMore && <div onClick={() => setMobileMore(false)} style={{ position: "fixed", inset: 0, zIndex: 140 }}></div>}
+
+      {showOnboarding && <OnboardingOverlay onDismiss={dismissOnboarding} />}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
+    </div>
+  );
+}
