@@ -639,16 +639,26 @@ export function ProfilePage({ currentUser, tickets, leads, archiveEntries, onNav
 
 
 export function Toast({ toasts, onDismiss }) {
+  var TOAST_COLORS = { error: { stripe: "#dc2626", bg: "#fef2f2", text: "#991b1b", icon: "\u274C" }, success: { stripe: "#16a34a", bg: "#f0fdf4", text: "#166534", icon: "\u2705" }, info: { stripe: "#0284c7", bg: "#eff6ff", text: "#1e40af", icon: "\u2139\uFE0F" }, warning: { stripe: "#ca8a04", bg: "#fefce8", text: "#854d0e", icon: "\u26A0\uFE0F" } };
   return (
-    <div style={{ position: "fixed", top: 16, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
-      {toasts.map((t) => (
-        <div key={t.id} style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: t.type === "error" ? "#fef2f2" : t.type === "success" ? "#f0fdf4" : "var(--bg-card)", border: "1px solid " + (t.type === "error" ? "#fecaca" : t.type === "success" ? "#bbf7d0" : "var(--border)"), borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", maxWidth: 420, animation: "fadeIn 0.2s ease", minWidth: 260 }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>{t.type === "error" ? "\u274C" : t.type === "success" ? "\u2705" : "\u2139\uFE0F"}</span>
-          <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: t.type === "error" ? "#991b1b" : t.type === "success" ? "#166534" : "var(--text-primary)", lineHeight: 1.4 }}>{t.message}</div>
-          {t.onUndo && <button onClick={() => { t.onUndo(); onDismiss(t.id); }} style={{ padding: "4px 12px", background: "var(--brand)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Undo</button>}
-          <button onClick={() => onDismiss(t.id)} style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text-muted)", padding: "2px 6px", flexShrink: 0, lineHeight: 1 }}>{"\u2715"}</button>
-        </div>
-      ))}
+    <div style={{ position: "fixed", top: 16, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none" }}>
+      {toasts.map(function(t) {
+        var c = TOAST_COLORS[t.type] || TOAST_COLORS.info;
+        return (
+          <div key={t.id} style={{ pointerEvents: "auto", background: c.bg, borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", maxWidth: 420, minWidth: 280, animation: "slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, background: c.stripe, borderRadius: "14px 0 0 14px" }}></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px 16px" }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{c.icon}</span>
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: c.text, lineHeight: 1.4 }}>{t.message}</div>
+              {t.onUndo && <button onClick={function() { t.onUndo(); onDismiss(t.id); }} style={{ padding: "5px 14px", background: c.stripe, border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Undo</button>}
+              <button onClick={function() { onDismiss(t.id); }} style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", color: c.text, padding: "2px 6px", flexShrink: 0, lineHeight: 1, opacity: 0.5 }}>{"\u2715"}</button>
+            </div>
+            <div style={{ height: 3, background: "rgba(0,0,0,0.06)", margin: "0 16px 6px 16px", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", background: c.stripe, borderRadius: 2, animation: "barFill 4s linear reverse forwards", opacity: 0.4 }}></div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

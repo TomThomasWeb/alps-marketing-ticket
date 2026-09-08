@@ -146,10 +146,7 @@ export function MarketingArchive({ entries, isAdmin, onManage }) {
 
       {/* Results */}
       {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <Library size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{search.trim() ? "No entries match your search" : "No archive entries yet"}</div>
-        </div>
+        <div className="hub-empty"><span className="hub-empty-icon">{search.trim() ? "🔍" : "📂"}</span><div className="hub-empty-title">{search.trim() ? "No entries match your search" : "No archive entries yet"}</div><div className="hub-empty-desc">{search.trim() ? "Try broadening your search or removing filters." : "Start cataloguing your marketing output to build a searchable archive."}</div></div>
       ) : viewMode === "timeline" ? (
         <div style={{ position: "relative", paddingLeft: 28 }}>
           <div style={{ position: "absolute", left: 10, top: 0, bottom: 0, width: 2, background: "var(--border)", borderRadius: 1 }}></div>
@@ -1069,36 +1066,34 @@ export function Testimonials({ items, isAdmin, onSave, onDelete }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--text-muted)" }}>
-          <Star size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>No testimonials yet</div>
-          <div style={{ fontSize: 13 }}>{isAdmin ? "Click \"+ Add Testimonial\" to get started." : "Testimonials from brokers will appear here."}</div>
-        </div>
+        <div className="hub-empty"><span className="hub-empty-icon">⭐</span><div className="hub-empty-title">No testimonials yet</div><div className="hub-empty-desc">{isAdmin ? "When a broker sends positive feedback, add it here to build your testimonial library." : "Broker testimonials will appear here as they're collected."}</div></div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {filtered.map((t) => (
-            <div key={t.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderLeft: "4px solid " + (t.consent ? "#16a34a" : "#ca8a04"), borderRadius: 12, padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 600, color: "var(--brand)" }}>{t.broker}</span>
-                    <span>{new Date(t.submitted_date || t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                  {t.consent ? <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(22,163,74,0.08)", color: "#16a34a" }}>✓ Consent</span> : <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>No consent</span>}
-                  {t.type === "video" && <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626" }}>🎬 Video</span>}
-                  {isAdmin && <button onClick={() => { if (window.confirm("Delete this testimonial?")) onDelete(t.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 14, cursor: "pointer", padding: 0, opacity: 0.5 }}>✕</button>}
-                </div>
+            <div key={t.id} style={{ background: "var(--bg-card)", borderRadius: 16, padding: "22px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", position: "relative", transition: "all 0.2s", borderLeft: "4px solid " + (t.consent ? "#16a34a" : "#ca8a04") }} onMouseOver={function(e) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"; }} onMouseOut={function(e) { e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
+              <div style={{ position: "absolute", top: 14, right: 18, display: "flex", gap: 6, alignItems: "center" }}>
+                {t.consent ? <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 20, background: "rgba(22,163,74,0.08)", color: "#16a34a" }}>✓ Consent Given</span> : <span className="hub-breathe" style={{ fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 20, background: "rgba(202,138,4,0.08)", color: "#ca8a04" }}>Consent Pending</span>}
+                {t.type === "video" && <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 20, background: "rgba(220,38,38,0.08)", color: "#dc2626" }}>🎬 Video</span>}
+                {isAdmin && <button onClick={() => { if (window.confirm("Delete?")) onDelete(t.id); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 14, cursor: "pointer", opacity: 0.4 }}>✕</button>}
               </div>
-              {t.text && <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.7, fontStyle: "italic", padding: "12px 16px", background: "var(--bg-input)", borderRadius: 8, borderLeft: "3px solid var(--border)" }}>"{t.text}"</div>}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{t.name}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}><span style={{ fontWeight: 600, color: "var(--brand)" }}>{t.broker}</span> · {new Date(t.submitted_date || t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
+              {t.text && (
+                <div style={{ position: "relative", padding: "16px 20px 16px 32px", background: "var(--bg-input)", borderRadius: 12, marginBottom: 12 }}>
+                  <span style={{ position: "absolute", top: 6, left: 12, fontSize: 36, fontWeight: 800, color: "var(--brand)", opacity: 0.15, lineHeight: 1, fontFamily: "Georgia, serif" }}>"</span>
+                  <div style={{ fontSize: 14, color: "var(--text-body)", lineHeight: 1.7, fontStyle: "italic", position: "relative", zIndex: 1 }}>{t.text}</div>
+                </div>
+              )}
               {t.file_url && (
-                <div style={{ marginTop: 10 }}>
+                <div style={{ marginTop: 4 }}>
                   {t.file_url.match(/\.(mp4|mov|webm)$/i) ? (
-                    <video src={t.file_url} controls style={{ width: "100%", maxHeight: 300, borderRadius: 8, background: "#000" }} />
+                    <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", background: "#000" }}>
+                      <video src={t.file_url} controls style={{ width: "100%", maxHeight: 300, display: "block" }} />
+                    </div>
                   ) : (
-                    <a href={t.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--brand-light)", borderRadius: 6, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none" }}><Download size={13} /> Download File</a>
+                    <a href={t.file_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", background: "var(--brand-light)", borderRadius: 8, color: "var(--brand)", fontSize: 12, fontWeight: 600, textDecoration: "none" }}><Download size={13} /> Download File</a>
                   )}
                 </div>
               )}
@@ -1234,7 +1229,7 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
             const st = STATUSES.find((s) => s.id === item.status) || STATUSES[0];
             const isExpanded = expandedId === item.id;
             return (
-              <div key={item.id} onClick={() => { if (item.text) setExpandedId(isExpanded ? null : item.id); }} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderTop: "3px solid " + st.color, borderRadius: 10, padding: "14px", cursor: item.text ? "pointer" : "default", transition: "all 0.15s" }}>
+              <div key={item.id} onClick={() => { if (item.text) setExpandedId(isExpanded ? null : item.id); }} style={{ background: "var(--bg-card)", borderLeft: "4px solid " + st.color, borderRadius: 14, padding: "16px 18px", cursor: item.text ? "pointer" : "default", transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={function(e) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseOut={function(e) { e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; e.currentTarget.style.transform = "none"; }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8, lineHeight: 1.4 }}>{item.title}</div>
                 {isExpanded && item.text && (
                   <div style={{ padding: "10px 12px", background: "var(--bg-input)", borderRadius: 6, fontSize: 12, color: "var(--text-body)", lineHeight: 1.6, marginBottom: 10, maxHeight: 200, overflow: "auto", border: "1px solid var(--border)" }}>{item.text}</div>
@@ -1244,7 +1239,7 @@ export function ContentStockroom({ items, currentUser, isAdmin, onAdd, onUpdateS
                   {(item.tags || []).map((tag) => { const ct = CONTENT_TAGS.find((t) => t.id === tag); return ct ? <span key={tag} style={{ fontSize: 9, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: ct.color + "12", color: ct.color }}>{ct.label}</span> : null; })}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
+                  <span className={st.id === "stockroom" ? "hub-breathe" : ""} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
                   <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                     {isAdmin && <select value={item.status} onChange={(e) => { e.stopPropagation(); onUpdateStatus(item.id, e.target.value); }} onClick={(e) => e.stopPropagation()} style={{ padding: "3px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 9, color: "var(--text-primary)", outline: "none" }}>
                       {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
