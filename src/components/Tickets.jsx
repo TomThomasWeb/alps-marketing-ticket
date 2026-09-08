@@ -63,6 +63,7 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [wizardStep, setWizardStep] = useState(1);
   const fileRef = useRef();
   useEffect(() => { if (currentUser?.name && !form.name) setForm((f) => ({ ...f, name: currentUser.name })); }, [currentUser]);
   useEffect(() => {
@@ -132,13 +133,16 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         <PenSquare size={28} style={{ opacity: 0.6, marginBottom: 12 }} />
         <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em" }}>Submit a Request</h1>
         <p style={{ margin: 0, fontSize: 14, opacity: 0.7 }}>Tell us what you need and we'll get it done.</p>
-        {/* Progress bar */}
-        <div style={{ marginTop: 20, background: "rgba(255,255,255,0.15)", borderRadius: 4, height: 6, overflow: "hidden" }}>
-          <div style={{ height: "100%", background: "#fff", borderRadius: 4, width: pct + "%", transition: "width 0.4s ease", opacity: 0.9 }}></div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, opacity: 0.5 }}>
-          <span>{pct === 100 ? "Ready to submit" : steps + "/4 fields completed"}</span>
-          <span>{pct}%</span>
+        {/* Step indicator */}
+        <div style={{ marginTop: 20, display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
+          {[{ n: 1, label: "What" }, { n: 2, label: "Priority" }, { n: 3, label: "Details" }].map(function(st) {
+            var active = wizardStep === st.n;
+            var done = wizardStep > st.n;
+            return <div key={st.n} style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ width: 28, height: 28, borderRadius: 14, background: done ? "rgba(22,163,74,0.9)" : active ? "#fff" : "rgba(255,255,255,0.2)", color: done ? "#fff" : active ? "#231d68" : "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, margin: "0 auto 4px", transition: "all 0.3s" }}>{done ? "\u2713" : st.n}</div>
+              <div style={{ fontSize: 10, opacity: active ? 1 : 0.5 }}>{st.label}</div>
+            </div>;
+          })}
         </div>
       </div>
 
@@ -150,106 +154,120 @@ export function TicketForm({ onSubmit, currentUser, duplicateData, onClearDuplic
         </div>
       )}
 
-      {/* Visual template picker */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ ...labelStyle, fontSize: 13, marginBottom: 10 }}>What do you need?</label>
-        <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {TEMPLATES.map((tmpl, i) => (
-            <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = addBusinessDays(new Date(), sla.days); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} setSelectedTemplate(i); }} style={{ padding: "14px 10px", background: selectedTemplate === i ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (selectedTemplate === i ? "var(--brand)" : "var(--border)"), borderRadius: 12, cursor: "pointer", transition: "all 0.2s", textAlign: "center", position: "relative" }} onMouseOver={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--border)"; }}>
-              <div style={{ fontSize: 24, marginBottom: 6 }}>{tmpl.icon}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: selectedTemplate === i ? "var(--brand)" : "var(--text-primary)", marginBottom: 2 }}>{tmpl.label}</div>
-              {lastUsed === tmpl.label && selectedTemplate !== i && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 7, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Recent</span>}
-              {selectedTemplate === i && <span style={{ position: "absolute", top: 6, right: 6 }}><CheckCircle2 size={14} style={{ color: "var(--brand)" }} /></span>}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Form card */}
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "24px 24px 20px" }}>
-        <div style={{ marginBottom: 18 }}>
-          {currentUser ? (
-            <div>
-              <label style={labelStyle}>Submitting as</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}>
-                <span style={{ width: 24, height: 24, borderRadius: 12, background: currentUser.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{currentUser.name}</span>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
-              <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-              {errors.name && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.name}</span>}
-            </div>
-          )}
-        </div>
+      <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "24px 24px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
 
-        <div style={{ marginBottom: 18 }}>
-          <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
-          <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-          {errors.title && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.title}</span>}
-        </div>
-
-        <div style={{ marginBottom: 18 }}>
-          <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
-          <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
-            {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "—", md: "\n- ", title: "Bullet list" }, { label: "🔗", md: "[", title: "Link" }].map((btn) => (
-              <button key={btn.label} type="button" title={btn.title} onClick={() => {
-                const ta = document.querySelector("textarea[placeholder*='Describe']");
-                if (!ta) return;
-                const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
-                let ins;
-                if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
-                else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
-                else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
-                const next = form.description.slice(0, start) + ins + form.description.slice(end);
-                update("description", next);
-                setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
-              }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
-            ))}
-          </div>
-          <textarea rows={5} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need — include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
-          {errors.description && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.description}</span>}
-        </div>
-
-        <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
-          <div>
-            <label style={labelStyle}>Priority</label>
-            <div style={{ display: "flex", gap: 6 }}>
-              {Object.entries(PRIORITIES).map(([key, p]) => (
-                <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "2px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
-                  <span style={{ display: "block", fontSize: 16, marginBottom: 2 }}>{p.icon}</span>
-                  {p.label}
+        {/* STEP 1: What do you need */}
+        {wizardStep === 1 && (<>
+          {/* Visual template picker */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ ...labelStyle, fontSize: 13, marginBottom: 10 }}>What do you need?</label>
+            <div className="hub-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {TEMPLATES.map((tmpl, i) => (
+                <button key={i} onClick={() => { update("title", tmpl.title); update("description", tmpl.description); update("priority", tmpl.priority); const sla = SLA_TARGETS[tmpl.priority]; if (sla) { const d = addBusinessDays(new Date(), sla.days); update("deadline", d.toISOString().split("T")[0]); } try { localStorage.setItem("alps_last_template", tmpl.label); } catch {} setSelectedTemplate(i); }} style={{ padding: "14px 10px", background: selectedTemplate === i ? "var(--brand-light)" : "var(--bg-card)", border: "2px solid " + (selectedTemplate === i ? "var(--brand)" : "var(--border)"), borderRadius: 12, cursor: "pointer", transition: "all 0.2s", textAlign: "center", position: "relative" }} onMouseOver={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--brand)"; }} onMouseOut={(e) => { if (selectedTemplate !== i) e.currentTarget.style.borderColor = "var(--border)"; }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>{tmpl.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: selectedTemplate === i ? "var(--brand)" : "var(--text-primary)", marginBottom: 2 }}>{tmpl.label}</div>
+                  {lastUsed === tmpl.label && selectedTemplate !== i && <span style={{ position: "absolute", top: 6, right: 6, fontSize: 7, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 5px", borderRadius: 4 }}>Recent</span>}
+                  {selectedTemplate === i && <span style={{ position: "absolute", top: 6, right: 6 }}><CheckCircle2 size={14} style={{ color: "var(--brand)" }} /></span>}
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong></div>
           </div>
-          <div>
-            <label style={labelStyle}>Deadline</label>
-            <input type="date" min={today} style={{ ...inputStyle(null), cursor: "pointer" }} value={form.deadline} onChange={(e) => update("deadline", e.target.value)} />
-          </div>
-        </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
-          <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
-          <button onClick={() => fileRef.current?.click()} style={{ padding: "12px 18px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 10, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.background = "var(--brand-light)"; e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "var(--bg-input)"; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}>
-            <Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files
-          </button>
-          {form.files.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-              {form.files.map((f, i) => <FileChip key={i} name={f.name} onRemove={() => removeFile(i)} />)}
+          {!currentUser && <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Your Name <span style={{ color: "#dc2626" }}>*</span></label>
+            <input style={inputStyle("name")} placeholder="e.g. Sarah Johnson" value={form.name} onChange={(e) => update("name", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.name ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.name && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.name}</span>}
+          </div>}
+          {currentUser && <div style={{ marginBottom: 18 }}><label style={labelStyle}>Submitting as</label><div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10 }}><span style={{ width: 24, height: 24, borderRadius: 12, background: currentUser.avatar_color || "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span><span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{currentUser.name}</span></div></div>}
+
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Task Title <span style={{ color: "#dc2626" }}>*</span></label>
+            <input style={inputStyle("title")} placeholder="e.g. Update Q1 social media calendar" value={form.title} onChange={(e) => update("title", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.title ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.title && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.title}</span>}
+          </div>
+
+          <button onClick={function() { if (!form.title.trim()) { setErrors({ title: "Required" }); return; } setWizardStep(2); }} style={{ width: "100%", padding: "14px", background: form.title.trim() ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: form.title.trim() ? "pointer" : "not-allowed", opacity: form.title.trim() ? 1 : 0.5, transition: "all 0.2s" }}>Continue to Priority →</button>
+        </>)}
+
+        {/* STEP 2: Priority & deadline */}
+        {wizardStep === 2 && (<>
+          <div className="hub-priority-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div>
+              <label style={labelStyle}>Priority</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {Object.entries(PRIORITIES).map(([key, p]) => (
+                  <button key={key} onClick={() => update("priority", key)} style={{ flex: 1, padding: "10px 4px", borderRadius: 10, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", background: form.priority === key ? p.bg : "var(--bg-input)", border: "2px solid " + (form.priority === key ? p.color : "var(--border)"), color: form.priority === key ? p.color : "var(--text-muted)" }}>
+                    <span style={{ display: "block", fontSize: 16, marginBottom: 2 }}>{p.icon}</span>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>Turnaround: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{SLA_TARGETS[form.priority]?.label || "N/A"}</strong></div>
             </div>
-          )}
-        </div>
+            <div>
+              <label style={labelStyle}>Deadline</label>
+              <input type="date" min={today} style={{ ...inputStyle(null), cursor: "pointer" }} value={form.deadline} onChange={(e) => update("deadline", e.target.value)} />
+            </div>
+          </div>
 
-        {/* Submit button */}
-        {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
-        <button onClick={handleSubmit} disabled={submitting || !ready} style={{ width: "100%", padding: "16px", background: ready ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 800, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", transition: "all 0.3s", letterSpacing: "0.02em", boxShadow: ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none", opacity: ready ? 1 : 0.5, transform: "translateY(0)" }} onMouseOver={(e) => { if (ready) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(35,29,104,0.3)"; } }} onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none"; }}>
-          {submitting ? "Submitting..." : "Submit Request →"}
-        </button>); })()}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={function() { setWizardStep(1); }} style={{ flex: 1, padding: "14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>← Back</button>
+            <button onClick={function() { setWizardStep(3); }} style={{ flex: 2, padding: "14px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Continue to Details →</button>
+          </div>
+        </>)}
+
+        {/* STEP 3: Description & files */}
+        {wizardStep === 3 && (<>
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Description <span style={{ color: "#dc2626" }}>*</span></label>
+            <div style={{ display: "flex", gap: 2, padding: "4px 6px", background: "var(--bg-input)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "10px 10px 0 0", marginTop: 2 }}>
+              {[{ label: "B", md: "**", title: "Bold" }, { label: "I", md: "*", title: "Italic" }, { label: "<>", md: "`", title: "Code" }, { label: "\u2014", md: "\n- ", title: "Bullet list" }, { label: "\uD83D\uDD17", md: "[", title: "Link" }].map((btn) => (
+                <button key={btn.label} type="button" title={btn.title} onClick={() => {
+                  const ta = document.querySelector("textarea[placeholder*='Describe']");
+                  if (!ta) return;
+                  const start = ta.selectionStart, end = ta.selectionEnd, sel = form.description.slice(start, end);
+                  let ins;
+                  if (btn.md === "[") ins = "[" + (sel || "link text") + "](url)";
+                  else if (btn.md === "\n- ") ins = "\n- " + (sel || "item");
+                  else ins = btn.md + (sel || btn.title.toLowerCase()) + btn.md;
+                  const next = form.description.slice(0, start) + ins + form.description.slice(end);
+                  update("description", next);
+                  setTimeout(() => { ta.focus(); ta.setSelectionRange(start + ins.length, start + ins.length); }, 0);
+                }} style={{ padding: "3px 8px", borderRadius: 4, border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: btn.label === "B" ? 700 : btn.label === "I" ? 400 : 500, fontStyle: btn.label === "I" ? "italic" : "normal", cursor: "pointer", fontFamily: btn.label === "<>" ? "monospace" : "inherit", lineHeight: 1.2 }} onMouseOver={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseOut={(e) => e.currentTarget.style.background = "transparent"}>{btn.label}</button>
+              ))}
+            </div>
+            <textarea rows={5} style={{ ...inputStyle("description"), resize: "vertical", fontFamily: "inherit", borderRadius: "0 0 10px 10px" }} placeholder="Describe what you need — include any relevant details, links, or specs..." value={form.description} onChange={(e) => update("description", e.target.value)} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = errors.description ? "#ef4444" : "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            {errors.description && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 3, display: "block" }}>{errors.description}</span>}
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={labelStyle}>Attachments <span style={{ fontWeight: 400, opacity: 0.6 }}>(max 5 files)</span></label>
+            <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={handleFiles} />
+            <button onClick={() => fileRef.current?.click()} style={{ padding: "12px 18px", background: "var(--bg-input)", border: "2px dashed var(--border)", borderRadius: 10, color: "var(--text-muted)", cursor: "pointer", fontSize: 13, transition: "all 0.2s", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.background = "var(--brand-light)"; e.currentTarget.style.borderColor = "var(--brand)"; e.currentTarget.style.color = "var(--brand)"; }} onMouseOut={(e) => { e.currentTarget.style.background = "var(--bg-input)"; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}>
+              <Upload size={14} style={{display:"inline",verticalAlign:"-2px"}} /> Click to attach files
+            </button>
+            {form.files.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                {form.files.map((f, i) => <FileChip key={i} name={f.name} onRemove={() => removeFile(i)} />)}
+              </div>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div style={{ padding: "12px 16px", background: "var(--bg-input)", borderRadius: 10, marginBottom: 18, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>{form.title}</div>
+            <div>Priority: <strong style={{ color: PRIORITIES[form.priority]?.color }}>{PRIORITIES[form.priority]?.label}</strong> · Deadline: {form.deadline || "None set"}</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={function() { setWizardStep(2); }} style={{ flex: 1, padding: "14px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>← Back</button>
+            {(() => { const ready = (currentUser || form.name.trim()) && form.title.trim() && form.description.trim(); return (
+            <button onClick={handleSubmit} disabled={submitting || !ready} style={{ flex: 2, padding: "14px", background: ready ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 800, cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed", opacity: ready ? 1 : 0.5, boxShadow: ready ? "0 6px 20px rgba(35,29,104,0.25)" : "none" }}>
+              {submitting ? "Submitting..." : "Submit Request →"}
+            </button>); })()}
+          </div>
+        </>)}
       </div>
     </div>
   );
@@ -941,7 +959,37 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
         </div>
       )}
 
-      {!submittedRef && <PageHeader icon={<Search size={22} />} title="Track a Ticket" subtitle="Enter your ticket reference to check its status" gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" />}
+      {!submittedRef && <PageHeader icon={<Search size={22} />} title="Track a Ticket" subtitle={currentUser ? "Your submitted tickets" : "Enter your ticket reference to check its status"} gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" />}
+
+      {/* My tickets list for logged-in users */}
+      {currentUser && !submittedRef && !trackRef.trim() && (() => {
+        const myTickets = tickets.filter((t) => t.name === currentUser.name || t.createdBy === currentUser.id).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        if (myTickets.length === 0) return <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-muted)", marginBottom: 16 }}><span style={{ fontSize: 40, display: "block", marginBottom: 8, opacity: 0.6 }}>📋</span><div style={{ fontSize: 14, fontWeight: 600 }}>No tickets submitted yet</div><div style={{ fontSize: 12, marginTop: 4 }}>When you submit a request, it will appear here.</div></div>;
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your Tickets ({myTickets.length})</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {myTickets.map((t) => {
+                const p = PRIORITIES[t.priority] || {};
+                const s = STATUS[t.status] || STATUS_FALLBACK;
+                const hasNew = t.notes && t.notes.length > 0 && t.notes.some((n) => n.author !== currentUser.name);
+                return (
+                  <div key={t.id} onClick={() => setTrackRef(t.id)} style={{ background: "var(--bg-card)", borderLeft: "4px solid " + (p.color || "#94a3b8"), borderRadius: 14, padding: "14px 18px", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)"; }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff", background: "var(--brand)", padding: "3px 10px", borderRadius: 8 }}>{t.id}</span>
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{s.label}</span>
+                      {hasNew && <span className="hub-breathe" style={{ width: 8, height: 8, borderRadius: 4, background: "#dc2626", flexShrink: 0 }}></span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {p.label || t.priority}{t.notes && t.notes.length > 0 ? " · " + t.notes.length + " comment" + (t.notes.length !== 1 ? "s" : "") : ""}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 20, marginBottom: 10 }}>Or search by reference</div>
+          </div>
+        );
+      })()}
 
       <div style={{ marginBottom: 16 }}>
         {!submittedRef && (
@@ -1044,35 +1092,45 @@ export function SubmitterView({ tickets, submittedRef, onAddNote, onBackToForm, 
                 </div>
               )}
 
-              {/* Comments */}
-              {ticket.notes && ticket.notes.length > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Comments & Updates</div>
-                  <div style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}>
-                  {ticket.notes.map((note, i) => (
-                    <div key={i} style={{ background: note.auto ? "var(--brand-light)" : "var(--bg-input)", border: "1px solid " + (note.auto ? "rgba(35,29,104,0.1)" : "var(--border)"), borderRadius: 8, padding: "10px 14px", marginBottom: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        {!note.auto && <span style={{ width: 22, height: 22, borderRadius: 11, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{note.author?.charAt(0)?.toUpperCase() || "?"}</span>}
-                        {note.auto && <span style={{ fontSize: 12 }}>{"\u2699\uFE0F"}</span>}
-                        <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : "var(--brand)" }}>{note.author}</span>
-                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                      <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
-                    </div>
-                  ))}
+              {/* Comments thread */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Comments & Updates {ticket.notes && ticket.notes.length > 0 && <span style={{ fontWeight: 500, color: "var(--text-muted)", textTransform: "none", letterSpacing: 0 }}>({ticket.notes.length})</span>}</div>
+                {(!ticket.notes || ticket.notes.length === 0) && <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)", fontSize: 12, background: "var(--bg-input)", borderRadius: 10, marginBottom: 10 }}>No comments yet. Add one below to start the conversation.</div>}
+                {ticket.notes && ticket.notes.length > 0 && (
+                  <div style={{ maxHeight: 350, overflowY: "auto", paddingRight: 4, marginBottom: 10, position: "relative", paddingLeft: 20 }}>
+                    <div style={{ position: "absolute", left: 7, top: 0, bottom: 0, width: 2, background: "var(--border)", borderRadius: 1 }}></div>
+                    {ticket.notes.map((note, i) => {
+                      var isMe = currentUser && note.author === currentUser.name;
+                      return (
+                        <div key={i} style={{ position: "relative", marginBottom: 10 }}>
+                          <div style={{ position: "absolute", left: -17, top: 6, width: 10, height: 10, borderRadius: 5, background: note.auto ? "#6366f1" : isMe ? "var(--brand)" : "#16a34a", border: "2px solid var(--bg-card)" }}></div>
+                          <div style={{ background: note.auto ? "rgba(99,102,241,0.05)" : isMe ? "rgba(35,29,104,0.04)" : "var(--bg-input)", borderRadius: 12, padding: "10px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                              {!note.auto && <span style={{ width: 22, height: 22, borderRadius: 11, background: isMe ? "var(--brand)" : "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>{note.author?.charAt(0)?.toUpperCase() || "?"}</span>}
+                              {note.auto && <span style={{ fontSize: 12 }}>{"\u2699\uFE0F"}</span>}
+                              <span style={{ fontSize: 12, fontWeight: 700, color: note.auto ? "#6366f1" : isMe ? "var(--brand)" : "#16a34a" }}>{note.author}{isMe ? " (you)" : ""}</span>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>{new Date(note.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5, fontStyle: note.auto ? "italic" : "normal" }}>{note.text}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add comment */}
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  {currentUser ? (
+                    <span style={{ width: 34, height: 34, borderRadius: 17, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
+                  ) : (
+                    <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 110, padding: "10px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, display: "flex", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: "4px 4px 4px 12px", alignItems: "center" }}>
+                    <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Write a comment..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 0", background: "transparent", border: "none", color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+                    <button onClick={submitNote} disabled={!noteText.trim()} style={{ padding: "8px 16px", background: noteText.trim() ? "linear-gradient(135deg, #231d68, #464B99)" : "var(--border)", border: "none", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: noteText.trim() ? "pointer" : "default", opacity: noteText.trim() ? 1 : 0.4, transition: "all 0.2s" }}>Send</button>
                   </div>
                 </div>
-              )}
-
-              {/* Add comment */}
-              <div style={{ display: "flex", gap: 8 }}>
-                {currentUser ? (
-                  <span style={{ width: 34, height: 34, borderRadius: 17, background: "var(--brand)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{currentUser.name?.charAt(0)?.toUpperCase()}</span>
-                ) : (
-                  <input value={noteName} onChange={(e) => setNoteName(e.target.value)} placeholder="Your name" style={{ width: 130, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
-                )}
-                <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a comment..." onKeyDown={(e) => { if (e.key === "Enter") submitNote(); }} style={{ flex: 1, padding: "8px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none" }} onFocus={(e) => { e.target.style.borderColor = "var(--brand)"; e.target.style.boxShadow = "0 0 0 3px var(--brand-glow)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
-                <button onClick={submitNote} style={{ padding: "8px 14px", background: "var(--brand)", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Send</button>
               </div>
             </div>
           );

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import jsPDF from "jspdf";
+import { LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { supabase } from "../supabaseClient.js";
 import { PRIORITIES, STATUS, ARCHIVE_TYPES, LEAD_SOURCES, SLA_TARGETS, TEMPLATES, getDueBadge, daysUntil, formatDate, renderMarkdown, getSlaStatus } from "../constants.js";
 import { BarChart3, PieChart, CalendarDays, FileText, ClipboardList, TrendingUp, Mail, Download, Database, Users, Shield, Clock, Megaphone, Pin, Activity, Lock, ChevronDown, Repeat, Pause, Play, Trash2, Edit, Plus, Target, CheckCircle2, AlertCircle, Library } from "lucide-react";
@@ -63,7 +64,32 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
   const slaMet = withSla.filter((t) => t.met).length;
   const slaPct = withSla.length > 0 ? Math.round(slaMet / withSla.length * 100) : 100;
 
-  const barChart = (data, maxV, color, vKey) => (<div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>{data.map((m, i) => (<div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><div style={{ width: "60%", background: color, borderRadius: "3px 3px 0 0", height: (m[vKey] / maxV * 80) + "px", minHeight: m[vKey] > 0 ? 4 : 0, opacity: 0.7 }}></div><span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600 }}>{m.label}</span></div>))}</div>);
+  const CHART_COLORS = ["#6366f1", "#0284c7", "#16a34a", "#ca8a04", "#dc2626", "#8b5cf6", "#ea580c", "#0d9488"];
+  const PIE_COLORS = { critical: "#dc2626", high: "#ca8a04", medium: "#0284c7", low: "#94a3b8", none: "#d1d5db" };
+
+  const barChart = (data, maxV, color, vKey) => (
+    <ResponsiveContainer width="100%" height={120}>
+      <BarChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 5 }}>
+        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+        <Bar dataKey={vKey} fill={color} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  const lineChart = (data, keys, colors) => (
+    <ResponsiveContainer width="100%" height={140}>
+      <LineChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} width={30} />
+        <Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+        {keys.map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={colors[i]} strokeWidth={2} dot={{ r: 3 }} />)}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
+  const pieData = Object.entries(pb).filter(([_, v]) => v > 0).map(([k, v]) => ({ name: PRIORITIES[k]?.label || k, value: v, color: PIE_COLORS[k] || "#94a3b8" }));
 
   const cmp = (a, b) => a > b ? { t: "+" + (a - b), c: "#16a34a" } : a < b ? { t: "" + (a - b), c: "#dc2626" } : { t: "—", c: "var(--text-muted)" };
 
@@ -145,8 +171,17 @@ export function AnalyticsPanel({ tickets, archiveEntries, leads, teamGoals, isAd
             <div><div style={st}>Turnaround by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, fontWeight: 600, color: p.color }}>{p.icon} {p.label}</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{pa[key]}</span></div>))}</div>
           </div>
           <div className="hub-analytics-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div><div style={st}>Active by Priority</div>{Object.entries(PRIORITIES).map(([key, p]) => (<div key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 11, fontWeight: 600, color: p.color, width: 60, flexShrink: 0 }}>{p.icon} {p.label}</span><div style={{ flex: 1, height: 8, background: "var(--bar-bg)", borderRadius: 4, overflow: "hidden" }}><div style={{ width: (pb[key] / mp * 100) + "%", height: "100%", background: p.color, borderRadius: 4 }}></div></div><span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-body)", width: 20, textAlign: "right" }}>{pb[key]}</span></div>))}</div>
+            <div><div style={st}>Active by Priority</div>{pieData.length > 0 ? <ResponsiveContainer width="100%" height={140}><RePieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={55} innerRadius={30} label={function(e){return e.name + ": " + e.value;}} labelLine={false} style={{ fontSize: 10 }}>{pieData.map(function(d, i) { return <Cell key={i} fill={d.color} />; })}</Pie><Tooltip contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} /></RePieChart></ResponsiveContainer> : <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)", fontSize: 12 }}>No active tickets</div>}</div>
             <div><div style={st}>Top Submitters</div>{topS.length === 0 ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>No tickets yet</p> : topS.slice(0, 5).map(([name, count]) => (<div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 12, color: "var(--text-body)" }}>{name}</span><span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "1px 8px", borderRadius: 10 }}>{count}</span></div>))}</div>
+          </div>
+          {/* Ticket trend line chart */}
+          <div style={{ marginTop: 16 }}>
+            <div style={st}>6-Month Ticket Trend</div>
+            {lineChart(mt, ["c", "done"], ["#6366f1", "#16a34a"])}
+            <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 6 }}>
+              <span style={{ fontSize: 10, color: "#6366f1", fontWeight: 600 }}>● Submitted</span>
+              <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>● Completed</span>
+            </div>
           </div>
           {/* Turnaround distribution */}
           {ct.length > 0 && (() => {
@@ -1243,6 +1278,93 @@ export function TeamGoals({ goals, isAdmin, onSave, onDelete, tickets, archiveEn
 }
 
 
+export function MonthlySummary({ tickets, leads, archiveEntries, testimonials, stockroomItems }) {
+  var now = new Date();
+  var [month, setMonth] = useState(now.getMonth());
+  var [year, setYear] = useState(now.getFullYear());
+
+  var som = new Date(year, month, 1);
+  var eom = new Date(year, month + 1, 0, 23, 59, 59);
+  var monthLabel = som.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+  var prev = function() { if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1); };
+  var next = function() { if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1); };
+
+  var inRange = function(dateStr) { var d = new Date(dateStr); return d >= som && d <= eom; };
+
+  var mTickets = (tickets || []).filter(function(t) { return inRange(t.created_at); });
+  var mCompleted = (tickets || []).filter(function(t) { return t.completedAt && inRange(t.completedAt); });
+  var mArchive = (archiveEntries || []).filter(function(e) { return inRange(e.date || e.created_at); });
+  var mLeads = (leads || []).filter(function(l) { return inRange(l.created_at); });
+  var mTestimonials = (testimonials || []).filter(function(t) { return inRange(t.submitted_date || t.created_at); });
+  var mStockroom = (stockroomItems || []).filter(function(i) { return inRange(i.created_at); });
+  var mEmails = mArchive.filter(function(e) { return e.type === "email"; });
+  var mSocial = mArchive.filter(function(e) { return e.type === "social" || e.type === "social_post"; });
+
+  var exportHTML = function() {
+    var html = '<html><head><meta charset="utf-8"><title>Alps Marketing - ' + monthLabel + '</title><style>body{font-family:-apple-system,sans-serif;max-width:700px;margin:40px auto;color:#1e1b4b;padding:20px;}h1{font-size:24px;margin:0 0 4px;}p.sub{color:#666;font-size:13px;margin:0 0 28px;}.stats{display:flex;gap:12px;margin-bottom:28px;}.stat{flex:1;background:#f8f7ff;border-radius:14px;padding:18px;text-align:center;}.stat-val{font-size:32px;font-weight:800;}.stat-label{font-size:11px;color:#666;margin-top:4px;}.section{margin-bottom:24px;}.section h3{font-size:14px;color:#4338ca;margin:0 0 8px;border-bottom:2px solid #e8e5ff;padding-bottom:6px;}.item{padding:6px 0;font-size:13px;border-bottom:1px solid #f0f0f0;}.footer{margin-top:36px;padding-top:16px;border-top:2px solid #e8e5ff;font-size:11px;color:#999;}</style></head><body>';
+    html += '<h1>Alps Marketing - Monthly Summary</h1>';
+    html += '<p class="sub">' + monthLabel + '</p>';
+    html += '<div class="stats">';
+    html += '<div class="stat"><div class="stat-val" style="color:#6366f1">' + mTickets.length + '</div><div class="stat-label">Tickets Raised</div></div>';
+    html += '<div class="stat"><div class="stat-val" style="color:#16a34a">' + mCompleted.length + '</div><div class="stat-label">Completed</div></div>';
+    html += '<div class="stat"><div class="stat-val" style="color:#8b5cf6">' + mArchive.length + '</div><div class="stat-label">Published</div></div>';
+    html += '<div class="stat"><div class="stat-val" style="color:#0d9488">' + mLeads.length + '</div><div class="stat-label">Leads</div></div>';
+    html += '</div>';
+    if (mCompleted.length > 0) { html += '<div class="section"><h3>Completed Tickets (' + mCompleted.length + ')</h3>'; mCompleted.forEach(function(t) { html += '<div class="item">' + (t.ref || t.id) + ' - ' + t.title + '</div>'; }); html += '</div>'; }
+    if (mEmails.length > 0) { html += '<div class="section"><h3>Email Campaigns (' + mEmails.length + ')</h3>'; mEmails.forEach(function(e) { html += '<div class="item">' + e.title + '</div>'; }); html += '</div>'; }
+    if (mSocial.length > 0) { html += '<div class="section"><h3>Social Posts (' + mSocial.length + ')</h3>'; mSocial.forEach(function(e) { html += '<div class="item">' + e.title + '</div>'; }); html += '</div>'; }
+    if (mLeads.length > 0) { html += '<div class="section"><h3>Leads (' + mLeads.length + ')</h3>'; mLeads.forEach(function(l) { html += '<div class="item">' + (l.company || l.name || "Unknown") + ' - ' + (l.source || "") + '</div>'; }); html += '</div>'; }
+    if (mTestimonials.length > 0) { html += '<div class="section"><h3>Testimonials (' + mTestimonials.length + ')</h3>'; mTestimonials.forEach(function(t) { html += '<div class="item">' + t.name + ' (' + t.broker + ')</div>'; }); html += '</div>'; }
+    html += '<div class="footer">Generated from Alps Marketing Hub</div></body></html>';
+    var blob = new Blob([html], { type: "text/html" }); var url = URL.createObjectURL(blob); var link = document.createElement("a"); link.href = url; link.download = "alps-monthly-" + monthLabel.replace(/\s/g, "-").toLowerCase() + ".html"; link.click();
+  };
+
+  var copyText = function() {
+    var text = "ALPS MARKETING - MONTHLY SUMMARY\n" + monthLabel + "\n\n";
+    text += "OVERVIEW\n";
+    text += "Tickets Raised: " + mTickets.length + "\nCompleted: " + mCompleted.length + "\nContent Published: " + mArchive.length + "\nLeads: " + mLeads.length + "\nTestimonials: " + mTestimonials.length + "\n\n";
+    if (mCompleted.length > 0) { text += "COMPLETED TICKETS\n"; mCompleted.forEach(function(t) { text += "- " + (t.ref || t.id) + " " + t.title + "\n"; }); text += "\n"; }
+    if (mArchive.length > 0) { text += "CONTENT PUBLISHED\n"; mArchive.forEach(function(e) { text += "- " + e.title + " (" + (e.type || "other") + ")\n"; }); text += "\n"; }
+    if (mLeads.length > 0) { text += "LEADS\n"; mLeads.forEach(function(l) { text += "- " + (l.company || l.name || "Unknown") + "\n"; }); }
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 900 }}>
+      <PageHeader icon={<CalendarDays size={22} />} title="Monthly Summary" subtitle={monthLabel} gradient="linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)" action={<div style={{ display: "flex", gap: 6 }}><button onClick={exportHTML} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Export HTML</button><button onClick={copyText} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Copy Text</button></div>} stats={[{ label: "Tickets Raised", value: mTickets.length, color: "#6366f1" }, { label: "Completed", value: mCompleted.length, color: "#16a34a" }, { label: "Published", value: mArchive.length, color: "#8b5cf6" }, { label: "Leads", value: mLeads.length, color: "#0d9488" }]} />
+
+      {/* Month nav */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 24 }}>
+        <button onClick={prev} style={{ padding: "8px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>← Previous</button>
+        <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{monthLabel}</span>
+        <button onClick={next} disabled={month === now.getMonth() && year === now.getFullYear()} style={{ padding: "8px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: month === now.getMonth() && year === now.getFullYear() ? 0.3 : 1 }}>Next →</button>
+      </div>
+
+      {/* Sections */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Completed Tickets ({mCompleted.length})</div>
+          {mCompleted.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None this month</div> : mCompleted.map(function(t) { return <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontFamily: "monospace", fontSize: 10, fontWeight: 700, color: "var(--brand)", background: "var(--brand-light)", padding: "2px 6px", borderRadius: 4 }}>{t.ref || t.id}</span><span style={{ fontSize: 12, color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span></div>; })}
+        </div>
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Content Published ({mArchive.length})</div>
+          {mArchive.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None this month</div> : mArchive.map(function(e) { return <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border)" }}><span style={{ fontSize: 14 }}>{(ARCHIVE_TYPES[e.type] || {}).icon || "📄"}</span><span style={{ fontSize: 12, color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span></div>; })}
+        </div>
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#0d9488", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Leads ({mLeads.length})</div>
+          {mLeads.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None this month</div> : mLeads.map(function(l) { return <div key={l.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 12, color: "var(--text-primary)" }}>{l.company || l.name || "Unknown"} <span style={{ color: "var(--text-muted)" }}>via {l.source}</span></div>; })}
+        </div>
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#ca8a04", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Testimonials ({mTestimonials.length})</div>
+          {mTestimonials.length === 0 ? <div style={{ fontSize: 12, color: "var(--text-muted)" }}>None this month</div> : mTestimonials.map(function(t) { return <div key={t.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 12, color: "var(--text-primary)" }}>{t.name} <span style={{ color: "var(--text-muted)" }}>({t.broker})</span></div>; })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
   const [weekNav, setWeekNav] = useState(0);
   const [weekReviewed, setWeekReviewed] = useState(false);
@@ -1308,7 +1430,14 @@ export function WeeklyReport({ tickets, leads, archiveEntries, isAdmin }) {
         if (weekSocial.length > 0) { html += '<div class="section"><h3>Social Posts</h3>'; weekSocial.forEach(function(x) { html += '<div class="item">' + x.title + '</div>'; }); html += '</div>'; }
         html += '<div class="footer">Generated from Alps Marketing Hub</div></body></html>';
         var blob = new Blob([html], { type: 'text/html' }); var url = URL.createObjectURL(blob); var link = document.createElement('a'); link.href = url; link.download = 'weekly-report-' + fmt(viewMon).replace(/\s/g,'-') + '.html'; link.click();
-      }} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Export Report</button>} />
+      }} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Export Report</button><button onClick={function() {
+        var text = "ALPS MARKETING - WEEKLY REPORT\n" + "Week of " + fmt(viewMon) + " - " + fmt(viewSun) + "\n\n";
+        text += "SUMMARY\n"; text += "Leads: " + weekLeads.length + " | Social: " + weekSocial.length + " | Emails: " + weekEmails.length + " | Completed: " + weekCompleted.length + "\n\n";
+        if (weekCompleted.length > 0) { text += "COMPLETED TICKETS\n"; weekCompleted.forEach(function(x) { text += "- " + (x.ref || "") + " " + x.title + "\n"; }); text += "\n"; }
+        if (weekEmails.length > 0) { text += "EMAIL CAMPAIGNS\n"; weekEmails.forEach(function(x) { text += "- " + x.title + "\n"; }); text += "\n"; }
+        if (weekSocial.length > 0) { text += "SOCIAL POSTS\n"; weekSocial.forEach(function(x) { text += "- " + x.title + "\n"; }); }
+        navigator.clipboard.writeText(text); var btn = event.target; btn.textContent = "Copied!"; setTimeout(function() { btn.textContent = "Copy Text"; }, 2000);
+      }} style={{ padding: "9px 16px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", marginLeft: 6 }}>Copy Text</button></div>} />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <button onClick={() => setWeekNav(weekNav - 1)} style={{ padding: "8px 18px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--text-secondary)" }}>← Previous Week</button>

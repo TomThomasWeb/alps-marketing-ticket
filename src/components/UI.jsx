@@ -175,6 +175,7 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
             { id: "stockroom", icon: "\uD83D\uDCE6", label: "Content Stockroom", desc: pendingStock > 0 ? pendingStock + " pending" : "Submit ideas", color: "#0d9488", needLogin: true },
             { id: "testimonials", icon: "\u2B50", label: "Testimonials", desc: "Broker feedback", color: "#ca8a04", needLogin: true },
             { id: "brand_assets", icon: "\uD83C\uDFA8", label: "Brand Assets", desc: "Colours, logos, fonts", color: "#20A39E", needLogin: true },
+            { id: "my_week", icon: "\uD83D\uDCC5", label: "My Week", desc: "Your personal dashboard", color: "#6366f1", needLogin: true },
             { id: "qr_generator", icon: "\uD83D\uDCF1", label: "QR Generator", desc: "Create QR codes", color: "#0284c7" },
           ].filter(function(c) { return !c.needLogin || currentUser; }).map(function(card) {
             return (
@@ -240,6 +241,89 @@ export function HubHome({ onNavigate, tickets, dashUnlocked, isAdmin, leads, not
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>Get more from the Hub</div>
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Create a free account to access the full Marketing Hub.</div>
           <button onClick={function() { onNavigate("signup"); }} style={{ padding: "12px 28px", background: "linear-gradient(135deg, #231d68, #464B99)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Sign Up Free</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function MyWeek({ tickets, archiveEntries, stockroomItems, currentUser, onNavigate }) {
+  var now = new Date();
+  var sow = new Date(now); sow.setDate(now.getDate() - now.getDay() + 1); sow.setHours(0, 0, 0, 0);
+  var eow = new Date(sow); eow.setDate(eow.getDate() + 6); eow.setHours(23, 59, 59);
+  var name = currentUser ? currentUser.name : "";
+
+  var inWeek = function(d) { var dt = new Date(d); return dt >= sow && dt <= eow; };
+
+  var safeT = Array.isArray(tickets) ? tickets : [];
+  var safeA = Array.isArray(archiveEntries) ? archiveEntries : [];
+  var safeS = Array.isArray(stockroomItems) ? stockroomItems : [];
+
+  var myActive = safeT.filter(function(t) { return t.status !== "completed" && (t.name === name || t.createdBy === (currentUser && currentUser.id)); });
+  var myCompleted = safeT.filter(function(t) { return t.status === "completed" && t.completedAt && inWeek(t.completedAt) && (t.name === name || t.createdBy === (currentUser && currentUser.id)); });
+  var mySubmitted = safeT.filter(function(t) { return inWeek(t.created_at) && (t.name === name || t.createdBy === (currentUser && currentUser.id)); });
+  var myStockroom = safeS.filter(function(i) { return inWeek(i.created_at) && i.submitted_by === name; });
+  var weekArchive = safeA.filter(function(e) { return inWeek(e.date || e.created_at); });
+
+  var weekLabel = sow.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " - " + eow.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  return (
+    <div style={{ width: "100%", maxWidth: 900 }}>
+      <PageHeader icon={<CalendarDays size={22} />} title="My Week" subtitle={weekLabel} gradient="linear-gradient(135deg, #231d68 0%, #464B99 100%)" stats={[{ label: "Active Tickets", value: myActive.length, color: myActive.length > 0 ? "#ca8a04" : "#16a34a" }, { label: "Submitted", value: mySubmitted.length, color: "#6366f1" }, { label: "Completed", value: myCompleted.length, color: "#16a34a" }, { label: "Content Added", value: myStockroom.length, color: "#0d9488" }]} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* Active tickets */}
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#ca8a04", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active Tickets</div>
+            <button onClick={function() { onNavigate("tracker"); }} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View All</button>
+          </div>
+          {myActive.length === 0 ? <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No active tickets this week</div> : myActive.map(function(t) {
+            var p = (typeof PRIORITIES !== "undefined" && PRIORITIES[t.priority]) || {};
+            return <div key={t.id} onClick={function() { onNavigate("tracker"); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--border)", cursor: "pointer" }}>
+              <span style={{ fontFamily: "monospace", fontSize: 10, fontWeight: 700, color: "#fff", background: "var(--brand)", padding: "2px 6px", borderRadius: 4 }}>{t.id}</span>
+              <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+              <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: p.bg || "#eee", color: p.color || "#666" }}>{p.label || t.priority}</span>
+            </div>;
+          })}
+        </div>
+
+        {/* Completed this week */}
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Completed This Week</div>
+          {myCompleted.length === 0 ? <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>Nothing completed yet this week</div> : myCompleted.map(function(t) {
+            return <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 14, color: "#16a34a" }}>{"\u2713"}</span>
+              <span style={{ flex: 1, fontSize: 12, color: "var(--text-primary)" }}>{t.title}</span>
+            </div>;
+          })}
+        </div>
+      </div>
+
+      {/* Week's content output */}
+      <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.05em" }}>This Week's Content ({weekArchive.length})</div>
+          <button onClick={function() { onNavigate("archive"); }} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>View Archive</button>
+        </div>
+        {weekArchive.length === 0 ? <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No content published this week yet</div> : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+            {weekArchive.map(function(e) {
+              var at = (typeof ARCHIVE_TYPES !== "undefined" && ARCHIVE_TYPES[e.type]) || {};
+              return <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "var(--bg-input)", borderRadius: 10, borderLeft: "3px solid " + (at.color || "#8b5cf6") }}>
+                <span style={{ fontSize: 16 }}>{at.icon || "📄"}</span>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>{at.label || e.type}</div></div>
+              </div>;
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Stockroom submissions */}
+      {myStockroom.length > 0 && (
+        <div style={{ background: "var(--bg-card)", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#0d9488", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Your Content Submissions ({myStockroom.length})</div>
+          {myStockroom.map(function(i) { return <div key={i.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 12, color: "var(--text-primary)" }}>{i.title}</div>; })}
         </div>
       )}
     </div>
