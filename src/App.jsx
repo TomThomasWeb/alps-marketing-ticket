@@ -897,7 +897,7 @@ const handleAddComment = async (id, author, text) => {
         <SidebarGroup id="tickets" label="Tickets">
           <SidebarLink id="form" label="Submit Request" />
           <SidebarLink id="tracker" label="Track Ticket" />
-          {isAdmin && <SidebarLink id="meeting_todos", "my_week" label="Meeting To-Dos" />}
+          {isAdmin && <SidebarLink id="meeting_todos" label="Meeting To-Dos" />}
           <SidebarLink id="my_week" label="My Week" iconColor="#6366f1" />
           <SidebarLink id="lead_form" label="Log a Lead" iconColor="#0d9488" />
         </SidebarGroup>
