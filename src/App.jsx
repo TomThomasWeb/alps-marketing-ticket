@@ -1323,7 +1323,7 @@ const handleAddComment = async (id, author, text) => {
           <AlpsGallery images={galleryImages} isAdmin={isAdmin} onUpload={handleGalleryUpload} onDelete={handleGalleryDelete} />
         ) : view === "stockroom" ? (
           <ContentStockroom items={stockroomItems} currentUser={currentUser} isAdmin={isAdmin} onAdd={handleStockroomAdd} onUpdateStatus={handleStockroomStatus} onDelete={handleStockroomDelete} />
-        ) : view === "meeting_todos", "my_week" ? (
+        ) : view === "meeting_todos" ? (
           <MeetingTodos onBulkCreate={handleBulkCreate} currentUser={currentUser} />
         ) : view === "profile" ? (
           <ProfilePage currentUser={currentUser} tickets={tickets} leads={leads} archiveEntries={archiveEntries} onNavigate={(v) => setView(v)} onAddComment={handleAddComment} notifications={notifications} onUpdateUser={handleUpdateUser} hubUsers={hubUsers} />
